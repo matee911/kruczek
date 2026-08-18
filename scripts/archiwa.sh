@@ -15,7 +15,7 @@ case "$MODE" in
   save)
     echo "Archiwizuję: $URL"
     RESP=$(curl -sI "https://web.archive.org/save/${URL}" 2>&1)
-    LOCATION=$(echo "$RESP" | grep -i '^Content-Location:' | tr -d '\r' | awk '{print $2}')
+    LOCATION=$(echo "$RESP" | grep -i '^location:' | tr -d '\r' | awk '{print $2}')
     if [ -n "$LOCATION" ]; then
       TS=$(echo "$LOCATION" | grep -oE '[0-9]{14}' | head -1)
       echo "OK: https://web.archive.org/web/${TS}/${URL}"
