@@ -1,17 +1,48 @@
 #!/usr/bin/env bash
-# podmiot.sh — ustalanie tożsamości przeciwnika z otwartych rejestrów. Bez kluczy API.
+# podmiot.sh — ustalanie tożsamości drugiej strony z otwartych rejestrów.
 #
 #   podmiot.sh nip 5252344078        — Biała lista VAT (MF): nazwa, REGON, KRS, adres, rachunki
 #   podmiot.sh krs 0000240611 [P|S]  — Odpis aktualny z KRS (P=przedsiębiorcy, S=stowarzyszenia)
+#   podmiot.sh ceidg 5252344078      — CEIDG API v3: pełne dane JDG (imię, nazwisko, adres zam.)
 #   podmiot.sh domena example.pl     — RDAP: rejestrator, abonent, daty, nameservery (.pl przez NASK)
 #   podmiot.sh strona https://x.pl   — nagłówki HTTP + łańcuch przekierowań (dowód na rotację domen)
-#   podmiot.sh pelny 5252344078      — nip -> (jeśli jest KRS) krs, jednym ciągiem
+#   podmiot.sh pelny 5252344078      — nip -> (jeśli jest KRS) krs -> (jeśli JDG) ceidg, jednym ciągiem
+#
+# CEIDG API v3 wymaga tokenu Bearer. Uzyskaj go raz:
+#   https://biznes.gov.pl/pl/e-uslugi/00_9999_00 → START → Profil Zaufany → wypełnij wniosek
+#   Token przychodzi mailem w ciągu kilku minut. Zapisz w ~/.kruczek/ceidg_token lub ustaw
+#   zmienną środowiskową CEIDG_TOKEN przed wywołaniem skryptu.
 #
 # Ograniczenia (stan 08.2026):
-#   CEIDG API v3 wymaga tokenu Bearer — brak wsparcia.
 #   .eu nie ma publicznego RDAP/WHOIS po HTTP (EURid za anty-botem).
 set -euo pipefail
 today=$(date +%F)
+
+_ceidg_token() {
+  if [ -n "${CEIDG_TOKEN:-}" ]; then
+    echo "$CEIDG_TOKEN"
+  elif [ -f ~/.kruczek/ceidg_token ]; then
+    cat ~/.kruczek/ceidg_token
+  else
+    echo ""
+  fi
+}
+
+ceidg() {
+  local n="${1//[^0-9]/}"
+  local token; token=$(_ceidg_token)
+  if [ -z "$token" ]; then
+    echo "BRAK TOKENU CEIDG. Uzyskaj go na: https://biznes.gov.pl/pl/e-uslugi/00_9999_00"
+    echo "Zapisz w ~/.kruczek/ceidg_token lub ustaw CEIDG_TOKEN=... przed wywołaniem."
+    exit 1
+  fi
+  curl -sSfL --max-time 30 \
+    -H "Authorization: Bearer $token" \
+    "https://dane.biznes.gov.pl/api/ceidg/v3/raport?nip=${n}" \
+  | jq '{imie, nazwisko, nip, regon, adresZamieszkania, adresDzialalnosci,
+         dataPoczatkuDzialalnosci, dataZawieszenia, dataWznowienia, dataWykreslenia,
+         statusDzialalnosci, pkd}'
+}
 
 nip() {
   local n="${1//[^0-9]/}"
@@ -52,12 +83,29 @@ strona() {
 case "${1:-}" in
   nip)    nip "$2" ;;
   krs)    krs "$2" "${3:-P}" ;;
+  ceidg)  ceidg "$2" ;;
   domena) domena "$2" ;;
   strona) strona "$2" ;;
   pelny)
-    echo "### Biała lista VAT"; nip "$2" | tee /tmp/.kruczek_nip.json
-    k=$(jq -r '.krs // empty' /tmp/.kruczek_nip.json)
-    if [ -n "$k" ] && [ "$k" != "null" ]; then echo; echo "### KRS $k"; krs "$k" P; else echo; echo "(brak numeru KRS — prawdopodobnie JDG lub spółka cywilna; wspólników ustal z innych źródeł)"; fi
-    rm -f /tmp/.kruczek_nip.json ;;
-  *) sed -n '2,18p' "$0"; exit 1 ;;
+    nip_out=$(nip "$2")
+    echo "### Biała lista VAT"
+    printf '%s\n' "$nip_out"
+    k=$(printf '%s\n' "$nip_out" | jq -r '.krs // empty')
+    if [ -n "$k" ]; then
+      echo
+      echo "### KRS $k"
+      krs "$k" P
+    else
+      echo
+      echo "(brak numeru KRS — prawdopodobnie JDG)"
+      token=$(_ceidg_token)
+      if [ -n "$token" ]; then
+        echo
+        echo "### CEIDG (JDG)"
+        ceidg "$2"
+      else
+        echo "(brak tokenu CEIDG — dla pełnych danych JDG uzyskaj token: https://biznes.gov.pl/pl/e-uslugi/00_9999_00)"
+      fi
+    fi ;;
+  *) sed -n '2,22p' "$0"; exit 1 ;;
 esac

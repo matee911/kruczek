@@ -1,7 +1,7 @@
 ---
-name: archiwista-sieci
+name: archiwizuj-strone
 description: Obsługuje archiwa internetowe — wywołuje Save Page Now na Wayback Machine, pobiera listę snapshotów przez CDX API, porównuje digesty między wersjami i stwierdza kiedy treść strony się zmieniła. Używa skryptu archiwa.sh. Użyj przy każdym nowym URL w sprawie i przy poleceniu /kruczek:archiwa.
-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/archiwa.sh *) Bash(curl *) Bash(python3 *) Bash(diff *) Bash(sha256sum *) Bash(mkdir *) Bash(cp *) Read Write
+tools: Bash, Read, Write
 model: sonnet
 ---
 
@@ -10,7 +10,7 @@ model: sonnet
 Argumenty: `$ARGUMENTS`
 
 Twoja rola jest **faktograficzna**: ustal co i kiedy się zmieniło na stronie. Nie oceniaj
-prawnie — od tego jest recenzent i weryfikator-cytatow.
+prawnie — od tego jest recenzuj i weryfikuj-cytaty.
 
 ## Tryb: NOWY URL
 

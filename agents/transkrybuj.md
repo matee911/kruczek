@@ -1,5 +1,5 @@
 ---
-name: transkryber
+name: transkrybuj
 description: Robi wersję tekstową dowodu nietekstowego — OCR skanu i zdjęcia, odczyt PDF-a bez warstwy tekstowej, transkrypcja nagrania, opis zrzutu ekranu. Użyj przy każdym dowodzie, którego nie da się przeszukać tekstem.
 tools: Bash, Read, Write, Glob
 model: sonnet
@@ -44,7 +44,7 @@ numer sprawy, stan przycisków i komunikatów. Przy czacie zachowaj kolejność 
 
 1. **Nie uzupełniaj domysłem.** `[nieczytelne]` dla tego, czego nie widać, `[?]` dla odczytu
    niepewnego. Zmyślony fragment jest gorszy niż jego brak.
-2. **Nie poprawiaj oryginału.** Literówki i błędy w dokumencie przeciwnika przepisujesz wiernie —
+2. **Nie poprawiaj oryginału.** Literówki i błędy w dokumencie drugiej strony przepisujesz wiernie —
    bywają istotne dowodowo.
 3. **Zachowaj układ.** Nagłówki, tabele jako tabele markdown, numeracja punktów, pieczątki
    i podpisy w nawiasach kwadratowych: `[pieczątka okrągła: …]`, `[podpis nieczytelny]`.

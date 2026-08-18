@@ -17,11 +17,12 @@
 #   * baza SAOS bywa nieaktualna dla części sądów (dużo kończy się ok. 2018 r.) — zawsze
 #     sprawdź datę i nie zakładaj kompletności
 set -euo pipefail
-enc() { printf %s "$1" | jq -sRr @uri; }
+# shellcheck source=lib.sh
+source "$(dirname "$0")/lib.sh"
 
 case "${1:-}" in
   saos)
-    curl -sSfL --max-time 60 "https://www.saos.org.pl/api/search/judgments?all=$(enc "$2")&pageSize=20&pageNumber=${3:-0}" \
+    curl -sSfL --max-time 60 "https://www.saos.org.pl/api/search/judgments?all=$(urlencode "$2")&pageSize=20&pageNumber=${3:-0}" \
     | jq '{found: .info.totalResults, items: [.items[] | {id, courtType, judgmentType, judgmentDate,
             sygnatury: [.courtCases[].caseNumber], sad: (.division.court.name // .chamber.name // null)}]}'
     ;;
@@ -31,11 +32,11 @@ case "${1:-}" in
            przepisy:[.data.referencedRegulations[]?.journalTitle], tekst:.data.textContent}'
     ;;
   saos-przepis)
-    curl -sSfL --max-time 60 "https://www.saos.org.pl/api/search/judgments?lawJournalEntryCode=$(enc "$2")&pageSize=20" \
+    curl -sSfL --max-time 60 "https://www.saos.org.pl/api/search/judgments?lawJournalEntryCode=$(urlencode "$2")&pageSize=20" \
     | jq '{found: .info.totalResults, items: [.items[] | {id, judgmentDate, sygnatury:[.courtCases[].caseNumber]}]}'
     ;;
   uodo)
-    curl -sSfL --max-time 60 "https://orzeczenia.uodo.gov.pl/api/documents/search/PublicDocument/,/content_pl:glob:*$(enc "$2")*?order=-id&fields=refname,refid,date_publication,title_pl&count=25" \
+    curl -sSfL --max-time 60 "https://orzeczenia.uodo.gov.pl/api/documents/search/PublicDocument/,/content_pl:glob:*$(urlencode "$2")*?order=-id&fields=refname,refid,date_publication,title_pl&count=25" \
     | jq '[.. | objects | select(has("refname")) | {sygnatura: .refname, refid, data: .date_publication, tytul: .title_pl}]'
     ;;
   uodo-tresc)

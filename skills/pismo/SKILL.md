@@ -74,7 +74,7 @@ ${CLAUDE_PLUGIN_ROOT}/scripts/eli.sh szukaj "<tytuł ustawy>"
 ${CLAUDE_PLUGIN_ROOT}/scripts/eli.sh obowiazuje DU <rok> <poz>
 ${CLAUDE_PLUGIN_ROOT}/scripts/eli.sh ujednolicony DU <rok> <poz>
 ```
-Przy większym researchu zleć równolegle `zrodlo-prawa` i `researcher-orzecznictwa`.
+Przy większym researchu zleć równolegle `pobierz-przepis` i `szukaj-orzeczen`.
 
 **Sprawdź, czy przepis nadal obowiązuje.** Polskie prawo bywa uchylane hurtowo, a poradniki
 w internecie zostają na lata. Przepis uchylony w piśmie kompromituje całość.
@@ -96,7 +96,7 @@ wyjaśnienia („wzywam do wskazania, czy…"), nigdy jako twierdzenie.
 
 ## 5. Napisz
 
-Przy złożonej subsumpcji zleć subagentowi `redaktor-pism` (opus).
+Przy złożonej subsumpcji zleć subagentowi `napisz-pismo` (opus).
 
 Struktura i numeracja — wg `redagowanie-pism`. Skrót:
 `I.` sekcje → `1.` ustępy z **numeracją ciągłą przez całe pismo** → `1)` punkty → `a)` litery → `–` tiret.

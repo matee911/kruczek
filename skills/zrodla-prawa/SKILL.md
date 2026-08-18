@@ -77,5 +77,5 @@ nie jest stara — użyj tego. Po nowym researchu dopisz wynik do bazy (`/krucze
 
 ## Delegowanie
 
-Przy większym researchu (kilka ustaw naraz) zleć subagentowi `zrodlo-prawa` — pracuje na sonnecie,
+Przy większym researchu (kilka ustaw naraz) zleć subagentowi `pobierz-przepis` — pracuje na sonnecie,
 nawiguje po API i długich PDF-ach, zwraca gotowe cytaty z publikatorami.

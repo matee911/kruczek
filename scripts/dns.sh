@@ -12,12 +12,15 @@
 # DNS pokazuje stan NA TERAZ. Jeśli rekord ma znaczenie dowodowe, zapisz raport do ARCHIWUM
 # z datą odczytu — za miesiąc może go już nie być.
 set -euo pipefail
+# shellcheck source=lib.sh
+source "$(dirname "$0")/lib.sh"
 Q() { # $1=nazwa $2=typ $3=resolver(google|cf)
+  local name; name=$(urlencode "$1")
   if [ "${3:-google}" = cf ]; then
     curl -sSfL --max-time 20 -H "accept: application/dns-json" \
-      "https://cloudflare-dns.com/dns-query?name=$1&type=$2"
+      "https://cloudflare-dns.com/dns-query?name=${name}&type=$2"
   else
-    curl -sSfL --max-time 20 "https://dns.google/resolve?name=$1&type=$2"
+    curl -sSfL --max-time 20 "https://dns.google/resolve?name=${name}&type=$2"
   fi
 }
 DATA() { Q "$1" "$2" "${3:-google}" | jq -r '.Answer[]?.data // empty'; }

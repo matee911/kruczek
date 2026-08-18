@@ -12,7 +12,9 @@ Znaczniki w index.md:
   ... tabela generowana automatycznie ...
   <!-- KRUCZEK:MANIFEST:END -->
 """
-import sys, os, hashlib, datetime, re, argparse
+
+import sys, os, datetime, re, argparse
+from utils import sha256_file as sha256, human_size as human
 
 SKIP_DIRS = {".git", "__pycache__", ".DS_Store", "node_modules", ".obsidian"}
 # index.md nie wchodzi do manifestu: manifest jest w nim zapisywany, więc jego suma
@@ -21,21 +23,6 @@ SKIP_DIRS = {".git", "__pycache__", ".DS_Store", "node_modules", ".obsidian"}
 SKIP_FILES = {"SHA256SUMS.txt", "index.md"}
 START = "<!-- KRUCZEK:MANIFEST:START -->"
 END = "<!-- KRUCZEK:MANIFEST:END -->"
-
-
-def sha256(p):
-    h = hashlib.sha256()
-    with open(p, "rb") as f:
-        for c in iter(lambda: f.read(65536), b""):
-            h.update(c)
-    return h.hexdigest()
-
-
-def human(n):
-    for u in ("B", "KB", "MB", "GB"):
-        if n < 1024 or u == "GB":
-            return f"{n:.0f} {u}" if u == "B" else f"{n:.1f} {u}"
-        n /= 1024
 
 
 def walk(root):
@@ -54,23 +41,28 @@ def rows(root):
     out = []
     for p, rel in walk(root):
         st = os.stat(p)
-        out.append({
-            "rel": rel,
-            "mtime": datetime.date.fromtimestamp(st.st_mtime).isoformat(),
-            "size": human(st.st_size),
-            "sha": sha256(p),
-        })
+        out.append(
+            {
+                "rel": rel,
+                "mtime": datetime.date.fromtimestamp(st.st_mtime).isoformat(),
+                "size": human(st.st_size),
+                "sha": sha256(p),
+            }
+        )
     return out
 
 
 def table(root):
+    data = rows(root)
     L = ["| Plik | Data pliku | Rozmiar | SHA-256 |", "|---|---|---|---|"]
-    for r in rows(root):
+    for r in data:
         L.append(f"| `{r['rel']}` | {r['mtime']} | {r['size']} | `{r['sha']}` |")
     L.append("")
-    L.append(f"_Manifest wygenerowany {datetime.date.today().isoformat()} skryptem `manifest.py`. "
-             f"Plików: {len(rows(root))}. Pominięto `index.md` i `SHA256SUMS.txt` (pliki robocze teczki, "
-             f"nie dowody). Opisy plików prowadź w tabeli powyżej manifestu._")
+    L.append(
+        f"_Manifest wygenerowany {datetime.date.today().isoformat()} skryptem `manifest.py`. "
+        f"Plików: {len(data)}. Pominięto `index.md` i `SHA256SUMS.txt` (pliki robocze teczki, "
+        f"nie dowody). Opisy plików prowadź w tabeli powyżej manifestu._"
+    )
     return "\n".join(L)
 
 
@@ -106,12 +98,19 @@ def main():
                 recorded[rel] = sha
             for rel, sha in recorded.items():
                 if rel not in actual:
-                    print(f"BRAK PLIKU: {rel}"); missing += 1
+                    print(f"BRAK PLIKU: {rel}")
+                    missing += 1
                 elif actual[rel] != sha:
-                    print(f"NIEZGODNA SUMA: {rel}\n  w SHA256SUMS: {sha}\n  faktyczna:    {actual[rel]}"); bad += 1
+                    print(
+                        f"NIEZGODNA SUMA: {rel}\n  w SHA256SUMS: {sha}\n  faktyczna:    {actual[rel]}"
+                    )
+                    bad += 1
             for rel in actual:
                 if rel not in recorded:
-                    print(f"NOWY PLIK (brak w SHA256SUMS — uruchom `manifest.py sumy`): {rel}"); new += 1
+                    print(
+                        f"NOWY PLIK (brak w SHA256SUMS — uruchom `manifest.py sumy`): {rel}"
+                    )
+                    new += 1
         else:
             print(f"(brak {p} — pomijam porównanie z plikiem sum)")
         idx = os.path.join(root, "index.md")
@@ -120,12 +119,17 @@ def main():
             declared = set(re.findall(r"\b([0-9a-f]{64})\b", txt))
             real = set(actual.values())
             for d in sorted(declared - real):
-                print(f"SUMA W index.md BEZ ODPOWIADAJĄCEGO PLIKU: {d}"); bad += 1
-            print(f"index.md: {len(declared)} sum, wszystkie odnalezione: {not (declared - real)}")
+                print(f"SUMA W index.md BEZ ODPOWIADAJĄCEGO PLIKU: {d}")
+                bad += 1
+            print(
+                f"index.md: {len(declared)} sum, wszystkie odnalezione: {not (declared - real)}"
+            )
         if bad or missing:
             print(f"PROBLEMY: {bad} niezgodnych, {missing} brakujących, {new} nowych.")
         elif new:
-            print(f"Sumy zgodne; {new} nowych plików do zaewidencjonowania (`manifest.py sumy`).")
+            print(
+                f"Sumy zgodne; {new} nowych plików do zaewidencjonowania (`manifest.py sumy`)."
+            )
         else:
             print("OK — wszystko się zgadza.")
         sys.exit(1 if (bad or missing) else 0)
@@ -137,7 +141,12 @@ def main():
         txt = open(idx, encoding="utf-8").read()
         block = f"{START}\n{table(root)}\n{END}"
         if START in txt and END in txt:
-            txt = re.sub(re.escape(START) + r".*?" + re.escape(END), lambda _: block, txt, flags=re.S)
+            txt = re.sub(
+                re.escape(START) + r".*?" + re.escape(END),
+                lambda _: block,
+                txt,
+                flags=re.S,
+            )
         else:
             txt = txt.rstrip() + "\n\n## Manifest plików\n\n" + block + "\n"
         open(idx, "w", encoding="utf-8").write(txt)

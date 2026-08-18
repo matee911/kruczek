@@ -1,5 +1,5 @@
 ---
-name: zrodlo-prawa
+name: pobierz-przepis
 description: Pobiera i cytuje dosłowne, aktualne brzmienie przepisów ze źródeł urzędowych — API ELI Sejmu dla prawa polskiego, EUR-Lex dla prawa UE. Użyj, gdy do pisma potrzebne są cytaty przepisów albo sprawdzenie, czy przepis nadal obowiązuje.
 tools: Bash, WebFetch, Read, Write
 model: sonnet

@@ -17,25 +17,32 @@ Wartości dopuszczalne w Claude Code: `haiku`, `sonnet`, `opus`, `inherit`.
 | `analiza-eml` | skill | `haiku` | low | całą pracę wykonuje `eml-forensics.py` |
 | `zrodla-dns-poczta` | skill | `haiku` | low | odpytanie DoH i przepisanie rekordów |
 | `kontrola` | skill | `haiku` | low | porównywanie łańcuchów, zero uznaniowości |
-| `forensyk-spamu` | agent | `haiku` | — | uruchamia skrypt i zestawia wyniki |
-| `archiwista` | agent | `haiku` | — | porównywanie sum, deterministyczne |
-| `kronikarz` | agent | `haiku` | — | wstawianie wierszy, arytmetyka dat |
-| `ustalacz-podmiotu` | agent | `haiku` | — | wywołanie API i przepisanie pól JSON |
-| `kontroler-zalacznikow` | agent | `haiku` | — | numeracja i sumy kontrolne — wynik deterministyczny |
-| `init-projekt` | skill | `sonnet` | medium | rozmowa z użytkownikiem o kontekście projektu |
+| `analizuj-eml` | agent | `haiku` | — | uruchamia skrypt i zestawia wyniki |
+| `archiwizuj` | agent | `haiku` | — | porównywanie sum, deterministyczne |
+| `dopisz-chronologie` | agent | `haiku` | — | wstawianie wierszy, arytmetyka dat |
+| `fakt` | skill | `haiku` | low | dopisanie jednego faktu do chronologii — ustalony format |
+| `metadane` | skill | `haiku` | low | ekstrakcja metadanych pliku, wynik deterministyczny |
+| `ustal-strone` | agent | `haiku` | — | wywołanie API i przepisanie pól JSON |
+| `sprawdz-zalaczniki` | agent | `haiku` | — | numeracja i sumy kontrolne — wynik deterministyczny |
+| `archiwa` | skill | `sonnet` | — | delegacja do `archiwizuj-strone`; trzeba ocenić, co warto archiwizować |
+| `archiwizuj-strone` | agent | `sonnet` | — | CDX/Wayback/curl — nawigacja po kilku API, część zablokowana |
+| `gmail` | skill | `sonnet` | — | wyszukiwanie i zestawianie wiadomości przez Gmail MCP |
+| `nowy-projekt` | skill | `sonnet` | medium | rozmowa z użytkownikiem o kontekście projektu |
 | `nowa-sprawa` | skill | `sonnet` | medium | ustalenie celu sprawy i wstępna kwalifikacja |
 | `baza-wiedzy` | skill | `sonnet` | medium | streszczanie wniosków praktycznych z przepisu |
 | `ocr-transkrypcja` | skill | `sonnet` | medium | odczyt obrazu, polskie diakrytyki |
-| `transkryber` | agent | `sonnet` | — | haiku gubi „ą/ę/ł" i myli podobne litery w skanach |
-| `zrodlo-prawa` | agent | `sonnet` | — | nawigacja po API i wycinanie artykułu z 300-stronicowego PDF |
-| `researcher-orzecznictwa` | agent | `sonnet` | — | wiele źródeł, część zablokowana, trzeba obchodzić |
+| `sprawdz-klauzule` | agent | `sonnet` | — | analiza klauzul abuzywnych — wymaga oceny, nie tylko wykrycia |
+| `transkrybuj` | agent | `sonnet` | — | haiku gubi „ą/ę/ł" i myli podobne litery w skanach |
+| `pobierz-przepis` | agent | `sonnet` | — | nawigacja po API i wycinanie artykułu z 300-stronicowego PDF |
+| `szukaj-orzeczen` | agent | `sonnet` | — | wiele źródeł, część zablokowana, trzeba obchodzić |
+| `podsumowanie` | skill | `opus` | high | synteza sprawy — ocena stanu, kwalifikacja ryzyk |
 | `pismo` | skill | `opus` | high | subsumpcja, dobór podstaw, konstrukcja wywodu |
 | `weryfikuj` | skill | `opus` | high | najdroższe miejsce na błąd w całym procesie |
 | `eskalacja` | skill | `opus` | high | ocena ryzyka i realnych szans, właściwość organów |
-| `redaktor-pism` | agent | `opus` | — | przyporządkowanie faktów do przesłanek normy |
-| `weryfikator-cytatow` | agent | `opus` | — | adwersaryjne szukanie błędu, który zauważy przeciwnik |
+| `napisz-pismo` | agent | `opus` | — | przyporządkowanie faktów do przesłanek normy |
+| `weryfikuj-cytaty` | agent | `opus` | — | adwersaryjne szukanie błędu, który zauważy druga strona |
 | `recenzja` | skill | `opus` | high | ostatnia bramka: fakty, ryzyko, język, siła |
-| `recenzent` | agent | `opus` | — | ocena ryzyka prawnego dla nadawcy i skuteczności pisma |
+| `recenzuj` | agent | `opus` | — | ocena ryzyka prawnego dla nadawcy i skuteczności pisma |
 | `konwencje-teczki` | skill | dziedziczy | — | wiedza tła, nie wykonuje zadania |
 | `redagowanie-pism` | skill | dziedziczy | — | jw. |
 | `zrodla-prawa`, `zrodla-orzecznictwa`, `zrodla-rejestry` | skille | dziedziczy | — | jw. |
@@ -58,7 +65,7 @@ rozumowania prawniczego. Agenci researchowi zwracają surowy materiał; ocenia g
 
 **Rozumowanie prawne → `opus`.** Subsumpcja, ocena ciężaru dowodu, dobór trybu eskalacji
 i adwersaryjna weryfikacja. Tu błąd kosztuje najwięcej: pismo z uchylonym przepisem albo
-wymyśloną sygnaturą kompromituje całą sprawę i daje przeciwnikowi darmowy argument.
+wymyśloną sygnaturą kompromituje całą sprawę i daje drugiej stronie darmowy argument.
 
 **Dwie bramki przed wysyłką, dwa różne modele.** `/kruczek:kontrola` (haiku) sprawdza to, co ma
 jednoznaczną odpowiedź: czy numer załącznika się zgadza, czy suma kontrolna pasuje, czy zostało

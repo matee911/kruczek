@@ -4,3 +4,5 @@ _SZABLONY/dane-nadawcy.md
 __pycache__/
 *.pyc
 .DS_Store
+.claude/settings.local.json
+docs/superpowers/

@@ -21,23 +21,23 @@ Zasady:
 Dane do zmapowania (z /kruczek:komendy):
 
 KOMENDY i co wyzwalają:
-- /init-projekt → skill:init-projekt → skrypt:init-projekt.sh
+- /nowy-projekt → skill:nowy-projekt → skrypt:init-projekt.sh
 - /nowa-sprawa → skill:nowa-sprawa, skill:konwencje-teczki → skrypt:nowa-sprawa.sh
-- /dowod → skill:dowod, skill:konwencje-teczki → agent:archiwista, agent:transkryber → skrypt:manifest.py, skrypt:eml-forensics.py
-- /chronologia → skill:chronologia → agent:kronikarz
+- /dowod → skill:dowod, skill:konwencje-teczki → agent:archiwizuj, agent:transkrybuj → skrypt:manifest.py, skrypt:eml-forensics.py
+- /chronologia → skill:chronologia → agent:dopisz-chronologie
 - /status → skill:status
 - /baza-wiedzy → skill:baza-wiedzy, skill:zrodla-prawa, skill:zrodla-orzecznictwa
-- /pismo → skill:pismo, skill:redagowanie-pism, skill:konwencje-teczki → agent:redaktor-pism, agent:zrodlo-prawa, agent:researcher-orzecznictwa → skrypt:build-pismo.py
-- /kontrola → skill:kontrola → agent:kontroler-zalacznikow → skrypt:kontrola-pisma.py
-- /weryfikuj → skill:weryfikuj → agent:weryfikator-cytatow → skill:zrodla-prawa, skill:zrodla-orzecznictwa
-- /recenzja → skill:recenzja → agent:recenzent
+- /pismo → skill:pismo, skill:redagowanie-pism, skill:konwencje-teczki → agent:napisz-pismo, agent:pobierz-przepis, agent:szukaj-orzeczen → skrypt:build-pismo.py
+- /kontrola → skill:kontrola → agent:sprawdz-zalaczniki → skrypt:kontrola-pisma.py
+- /weryfikuj → skill:weryfikuj → agent:weryfikuj-cytaty → skill:zrodla-prawa, skill:zrodla-orzecznictwa
+- /recenzja → skill:recenzja → agent:recenzuj, agent:weryfikuj-cytaty
 - /eskalacja → skill:eskalacja
 
 SKILLE WIEDZY (ładowane automatycznie przez kontekst, nie przez komendę):
-- analiza-eml → agent:forensyk-spamu → skrypt:eml-forensics.py
+- analiza-eml → agent:analizuj-eml → skrypt:eml-forensics.py
 - zrodla-dns-poczta → skrypt:dns.sh
 - zrodla-rejestry → skrypt:podmiot.sh
-- ocr-transkrypcja → agent:transkryber
+- ocr-transkrypcja → agent:transkrybuj
 - fallback-przegladarka (brak subagenta)
 - zrodla-prawa → skrypt:eli.sh
 - zrodla-orzecznictwa → skrypt:orzecznictwo.sh
@@ -61,7 +61,7 @@ Użyj validate_and_render_mermaid_diagram do walidacji przed pokazaniem.
 ```mermaid
 flowchart LR
   subgraph KOMENDY
-    cmd_init["/init-projekt"]
+    cmd_init["/nowy-projekt"]
     cmd_nowa["/nowa-sprawa"]
     cmd_dowod["/dowod"]
     cmd_chron["/chronologia"]
@@ -75,7 +75,7 @@ flowchart LR
   end
 
   subgraph SKILLE
-    sk_init((init-projekt))
+    sk_init((nowy-projekt))
     sk_nowa((nowa-sprawa))
     sk_dowod((dowod))
     sk_chron((chronologia))
@@ -98,17 +98,17 @@ flowchart LR
   end
 
   subgraph SUBAGENCI
-    ag_archiwista[/archiwista/]
-    ag_transkryber[/transkryber/]
-    ag_kronikarz[/kronikarz/]
-    ag_forensyk[/forensyk-spamu/]
-    ag_ustalacz[/ustalacz-podmiotu/]
-    ag_kontroler[/kontroler-zalacznikow/]
-    ag_redaktor[/redaktor-pism/]
+    ag_archiwista[/archiwizuj/]
+    ag_transkryber[/transkrybuj/]
+    ag_kronikarz[/dopisz-chronologie/]
+    ag_forensyk[/analizuj-eml/]
+    ag_ustalacz[/ustal-strone/]
+    ag_kontroler[/sprawdz-zalaczniki/]
+    ag_redaktor[/napisz-pismo/]
     ag_zrodlo[/zrodlo-prawa/]
-    ag_researcher[/researcher-orzecznictwa/]
-    ag_weryfikator[/weryfikator-cytatow/]
-    ag_recenzent[/recenzent/]
+    ag_researcher[/szukaj-orzeczen/]
+    ag_weryfikator[/weryfikuj-cytaty/]
+    ag_recenzent[/recenzuj/]
   end
 
   subgraph SKRYPTY

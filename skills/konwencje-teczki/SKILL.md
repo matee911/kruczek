@@ -55,7 +55,7 @@ Przyszłe terminy wpisuj jako wiersze w przyszłości. Bez wpisu zdarzenie nie i
 Ustalenie bez pełnego dowodu trafia do sekcji `⚠ HIPOTEZY — NIE cytować w pismach`, z wyraźnie
 wskazanym brakującym ogniwem. Zbieżność adresu, branży czy nazwiska to poszlaka, nie dowód.
 
-Najgorszy błąd w całym procesie to hipoteza napisana w piśmie w trybie oznajmującym — przeciwnik
+Najgorszy błąd w całym procesie to hipoteza napisana w piśmie w trybie oznajmującym — druga strona
 obala jedno niepotwierdzone twierdzenie i podważa wszystko pozostałe.
 
 ## Dane osobowe

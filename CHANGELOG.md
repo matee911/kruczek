@@ -3,6 +3,49 @@
 Format wg [Keep a Changelog](https://keepachangelog.com/pl/1.1.0/),
 wersjonowanie wg [SemVer](https://semver.org/lang/pl/).
 
+## [0.3.0] — 2026-08-19
+
+### Dodane
+- `/kruczek:archiwa` (skill, sonnet) + agent `archiwizuj-strone` — archiwizacja stron przez CDX API,
+  Wayback Machine i curl z diff między wersjami; obsługa `.eu` bez RDAP
+- `/kruczek:fakt` (skill, haiku) — dopisanie jednego faktu do chronologii w `index.md`
+- `/kruczek:metadane` (skill, haiku) + `scripts/metadane.sh` — ekstrakcja metadanych plików
+  (data, autor, GPS, rozbieżności dat); obsługa PDF, DOCX/XLSX/PPTX, JPEG/PNG, EML
+- `/kruczek:gmail` (skill, sonnet) — wyszukiwanie i zestawianie wiadomości przez Gmail MCP
+- `/kruczek:podsumowanie` (skill, opus) — synteza stanu sprawy z kwalifikacją ryzyk
+- agent `sprawdz-klauzule` (sonnet) — analiza klauzul abuzywnych w umowach
+- `scripts/podmiot.sh ceidg` — CEIDG API v3: imię, nazwisko, adres zamieszkania JDG; auto-token
+  z `~/.kruczek/ceidg_token`; `pelny` automatycznie odpytuje CEIDG gdy brak KRS
+- `skills/zrodla-rejestry`: dodane CRBR (beneficjenci rzeczywiści), Rejestr.io (powiązania
+  kapitałowe), MSiG/imsig.pl (ogłoszenia), sprawozdania finansowe z repozytorium KRS —
+  wszystkie z instrukcją obejścia przez `fallback-przegladarka`
+
+### Zmienione
+- **Przemianowanie agentów** na imperatywne polskie czasowniki: `recenzent` → `recenzuj`,
+  `weryfikator-cytatow` → `weryfikuj-cytaty`, `forensyk-spamu` → `analizuj-eml`,
+  `kontroler-zalacznikow` → `sprawdz-zalaczniki`, `kronikarz` → `dopisz-chronologie`,
+  `transkryber` → `transkrybuj`, `archiwista` → `archiwizuj`,
+  `researcher-orzecznictwa` → `szukaj-orzeczen`, `redaktor-pism` → `napisz-pismo`,
+  `zrodlo-prawa` → `pobierz-przepis`, `archiwista-sieci` → `archiwizuj-strone`
+- `ustalacz-podmiotu` → `ustal-strone` (termin procesowy)
+- `init-projekt` → `nowy-projekt` (spójna polska nazwa)
+- `wykrywacz-flag` → `sprawdz-klauzule` (opisuje działanie)
+- Globalne zastąpienie `przeciwnik` → `druga strona` we wszystkich plikach (termin procesowy)
+- `agents/recenzuj`: dodana sekcja "Podstawy prawne" (przeniesiona z `skills/recenzja`)
+- `skills/recenzja`: uprzątnięte — teraz czysty orkiestrator: deleguje do `weryfikuj-cytaty`
+  i `recenzuj` równolegle, syntetyzuje wyniki; usunięto duplikację sekcji 1–6
+- `scripts/metadane.sh`: `grep -oP` → `ggrep -oP` z fallbackiem (BSD grep na macOS nie ma PCRE)
+- `scripts/check-deps.sh`: `weasyprint` przed `wkhtmltopdf`; dodane `ggrep` (macOS), `exiftool`,
+  `unzip`; `ggrep` sprawdzany tylko na macOS
+- `docs/MODELE.md`: dodane wszystkie nowe komponenty do tabeli
+- `README.md`: zaktualizowane zależności, szybki start i tabela źródeł
+
+### Naprawione
+- `agents/`: pole `tools` używało granularnych wzorców `Bash(cmd *)` — poprawione na prostą listę
+  (`Bash, Read, Write`); granularne wzorce obsługuje tylko `allowed-tools` w skillach
+- `skills/archiwa`: usunięte `disable-model-invocation: true` (blokował delegację do subagenta)
+- `skills/kontrola`, `skills/komendy`: usunięte redundantne `disable-model-invocation: false`
+
 ## [0.2.0] — 2026-08-18
 
 ### Dodane
@@ -14,7 +57,7 @@ wersjonowanie wg [SemVer](https://semver.org/lang/pl/).
   SPF/DKIM/DMARC, porównanie infrastruktury wielu domen
 - skill `fallback-przegladarka` — drabinka obejść dla źródeł zablokowanych dla automatu:
   zmiana narzędzia, boczne API, Claude in Chrome, Playwright, computer use, przekazanie użytkownikowi
-- agenci `recenzent` (opus) i `kontroler-zalacznikow` (haiku)
+- agenci `recenzuj` (opus) i `sprawdz-zalaczniki` (haiku)
 - `scripts/kontrola-pisma.py` — mechaniczna kontrola spójności gotowego PDF-u
 - `templates/tldr.md` — dokument dla użytkownika: co wysyłasz, co możesz ugrać, gdzie jesteśmy słabi
 - `templates/dane-nadawcy.md` — trwała pamięć danych korespondencyjnych, żeby nie pytać za każdym razem
@@ -44,13 +87,13 @@ wersjonowanie wg [SemVer](https://semver.org/lang/pl/).
 Pierwsze wydanie.
 
 ### Dodane
-- 10 komend: `init-projekt`, `nowa-sprawa`, `dowod`, `chronologia`, `status`, `baza-wiedzy`,
+- 10 komend: `nowy-projekt`, `nowa-sprawa`, `dowod`, `chronologia`, `status`, `baza-wiedzy`,
   `pismo`, `weryfikuj`, `eskalacja`, `komendy`
 - 7 skilli wiedzy: `konwencje-teczki`, `redagowanie-pism`, `zrodla-prawa`, `zrodla-orzecznictwa`,
   `zrodla-rejestry`, `analiza-eml`, `ocr-transkrypcja`
-- 9 subagentów z dobranymi modelami: `forensyk-spamu`, `archiwista`, `kronikarz`,
-  `ustalacz-podmiotu` (haiku), `transkryber`, `zrodlo-prawa`, `researcher-orzecznictwa` (sonnet),
-  `redaktor-pism`, `weryfikator-cytatow` (opus)
+- 9 subagentów z dobranymi modelami: `analizuj-eml`, `archiwizuj`, `dopisz-chronologie`,
+  `ustal-strone` (haiku), `transkrybuj`, `pobierz-przepis`, `szukaj-orzeczen` (sonnet),
+  `napisz-pismo`, `weryfikuj-cytaty` (opus)
 - 8 skryptów: `init-projekt.sh`, `nowa-sprawa.sh`, `eml-forensics.py`, `manifest.py`, `eli.sh`,
   `orzecznictwo.sh`, `podmiot.sh`, `build-pismo.py`
 - szablon pisma A4 z wdrukowywanymi załącznikami

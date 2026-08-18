@@ -33,16 +33,20 @@ git clone https://github.com/matee911/kruczek && claude --plugin-dir ./kruczek
 |---|---|---|
 | `curl`, `jq` | API rejestrów i orzecznictwa | tak |
 | `python3` (sam stdlib) | analiza `.eml`, manifest, budowa pism | tak |
-| `wkhtmltopdf` **albo** `weasyprint` | składanie pism do PDF | do pism |
+| `weasyprint` **albo** `wkhtmltopdf` | składanie pism do PDF | do pism |
 | `pandoc` | załączniki `.md` w PDF | do pism |
 | `poppler-utils` (`pdftotext`, `pdfinfo`) | odczyt PDF, licznik stron | zalecane |
 | `tesseract-ocr` + `tesseract-ocr-pol`, `ocrmypdf` | OCR skanów | do skanów |
+| `exiftool` | metadane PDF i zdjęć (daty, autor, GPS) | zalecane |
+| `unzip` | metadane plików Office (.docx, .xlsx) | zalecane |
+| `ggrep` (macOS) / `grep` (Linux) | PCRE w `metadane.sh` (pliki Office) | zalecane |
 
 ```bash
 # Debian/Ubuntu
-sudo apt install curl jq python3 wkhtmltopdf pandoc poppler-utils tesseract-ocr tesseract-ocr-pol ocrmypdf
+sudo apt install curl jq python3 weasyprint pandoc poppler-utils tesseract-ocr tesseract-ocr-pol ocrmypdf libimage-exiftool-perl unzip
 # macOS
-brew install curl jq python pandoc poppler tesseract tesseract-lang ocrmypdf && brew install --cask wkhtmltopdf
+brew install curl jq python pandoc poppler tesseract tesseract-lang ocrmypdf exiftool grep unzip
+pip install weasyprint
 ```
 
 Bez narzędzi do PDF i OCR reszta pluginu działa normalnie — brakuje tylko składania pism
@@ -53,9 +57,12 @@ i odczytu skanów.
 ## Szybki start
 
 ```
-/kruczek:init-projekt          # raz na repozytorium spraw
+/kruczek:nowy-projekt          # raz na repozytorium spraw
 /kruczek:nowa-sprawa           # teczka na jeden podmiot
 /kruczek:dowod                 # wciągnij mail, skan, nagranie — z sumą kontrolną i OCR
+/kruczek:fakt                  # dopisz jeden fakt do chronologii
+/kruczek:metadane              # sprawdź metadane pliku (data, autor, GPS, rozbieżności)
+/kruczek:archiwa               # zarchiwizuj stronę / wątek w Wayback Machine
 /kruczek:pismo                 # zbuduj pismo z cytatami, załącznikami i TL;DR
 /kruczek:kontrola              # mechanicznie: numeracja, nazwy, sumy, wymogi druku
 /kruczek:weryfikuj             # przepisy i sygnatury w źródłach urzędowych
@@ -109,7 +116,7 @@ zacytować ani znaleźć za pół roku.
 
 **Fakt to nie hipoteza.** Zbieżność adresu czy branży trafia do sekcji `⚠ HIPOTEZY` z wyraźnie
 wskazanym brakującym ogniwem. Hipoteza napisana w piśmie w trybie oznajmującym to najgorszy błąd
-w całym procesie — przeciwnik obala jedno twierdzenie i podważa resztę.
+w całym procesie — druga strona obala jedno twierdzenie i podważa resztę.
 
 **Przepisy pochodzą ze źródeł urzędowych, nie z pamięci modelu.** API ELI Sejmu dla prawa polskiego,
 EUR-Lex dla unijnego. Przed każdym cytatem sprawdzane jest, czy przepis nadal obowiązuje —
@@ -159,8 +166,13 @@ Wszystkie otwarte, bez kluczy API.
 | [decyzje UOKiK](https://decyzje.uokik.gov.pl) | decyzje Prezesa UOKiK | HTTP |
 | [Biała lista VAT](https://wl-api.mf.gov.pl) | NIP → nazwa, REGON, KRS, adres, rachunki | pełne API |
 | [API KRS](https://api-krs.ms.gov.pl) | odpis aktualny | pełne API |
+| [CEIDG API v3](https://dane.biznes.gov.pl) | pełne dane JDG: imię, nazwisko, adres zamieszkania, historia | token Bearer (jednorazowa rejestracja przez Profil Zaufany) |
 | [RDAP NASK](https://rdap.dns.pl) | dane i data rejestracji domeny `.pl` | pełne API |
 | dns.google, cloudflare-dns.com | rekordy DNS, SPF, DKIM, DMARC (DNS-over-HTTPS) | pełne API |
+| [CRBR](https://crbr.podatki.gov.pl) | beneficjenci rzeczywiści spółek | przeglądarka |
+| [Rejestr.io](https://rejestr.io) | powiązania kapitałowe, wspólnicy, zarządy | przeglądarka |
+| [imsig.pl / MSiG](https://imsig.pl) | ogłoszenia obowiązkowe: likwidacja, upadłość, zmiany KRS | przeglądarka |
+| [Repozytorium dokumentów KRS](https://przegladarka.ms.gov.pl) | sprawozdania finansowe, bilanse | przeglądarka |
 
 Skille `zrodla-prawa`, `zrodla-orzecznictwa`, `zrodla-rejestry` i `zrodla-dns-poczta` opisują też,
 **czego nie da się pobrać automatycznie** i jak to obejść — wyszukiwarki CBOSA, Portalu Orzeczeń SP

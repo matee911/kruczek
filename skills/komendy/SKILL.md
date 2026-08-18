@@ -1,7 +1,6 @@
 ---
 name: komendy
 description: Spis wszystkich komend, skilli, subagentów i skryptów pluginu kruczek wraz z przypisanymi modelami. Użyj, gdy ktoś pyta "co potrafi kruczek", "jakie są komendy", "lista skilli" albo szuka właściwego narzędzia do zadania.
-disable-model-invocation: false
 model: haiku
 effort: low
 ---
@@ -19,7 +18,7 @@ a jeśli z rozmowy wynika konkretna potrzeba — wskaż jedną, właściwą pozy
 | Komenda | Co robi | Model |
 |---|---|---|
 | `/kruczek:komendy` | ten spis | haiku |
-| `/kruczek:init-projekt` | zakłada repozytorium spraw: BAZA_WIEDZY, KONWENCJE.md, rejestr | sonnet |
+| `/kruczek:nowy-projekt` | zakłada repozytorium spraw: BAZA_WIEDZY, KONWENCJE.md, rejestr | sonnet |
 | `/kruczek:nowa-sprawa` | zakłada teczkę sprawy z chronologią, manifestem i TODO | sonnet |
 | `/kruczek:dowod` | wciąga dowód do archiwum: suma kontrolna, OCR/transkrypcja, wpis w chronologii | haiku |
 | `/kruczek:chronologia` | dopisuje zdarzenie do chronologii sprawy | haiku |
@@ -30,6 +29,11 @@ a jeśli z rozmowy wynika konkretna potrzeba — wskaż jedną, właściwą pozy
 | `/kruczek:weryfikuj` | cross-check przepisów i sygnatur w źródłach urzędowych | opus |
 | `/kruczek:recenzja` | recenzja przed wysyłką: fakty, ryzyko, język, siła oddziaływania | opus |
 | `/kruczek:eskalacja` | plan kolejnych kroków po bezskutecznym terminie | opus |
+| `/kruczek:fakt` | rejestruje fakt słowny (kontekstowy lub zdarzeniowy) z oznaczeniem pewności | haiku |
+| `/kruczek:archiwa` | archiwizuje URL w Wayback, historia CDX, diff snapshotów | sonnet |
+| `/kruczek:metadane` | tabela metadanych plików od drugiej strony, flagi rozbieżności dat | haiku |
+| `/kruczek:gmail` | generator zapytań Gmail, filtry sprawy, zestaw dowodu negatywnego | sonnet |
+| `/kruczek:podsumowanie` | stan sprawy w prostym języku: co wiadomo, czego brakuje (z sugestiami), ocena pozycji, następny krok | opus |
 
 ## Skille wiedzy (Claude ładuje sam, gdy pasują)
 
@@ -39,7 +43,7 @@ a jeśli z rozmowy wynika konkretna potrzeba — wskaż jedną, właściwą pozy
 | `redagowanie-pism` | gdy powstaje pismo — struktura, ton, cytowanie, częste błędy | dziedziczy |
 | `zrodla-prawa` | gdy potrzebny tekst przepisu — API ELI Sejmu, EUR-Lex | dziedziczy |
 | `zrodla-orzecznictwa` | gdy potrzebne orzeczenie lub decyzja organu | dziedziczy |
-| `zrodla-rejestry` | gdy trzeba ustalić dane przeciwnika lub domeny | dziedziczy |
+| `zrodla-rejestry` | gdy trzeba ustalić dane drugiej strony lub domeny | dziedziczy |
 | `analiza-eml` | gdy w sprawie pojawia się plik `.eml` lub pytanie o spam | haiku |
 | `zrodla-dns-poczta` | gdy trzeba sprawdzić DNS, SPF/DKIM/DMARC albo dane domeny | haiku |
 | `fallback-przegladarka` | gdy źródło jest zablokowane dla automatu — obejścia przez przeglądarkę | dziedziczy |
@@ -49,17 +53,19 @@ a jeśli z rozmowy wynika konkretna potrzeba — wskaż jedną, właściwą pozy
 
 | Agent | Rola | Model | Dlaczego taki model |
 |---|---|---|---|
-| `forensyk-spamu` | wykrywa techniki obchodzenia filtrów w `.eml` | haiku | robotę robi skrypt, agent tylko czyta wynik i opisuje |
-| `archiwista` | sumy kontrolne, manifest, porządek w archiwum | haiku | czysto mechaniczne, deterministyczne |
-| `kronikarz` | dopisuje zdarzenia do chronologii | haiku | jedna tabela, ustalony format |
-| `ustalacz-podmiotu` | NIP, KRS, RDAP, DNS, przekierowania domen | haiku | uruchamia skrypty i przepisuje pola JSON |
-| `kontroler-zalacznikow` | spójność numeracji, nazw i sum kontrolnych w gotowym piśmie | haiku | porównywanie łańcuchów, zero uznaniowości |
-| `transkryber` | OCR i transkrypcja do `.md` | sonnet | odczyt obrazu i polskiej fleksji, haiku gubi znaki diakrytyczne |
-| `zrodlo-prawa` | pobiera i cytuje przepisy ze źródeł urzędowych | sonnet | nawigacja po API i długich PDF-ach |
-| `researcher-orzecznictwa` | szuka orzeczeń i decyzji organów | sonnet | wiele źródeł, część zablokowana, trzeba kombinować |
-| `redaktor-pism` | pisze argumentację prawną | opus | subsumpcja i konstrukcja wywodu |
-| `weryfikator-cytatow` | adwersaryjny cross-check przepisów i sygnatur | opus | najdroższy błąd w całym procesie |
-| `recenzent` | fakty kontra dowody, ryzyko dla nadawcy, język, siła pisma | opus | ostatnia bramka przed nadaniem |
+| `analizuj-eml` | wykrywa techniki obchodzenia filtrów w `.eml` | haiku | robotę robi skrypt, agent tylko czyta wynik i opisuje |
+| `archiwizuj` | sumy kontrolne, manifest, porządek w archiwum | haiku | czysto mechaniczne, deterministyczne |
+| `dopisz-chronologie` | dopisuje zdarzenia do chronologii | haiku | jedna tabela, ustalony format |
+| `ustal-strone` | NIP, KRS, RDAP, DNS, przekierowania domen | haiku | uruchamia skrypty i przepisuje pola JSON |
+| `sprawdz-zalaczniki` | spójność numeracji, nazw i sum kontrolnych w gotowym piśmie | haiku | porównywanie łańcuchów, zero uznaniowości |
+| `transkrybuj` | OCR i transkrypcja do `.md` | sonnet | odczyt obrazu i polskiej fleksji, haiku gubi znaki diakrytyczne |
+| `pobierz-przepis` | pobiera i cytuje przepisy ze źródeł urzędowych | sonnet | nawigacja po API i długich PDF-ach |
+| `szukaj-orzeczen` | szuka orzeczeń i decyzji organów | sonnet | wiele źródeł, część zablokowana, trzeba kombinować |
+| `napisz-pismo` | pisze argumentację prawną | opus | subsumpcja i konstrukcja wywodu |
+| `weryfikuj-cytaty` | adwersaryjny cross-check przepisów i sygnatur | opus | najdroższy błąd w całym procesie |
+| `recenzuj` | fakty kontra dowody, ryzyko dla nadawcy, język, siła pisma | opus | ostatnia bramka przed nadaniem |
+| `archiwizuj-strone` | CDX API, Save Page Now, diff digestów, interpretacja zmian stron | sonnet | nawigacja po API + Python parsing |
+| `sprawdz-klauzule` | checklista red flags w regulaminach i OWU | sonnet | przeszukiwanie wzorców, zero uznaniowości |
 
 ## Skrypty (`${CLAUDE_PLUGIN_ROOT}/scripts/`)
 
@@ -75,5 +81,7 @@ a jeśli z rozmowy wynika konkretna potrzeba — wskaż jedną, właściwą pozy
 | `dns.sh` | rekordy DNS, SPF/DKIM/DMARC, porównanie infrastruktury domen |
 | `build-pismo.py` | HTML → PDF z wdrukowanymi załącznikami, marginesy pod Envelo i e-Doręczenia |
 | `kontrola-pisma.py` | mechaniczna kontrola spójności gotowego pisma |
+| `archiwa.sh` | Wayback Machine CDX, Save Page Now, TimeTravel, diff snapshotów |
+| `metadane.sh` | zbiorcza tabela metadanych PDF/DOCX/XLSX/obrazów z flagami rozbieżności |
 
 Wszystkie skrypty wypisują pomoc po uruchomieniu bez argumentów.

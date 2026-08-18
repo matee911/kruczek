@@ -14,13 +14,15 @@
 #   eli.sh obowiazuje DU 2004 1800            — czy akt obowiązuje + czym uchylony
 #   eli.sh zmiany 2026-08-01                  — akty zmienione od daty (monitoring)
 set -euo pipefail
+# shellcheck source=lib.sh
+source "$(dirname "$0")/lib.sh"
 API="https://api.sejm.gov.pl/eli"
 _get() { curl -sSfL --max-time 60 "$1"; }
 
 case "${1:-}" in
   szukaj)
     q="${2:?podaj frazę}"; rok="${3:-}"
-    url="$API/acts/search?title=$(printf %s "$q" | jq -sRr @uri)&publisher=DU&limit=20"
+    url="$API/acts/search?title=$(urlencode "$q")&publisher=DU&limit=20"
     [ -n "$rok" ] && url="$url&year=$rok"
     _get "$url" | jq '{totalCount, items: [.items[] | {address, title, status, inForce, entryIntoForce}]}'
     ;;

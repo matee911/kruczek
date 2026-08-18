@@ -5,79 +5,154 @@ argument-hint: "[ścieżka do pliku] [katalog sprawy]"
 disable-model-invocation: true
 model: haiku
 effort: low
-allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/eml-forensics.py *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/manifest.py *) Bash(cp *) Bash(mkdir *) Bash(sha256sum *) Bash(file *) Bash(ls *) Read Write Edit
+allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/eml-forensics.py *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/manifest.py *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/metadane.sh *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/archiwa.sh *) Bash(cp *) Bash(mkdir *) Bash(sha256sum *) Bash(file *) Bash(ls *) Bash(qpdf *) Bash(unzip *) Bash(7z *) Read Write Edit
 ---
 
 # Wciągnięcie dowodu do archiwum
 
 Argumenty: `$ARGUMENTS`
 
-To zadanie jest **mechaniczne**. Trzymaj się kroków, nie interpretuj treści dowodu prawnie
-i nie oceniaj sprawy — od tego są inne komendy.
+To zadanie ma dwie warstwy: **mechaniczną** (kopia, hash, tekst) i **rozpoznawczą** (co to jest i co dalej).
+Trzymaj się kolejności kroków.
+
+## 0. Plik zaszyfrowany? Odszyfruj PRZED intake
+
+Sprawdź typ pliku:
+```bash
+file <plik>
+```
+
+Jeśli PDF zaszyfrowany, .zip lub .7z:
+- Zapytaj o hasło: „Plik jest zabezpieczony hasłem. Jakie hasło? (Przy plikach z urzędów/firm często PESEL lub data urodzenia.)"
+- Odszyfruj:
+  ```bash
+  # PDF
+  qpdf --password=<haslo> --decrypt <plik>.pdf <plik>_odszyfrowany.pdf
+  # ZIP
+  unzip -P <haslo> <plik>.zip -d <katalog>/
+  # 7z
+  7z x -p'<haslo>' <plik>.7z -o<katalog>/
+  ```
+- Do archiwum trafiają **oba**: oryginał jako `<nazwa>_ORYGINAŁ.<ext>` i odszyfrowany jako `<nazwa>.<ext>`
+- **Hasło NIE trafia do `index.md` ani chronologii** — zapisz wyłącznie: „plik był zaszyfrowany, odszyfrowano RRRR-MM-DD"
 
 ## 1. Ustal plik i sprawę
 
-Jeśli nie podano ścieżki, poszukaj załączników z bieżącej rozmowy i katalogów spraw obok
-`index.md`. Przy niejednoznaczności zapytaj — krótko.
+Jeśli nie podano ścieżki — zapytaj krótko. Jeśli nie podano sprawy — sprawdź `index.md`
+w bieżącym katalogu albo zapytaj.
 
-## 2. Nazwij zgodnie z konwencją
+## 2. Wykryj duplikat
+
+```bash
+${CLAUDE_PLUGIN_ROOT}/scripts/manifest.py sumy <sprawa>
+```
+Sprawdź czy SHA-256 nowego pliku już istnieje w manifeście.
+Jeśli duplikat: „Ten plik już jest w archiwum jako [nazwa]. Dodać mimo to?"
+
+## 3. Nazwij zgodnie z konwencją
 
 `RRRR-MM-DD_<rodzaj>_<krotki-opis>.<ext>`
 
-Data to **data powstania dowodu** (nadania listu, wysłania maila, wykonania zdjęcia,
-rozmowy), a nie dzisiejsza. Odczytaj ją z metadanych albo z treści; jeśli się nie da,
-użyj daty otrzymania i zaznacz to w opisie.
-
+Data to data **powstania** dowodu (nadania, wysłania, wykonania), nie dzisiejsza.
 Rodzaj: `email`, `list`, `umowa`, `faktura`, `zdjecie`, `skan`, `nagranie`, `zrzut`, `wydruk`, `zgloszenie`.
 
-## 3. Skopiuj do ARCHIWUM — nigdy nie przenoś, nigdy nie edytuj
+## 4. Skopiuj do ARCHIWUM — nigdy nie przenoś, nigdy nie edytuj
 
-```
+```bash
 cp <źródło> <sprawa>/ARCHIWUM/<nazwa-wg-konwencji>
 ```
 
-`ARCHIWUM/` jest append-only. Oryginał zostaje bitowo nietknięty. Każda obróbka tworzy **nowy**
-plik obok.
+## 5. Routing po typie pliku — wywołaj właściwe podsystemy
 
-## 4. Jeśli plik jest nietekstowy — zrób wersję tekstową OD RAZU
+### `.eml` / `.msg`
+```bash
+${CLAUDE_PLUGIN_ROOT}/scripts/eml-forensics.py <plik> --outdir <sprawa>/ARCHIWUM
+```
+Zleć subagentowi `analizuj-eml` (haiku).
 
-Sprawdź typ (`file <plik>`) i zastosuj właściwą ścieżkę:
+Wyciągnij domeny z nagłówków (From, Reply-To, Return-Path, Received):
+- Dla każdej **nowej** domeny (nie widzianej wcześniej w sprawie) → wywołaj `/kruczek:archiwa <domena>`
+- Wygeneruj zapytania Gmail → zleć `/kruczek:gmail` z domenami z nagłówków
 
-| Typ dowodu | Co zrobić | Plik wynikowy |
+### `.pdf` / `.docx` / `.xlsx`
+
+Zapytaj jeśli źródło nieznane: „Od kogo pochodzi ten plik?"
+
+Jeśli od **drugiej strony**:
+```bash
+${CLAUDE_PLUGIN_ROOT}/scripts/metadane.sh <plik>
+```
+(lub zleć skill `/kruczek:metadane`)
+
+Jeśli nazwa lub treść zawiera „regulamin", „OWU", „wzorzec", „ogólne warunki" — **niezależnie od źródła**:
+zleć subagentowi `sprawdz-klauzule` (sonnet).
+
+### Zrzut strony (`.html` / `.mhtml` / obraz z URL w nazwie)
+
+Wyciągnij URL z nazwy pliku lub pytaj.
+- Jeśli URL już był w sprawie → `/kruczek:archiwa diff <url>`
+- Jeśli URL nowy w sprawie → `/kruczek:archiwa <url>` (pełne rozpoznanie + CDX)
+
+### Obraz / skan bez URL
+
+Zleć subagentowi `transkrybuj` (sonnet).
+
+## 6. URL w treści pliku → natychmiast archiwizuj
+
+Dla **każdego** nowego URL znalezionego w pliku (w .eml, w PDF, w fakturze):
+```bash
+${CLAUDE_PLUGIN_ROOT}/scripts/archiwa.sh save "<url>"
+```
+Nie czekaj na analizę — najpierw Save Page Now, potem czytaj.
+
+## 7. Wersja tekstowa dla plików nietekstowych
+
+| Typ | Co zrobić | Plik wynikowy |
 |---|---|---|
-| `.eml`, `.msg` | `${CLAUDE_PLUGIN_ROOT}/scripts/eml-forensics.py <plik> --outdir <sprawa>/ARCHIWUM` | `_naglowki.txt`, `_tresc.html`, `_analiza.md` |
-| skan / zdjęcie / PDF bez warstwy tekstowej | zleć subagentowi `transkryber` (sonnet) | `<nazwa>_tekst.md` |
+| `.eml` / `.msg` | `eml-forensics.py` (krok 5) | `_naglowki.txt`, `_tresc.html`, `_analiza.md` |
+| skan / zdjęcie / PDF bez tekstu | `transkrybuj` (sonnet) | `<nazwa>_tekst.md` |
 | PDF z warstwą tekstową | `pdftotext -layout` | `<nazwa>_tekst.md` |
-| nagranie audio / wideo | zleć subagentowi `transkryber` (sonnet) | `<nazwa>_tekst.md` |
-| zrzut ekranu | odczyt vision → `transkryber` | `<nazwa>_tekst.md` |
+| nagranie audio / wideo | `transkrybuj` (sonnet) | `<nazwa>_tekst.md` |
 
-Wersja tekstowa **zawsze** zaczyna się nagłówkiem:
-
+Nagłówek wersji tekstowej (obowiązkowy):
 ```markdown
-> **Odczyt pomocniczy.** Metoda: <OCR tesseract -l pol / odczyt vision / transkrypcja>.
-> Data: RRRR-MM-DD. Plik źródłowy: `<nazwa>`, SHA-256: `<suma>`.
-> Wiążąca jest treść oryginału. Fragmenty nieczytelne oznaczono `[nieczytelne]`, niepewne `[?]`.
+> **Odczyt pomocniczy.** Metoda: <OCR/vision/transkrypcja>. Data: RRRR-MM-DD.
+> Plik źródłowy: `<nazwa>`, SHA-256: `<suma>`. Wiążąca jest treść oryginału.
+> Fragmenty nieczytelne: `[nieczytelne]`, niepewne: `[?]`.
 ```
 
-Nigdy nie uzupełniaj domysłem tego, czego nie widać.
+## 8. Sumy kontrolne i manifest
 
-## 5. Przelicz sumy i manifest
-
-```
+```bash
 ${CLAUDE_PLUGIN_ROOT}/scripts/manifest.py sumy  <sprawa>
 ${CLAUDE_PLUGIN_ROOT}/scripts/manifest.py wstaw <sprawa>/index.md <sprawa>
 ```
 
-W tabeli opisowej nad manifestem (sekcja 4 `index.md`) dopisz wiersz: nazwa pliku + jedno zdanie,
-**co to jest i co dowodzi**.
+W tabeli opisowej nad manifestem (`index.md` sekcja 4) dopisz: nazwa pliku + jedno zdanie co to jest i co dowodzi.
 
-## 6. Dopisz do chronologii
+## 9. Pytanie o brakujący dowód kontekstowy
 
-Jeden wiersz w tabeli chronologii `index.md`: data i godzina **zdarzenia** (nie dodania do teczki),
-opis, odesłanie do pliku. Zachowaj porządek chronologiczny.
+Przy każdym typie pliku — zaproponuj co mogłoby uzupełnić dowód:
 
-## 7. Zamelduj krótko
+| Typ pliku | Sugestia |
+|---|---|
+| `.eml` | „Czy masz autoresponder potwierdzający odbiór tej wiadomości?" |
+| faktura / potwierdzenie płatności | „Czy masz wyciąg bankowy potwierdzający obciążenie?" |
+| regulamin / OWU | „Czy masz poprzednią wersję tego dokumentu do porównania?" |
+| zrzut ekranu | „Czy zrobiłeś zrzut 'przed' i 'po' zmianie?" |
+| nagranie | „Czy masz potwierdzenie mailowe lub SMS nawiązujące do tej rozmowy?" |
 
-Trzy linie: co dodano, jaka suma kontrolna, czy powstała wersja tekstowa. Jeśli przy okazji
-wyszło coś istotnego dla sprawy (np. `eml-forensics.py` wykrył techniki obfuskacji albo token
-z adresem odbiorcy) — dopisz **jedno** zdanie i wskaż, żeby zajrzeć do raportu. Nie streszczaj raportu.
+## 10. Dopisz do chronologii
+
+Jeden wiersz: data i godzina **zdarzenia** (nie dodania), opis, odesłanie do pliku. Porządek chronologiczny.
+
+## 11. Raport końcowy
+
+```
+Plik:       <nazwa>
+SHA-256:    <hash>
+Wykryto:    <typ>
+Wywołano:   <co uruchomiono — archiwa? metadane? forensyk? sprawdz-klauzule?>
+Pewność:    dowód
+⚠ Brakuje: <sugestia jeśli jest>
+```

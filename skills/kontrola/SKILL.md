@@ -2,7 +2,6 @@
 name: kontrola
 description: "Mechaniczna kontrola gotowego pisma przed przekazaniem użytkownikowi — niewypełnione pola, ciągłość numeracji, zgodność nazw i numerów załączników w treści i na stronach załączników, sumy kontrolne, wymogi druku. Uruchamiaj po każdym build-pismo.py, zanim pokażesz pismo."
 argument-hint: "[pismo.pdf] [katalog sprawy]"
-disable-model-invocation: false
 model: haiku
 effort: low
 allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/kontrola-pisma.py *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/manifest.py *) Bash(pdftotext *) Bash(unzip -l *) Read

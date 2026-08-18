@@ -1,5 +1,5 @@
 ---
-name: init-projekt
+name: nowy-projekt
 description: Zakłada repozytorium spraw kruczka w bieżącym katalogu — BAZA_WIEDZY, KONWENCJE.md, rejestr spraw, szablony. Użyj raz na projekt, zanim założysz pierwszą sprawę.
 argument-hint: "[katalog]"
 disable-model-invocation: true
@@ -26,7 +26,7 @@ ${CLAUDE_PLUGIN_ROOT}/scripts/init-projekt.sh <katalog>
 Skrypt automatycznie uruchamia `check-deps.sh` jako pierwszy krok. Jeśli brakuje wymaganych
 narzędzi (`curl`, `jq`, `python3`), skrypt przerwie się i wypisze gotową komendę instalacji
 dla wykrytej platformy (macOS/Linux). Użytkownik musi ją uruchomić ręcznie, a potem powtórzyć
-`/kruczek:init-projekt`. Brakujące narzędzia opcjonalne (PDF, OCR) są sygnalizowane ostrzeżeniem,
+`/kruczek:nowy-projekt`. Brakujące narzędzia opcjonalne (PDF, OCR) są sygnalizowane ostrzeżeniem,
 ale nie blokują inicjalizacji.
 
 Tworzy: `index.md` (rejestr spraw), `KONWENCJE.md` (zasady prowadzenia), `BAZA_WIEDZY/`

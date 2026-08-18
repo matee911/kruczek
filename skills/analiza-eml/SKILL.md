@@ -59,5 +59,5 @@ które przysługują tylko przy czynie zawinionym.
 
 ## Delegowanie
 
-Przy wielu wiadomościach naraz zleć subagentowi `forensyk-spamu` (haiku) — to praca mechaniczna,
+Przy wielu wiadomościach naraz zleć subagentowi `analizuj-eml` (haiku) — to praca mechaniczna,
 skrypt liczy, agent tylko zestawia wyniki.

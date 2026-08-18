@@ -4,8 +4,12 @@
 set -euo pipefail
 
 REQUIRED=(curl jq python3)
-OPTIONAL_PDF=(wkhtmltopdf weasyprint)
-OPTIONAL_REST=(pandoc pdftotext pdfinfo tesseract ocrmypdf)
+OPTIONAL_PDF=(weasyprint wkhtmltopdf)
+# ggrep (macOS) — GNU grep z obsługą -P (PCRE); na Linux zwykły grep już ma -P
+case "$(uname -s)" in
+  Darwin) OPTIONAL_REST=(pandoc pdftotext pdfinfo tesseract ocrmypdf qpdf p7zip exiftool ggrep unzip) ;;
+  *)      OPTIONAL_REST=(pandoc pdftotext pdfinfo tesseract ocrmypdf qpdf p7zip exiftool unzip) ;;
+esac
 
 GREEN='\033[0;32m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; NC='\033[0m'
 ok()   { printf "${GREEN}  ✓${NC} %s\n" "$1"; }
@@ -82,6 +86,11 @@ if [ "${#missing_required[@]}" -gt 0 ] || ! $pdf_found || [ "${#missing_optional
           pdftotext|pdfinfo) brew_pkgs+=(poppler) ;;
           tesseract)   brew_pkgs+=(tesseract tesseract-lang) ;;
           wkhtmltopdf) brew_cask_pkgs+=(wkhtmltopdf) ;;
+          p7zip)       brew_pkgs+=(p7zip) ;;
+          exiftool)    brew_pkgs+=(exiftool) ;;
+          qpdf)        brew_pkgs+=(qpdf) ;;
+          ggrep)       brew_pkgs+=(grep) ;;
+          unzip)       brew_pkgs+=(unzip) ;;
           *)           brew_pkgs+=("$cmd") ;;
         esac
       done
@@ -97,6 +106,10 @@ if [ "${#missing_required[@]}" -gt 0 ] || ! $pdf_found || [ "${#missing_optional
           python3)     apt_pkgs+=(python3) ;;
           pdftotext|pdfinfo) apt_pkgs+=(poppler-utils) ;;
           tesseract)   apt_pkgs+=(tesseract-ocr tesseract-ocr-pol) ;;
+          p7zip)       apt_pkgs+=(p7zip-full) ;;
+          exiftool)    apt_pkgs+=(libimage-exiftool-perl) ;;
+          qpdf)        apt_pkgs+=(qpdf) ;;
+          unzip)       apt_pkgs+=(unzip) ;;
           *)           apt_pkgs+=("$cmd") ;;
         esac
       done

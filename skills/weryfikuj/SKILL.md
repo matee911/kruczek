@@ -1,6 +1,6 @@
 ---
 name: weryfikuj
-description: Adwersaryjny cross-check pisma przed wysyłką — czy przepisy obowiązują, czy cytaty są dosłowne, czy sygnatury istnieją, czy daty i sumy się zgadzają, czy hipotezy nie awansowały na fakty, i gdzie są słabe punkty, które druga strona może wykorzystać. Użyj zawsze przed nadaniem czegokolwiek.
+description: "Weryfikacja prawna i techniczna pisma — czy przepisy obowiązują, cytaty dosłowne, sygnatury istnieją, daty i sumy się zgadzają, hipotezy nie awansowały na fakty. Sprawdza też linię obrony adresata. Użyj jako samodzielny cross-check przepisów i faktów albo jako część /kruczek:recenzja (która sprawdza też język, styl i siłę argumentacji)."
 argument-hint: "[ścieżka do pisma lub katalogu wysyłki]"
 disable-model-invocation: true
 model: opus
@@ -12,7 +12,7 @@ allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/eli.sh *) Bash(${CLAUDE_PLUGIN
 
 Cel: `$ARGUMENTS`
 
-Czytasz pismo jak przeciwnik. Twoim zadaniem nie jest je pochwalić, tylko znaleźć w nim to,
+Czytasz pismo jak druga strona. Twoim zadaniem nie jest je pochwalić, tylko znaleźć w nim to,
 co druga strona wykorzysta. Zakładaj, że coś jest nie tak, i szukaj tego.
 
 ## 1. Wyciągnij tekst

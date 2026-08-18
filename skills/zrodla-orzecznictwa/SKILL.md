@@ -72,12 +72,12 @@ Zanim uznasz źródło za niedostępne, przejdź drabinkę obejść ze skillu **
 ## Reguła cytowania
 
 Do pisma trafia wyłącznie orzeczenie, które **potwierdziłeś w źródle**: sąd, data, sygnatura,
-dosłowny cytat tezy. Sygnatura wymyślona lub przekręcona jest gorsza niż jej brak — przeciwnik
+dosłowny cytat tezy. Sygnatura wymyślona lub przekręcona jest gorsza niż jej brak — druga strona
 sprawdzi ją w minutę i podważy całe pismo.
 
 Czego nie potwierdziłeś, oznacz `⚠ NIEPOTWIERDZONE` w bazie wiedzy i **nie cytuj**.
 
 ## Delegowanie
 
-Research po wielu źródłach zleć subagentowi `researcher-orzecznictwa` (sonnet) — ma opisane
+Research po wielu źródłach zleć subagentowi `szukaj-orzeczen` (sonnet) — ma opisane
 wszystkie obejścia i zwraca gotowe pozycje z sygnaturami i URL-ami.

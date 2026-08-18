@@ -69,7 +69,7 @@ lub maila zachowaj kolejność i autorstwo wypowiedzi.
 
 1. **Nie uzupełniaj domysłem.** Czego nie widać, oznacz `[nieczytelne]`. Odczyt niepewny — `[?]`.
    Zmyślony fragment odczytu jest gorszy niż jego brak, bo trafi do pisma jako cytat.
-2. **Nie poprawiaj oryginału.** Literówki, błędy i dziwne sformułowania w dokumencie przeciwnika
+2. **Nie poprawiaj oryginału.** Literówki, błędy i dziwne sformułowania w dokumencie drugiej strony
    przepisujesz wiernie — bywają istotne.
 3. **Nie streszczaj.** To ma być odczyt, nie podsumowanie. Streszczenie zrób osobno, niżej,
    w sekcji „Podsumowanie" — wyraźnie oddzielonej.
@@ -82,5 +82,5 @@ do tabeli opisowej i do chronologii. Komenda `/kruczek:dowod` robi to całościo
 
 ## Delegowanie
 
-Zleć subagentowi `transkryber` (sonnet). Haiku nie nadaje się do odczytu polskich skanów —
+Zleć subagentowi `transkrybuj` (sonnet). Haiku nie nadaje się do odczytu polskich skanów —
 gubi znaki diakrytyczne i myli podobne litery.
