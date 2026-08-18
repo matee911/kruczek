@@ -1,0 +1,26 @@
+{
+  "name": "kruczek",
+  "owner": {
+    "name": "kruczek contributors"
+  },
+  "metadata": {
+    "description": "Marketplace jednego pluginu: kruczek — prowadzenie spraw spornych z firmami i instytucjami.",
+    "version": "0.2.0"
+  },
+  "plugins": [
+    {
+      "name": "kruczek",
+      "source": "./",
+      "description": "Teczka sprawy, archiwum dowodów z sumami kontrolnymi, pisma z cytatami ze źródeł urzędowych, baza wiedzy.",
+      "category": "productivity",
+      "keywords": [
+        "polska",
+        "prawo",
+        "reklamacje",
+        "rodo",
+        "spam",
+        "spory"
+      ]
+    }
+  ]
+}

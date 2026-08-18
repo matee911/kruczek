@@ -1,0 +1,208 @@
+<!DOCTYPE html><html lang="pl"><head><meta charset="utf-8">
+<!--
+  ============================================================================
+  SZABLON PISMA — kruczek
+  ============================================================================
+  Skład: Liberation Serif 12 pt (metrycznie zgodny z Times New Roman),
+  interlinia 1,4. Marginesy ustawia build-pismo.py: 25/20/25/20 mm
+  (góra/dół/lewy/prawy) — spełniają wymogi Envelo (min. 8/15 mm),
+  PUH e-Doręczenia (min. 10/8/15 mm) oraz zostawiają zapas na wpięcie akt
+  wg ISO 838 (dziurki do ~16 mm od krawędzi).
+
+  NUMERACJA — generowana automatycznie licznikami CSS. NIE wpisuj cyfr ręcznie.
+    <h2>            → I., II., III.        części pisma
+    <p class="ust"> → 1., 2., 3.           ustępy, numeracja CIĄGŁA przez całe pismo
+    <ol class="pkt">→ 1), 2), 3)           punkty (petitum, żądania, wyliczenia)
+    <ol class="lit">→ a), b), c)           litery
+    <ul class="tir">→ –                    tiret
+  Dzięki temu „pkt 14" zawsze znaczy ustęp 14, a „żądanie 3)" — trzecie żądanie.
+  Nigdy nie powstanie mylące „1." wewnątrz „1.".
+
+  Pola do uzupełnienia: <span class="fill">[...]</span> — żółte tło w PDF.
+  Po wypełnieniu USUŃ class="fill".
+
+  Złożenie:  build-pismo.py pismo.html -o pismo.pdf -z dowod.md:"Opis"
+  ============================================================================
+-->
+<style>
+body{
+  font-family:"Liberation Serif","Times New Roman","DejaVu Serif",serif;
+  font-size:12pt; line-height:1.4; color:#000;
+  counter-reset: sekcja ustep;
+}
+/* ---------- blok nagłówkowy ---------- */
+.strona1-gora{height:20mm}          /* razem z marginesem 25mm daje 45mm — pod okno koperty DL */
+.naglowek{width:100%; margin-bottom:6mm}
+.naglowek td{vertical-align:top; font-size:11pt; line-height:1.35; border:none; padding:0}
+.nadawca{width:52%}
+.miejsce-data{width:48%; text-align:right}
+.adresat{margin:8mm 0 0 0; font-size:12pt; line-height:1.4}
+.adresat .etykieta{font-size:10.5pt; letter-spacing:.4px; text-transform:uppercase; color:#333}
+.meta{margin:6mm 0 0 0; font-size:11pt}
+.meta div{margin:1mm 0}
+/* ---------- tytuł ---------- */
+h1{font-size:14pt; font-weight:bold; text-align:center; text-transform:uppercase;
+   letter-spacing:.6px; margin:12mm 0 0 0; line-height:1.3}
+.podtytul{text-align:center; font-size:12pt; margin:2mm 0 0 0; font-weight:normal}
+.dotyczy{text-align:center; font-size:11pt; font-style:italic; margin:3mm 0 8mm 0}
+/* ---------- sekcje ---------- */
+h2{font-size:12pt; font-weight:bold; text-transform:uppercase; letter-spacing:.3px;
+   margin:8mm 0 3mm 0; page-break-after:avoid}
+h2::before{counter-increment:sekcja; content:counter(sekcja,upper-roman) ". "}
+h2.bez-numeru::before{content:none}
+h3{font-size:12pt; font-weight:bold; margin:5mm 0 2mm 0; page-break-after:avoid}
+/* ---------- ustępy: numeracja ciągła 1. 2. 3. ---------- */
+p.ust{margin:0 0 3mm 0; text-align:justify; text-indent:0; padding-left:10mm; position:relative}
+p.ust::before{counter-increment:ustep; content:counter(ustep) ".";
+              position:absolute; left:0; top:0; font-weight:bold; width:9mm}
+p{margin:0 0 3mm 0; text-align:justify}
+/* ---------- punkty 1) 2) 3) ---------- */
+ol.pkt{list-style:none; counter-reset:pkt; margin:2mm 0 3mm 0; padding-left:10mm}
+ol.pkt>li{counter-increment:pkt; margin:0 0 2mm 0; text-align:justify; position:relative; padding-left:9mm}
+ol.pkt>li::before{content:counter(pkt) ")"; position:absolute; left:0; font-weight:bold}
+/* ---------- litery a) b) c) ---------- */
+ol.lit{list-style:none; counter-reset:lit; margin:2mm 0 2mm 0; padding-left:9mm}
+ol.lit>li{counter-increment:lit; margin:0 0 1.5mm 0; text-align:justify; position:relative; padding-left:8mm}
+ol.lit>li::before{content:counter(lit,lower-alpha) ")"; position:absolute; left:0}
+/* ---------- tiret ---------- */
+ul.tir{list-style:none; margin:2mm 0; padding-left:9mm}
+ul.tir>li{margin:0 0 1.5mm 0; text-align:justify; position:relative; padding-left:6mm}
+ul.tir>li::before{content:"\2013"; position:absolute; left:0}
+/* ---------- cytaty przepisów ---------- */
+blockquote{margin:3mm 0 3mm 12mm; padding:0 0 0 4mm; border-left:2pt solid #666;
+           font-size:11pt; line-height:1.35; text-align:justify}
+blockquote p{margin:0 0 1.5mm 0}
+/* ---------- tabele ---------- */
+table.dane{border-collapse:collapse; width:100%; font-size:10.5pt; margin:3mm 0}
+table.dane th,table.dane td{border:0.5pt solid #333; padding:1.2mm 2mm; vertical-align:top; text-align:left}
+table.dane th{background:#ececec; font-weight:bold}
+/* ---------- elementy techniczne ---------- */
+code,.mono{font-family:"Liberation Mono","DejaVu Sans Mono",monospace; font-size:10pt; word-break:break-all}
+pre{font-family:"Liberation Mono","DejaVu Sans Mono",monospace; font-size:8.5pt; line-height:1.25;
+    background:#f4f4f4; border:0.5pt solid #bbb; padding:2mm; white-space:pre-wrap; word-break:break-all; margin:2mm 0}
+.fill{background:#fff3cd; border-bottom:0.5pt solid #666}
+.ramka{border:0.5pt solid #333; padding:2.5mm 3mm; font-size:11pt; margin:4mm 0; background:#fafafa}
+.pb{page-break-before:always}
+.unikaj-zlamania{page-break-inside:avoid}
+.male{font-size:10.5pt}
+/* ---------- podpis ---------- */
+.podpis-blok{margin-top:12mm; page-break-inside:avoid}
+.podpis-formula{margin-bottom:0}
+.podpis-pole{margin-top:22mm; width:75mm; border-top:0.5pt solid #000; padding-top:1.5mm;
+             font-size:10.5pt; text-align:center}
+.podpis-pole.prawy{margin-left:auto}
+.podpis-instrukcja{font-size:10pt; font-style:italic; color:#444; margin-top:2mm}
+/* ---------- załączniki ---------- */
+.zalaczniki{margin-top:8mm; page-break-inside:avoid}
+.zalaczniki h4{font-size:11pt; font-weight:bold; margin:0 0 2mm 0}
+ol.zal-lista{list-style:none; counter-reset:zal; margin:0; padding-left:0; font-size:11pt}
+ol.zal-lista>li{counter-increment:zal; margin:0 0 1.5mm 0; position:relative; padding-left:22mm}
+ol.zal-lista>li::before{content:"Załącznik nr " counter(zal) ":"; position:absolute; left:0; font-weight:normal}
+/* ---------- strony załączników ---------- */
+.zal-strona h2{border-bottom:0.75pt solid #000; padding-bottom:1.5mm; text-transform:none; letter-spacing:0}
+.zal-meta{font-size:9.5pt; color:#333; margin:0 0 4mm 0; font-family:"Liberation Mono",monospace; word-break:break-all}
+.zal-tresc{font-size:10pt; line-height:1.35}
+.zal-tresc table{border-collapse:collapse; width:100%; font-size:9pt}
+.zal-tresc th,.zal-tresc td{border:0.5pt solid #444; padding:1mm 1.5mm; vertical-align:top; text-align:left}
+.zal-tresc th{background:#ececec}
+.zal-tresc h3,.zal-tresc h4,.zal-tresc h5{font-size:10.5pt; margin:3mm 0 1.5mm 0}
+</style></head><body>
+
+<div class="strona1-gora"></div>
+
+<table class="naglowek"><tr>
+<td class="nadawca">
+  <b><span class="fill">[Imię i nazwisko albo pełna firma]</span></b><br>
+  <span class="fill">[ulica i numer]</span><br>
+  <span class="fill">[kod pocztowy i miejscowość]</span><br>
+  <span class="fill">[NIP — tylko jeśli występujesz jako przedsiębiorca]</span><br>
+  e-mail: <span class="fill">[adres e-mail]</span><br>
+  tel.: <span class="fill">[telefon — opcjonalnie]</span>
+</td>
+<td class="miejsce-data">
+  <span class="fill">[Miejscowość]</span>, dnia <span class="fill">[d miesiąca rrrr]</span> r.
+</td>
+</tr></table>
+
+<div class="adresat">
+  <div class="etykieta">Adresat</div>
+  <b><span class="fill">[Pełna firma z formą prawną — np. „ABC" spółka z ograniczoną odpowiedzialnością]</span></b><br>
+  <span class="fill">[ulica i numer]</span><br>
+  <span class="fill">[kod pocztowy i MIEJSCOWOŚĆ]</span>
+</div>
+
+<div class="meta">
+  <div><b>Do wiadomości (drogą elektroniczną):</b> <span class="fill mono">[adresy e-mail]</span></div>
+  <div><b>Sygn. / znak sprawy:</b> <span class="fill">[jeśli adresat nadał znak — inaczej usuń ten wiersz]</span></div>
+</div>
+
+<h1><span class="fill">[RODZAJ PISMA]</span></h1>
+<p class="podtytul"><span class="fill">[dopełnienie tytułu — np. „o zaprzestanie naruszeń", „o zapłatę"]</span></p>
+<p class="dotyczy">dotyczy: <span class="fill">[czego — z datą i identyfikatorem zdarzenia]</span></p>
+
+<h2>Stan faktyczny</h2>
+<p class="ust"><span class="fill">[Jedno zdarzenie na ustęp. Data bezwzględna, godzina jeśli znana,
+identyfikator. Każdy fakt z odesłaniem do załącznika w nawiasie — (zał. 1).]</span></p>
+<p class="ust"><span class="fill">[Kolejny fakt. Numeracja nadaje się sama — nie wpisuj cyfr.]</span></p>
+
+<h2>Ustalenia techniczne</h2>
+<p class="ust"><span class="fill">[Sekcja opcjonalna — usuń, jeśli sprawa nie ma warstwy technicznej.
+Tabela ustaleń z odesłaniem do załączników.]</span></p>
+
+<h2>Ocena prawna</h2>
+<h3><span class="fill">[Nazwa podstawy prawnej]</span></h3>
+<p class="ust">Zgodnie z <span class="fill">[art. … ustawy z dnia … (Dz. U. z … r. poz. …)]</span>:</p>
+<blockquote><p><span class="fill">[DOSŁOWNY cytat przepisu ze źródła urzędowego. Skróty tylko przez (…).]</span></p></blockquote>
+<p class="ust"><span class="fill">[Subsumpcja — która okoliczność wypełnia którą przesłankę normy.
+Przesłanka po przesłance.]</span></p>
+<p class="ust"><span class="fill">[Orzecznictwo: sąd, data, sygnatura, dosłowny cytat tezy.]</span></p>
+
+<h2>Żądania</h2>
+<p class="ust">W związku z powyższym wzywam do:</p>
+<ol class="pkt">
+  <li><span class="fill">[Żądanie: CO, w jakim TERMINIE, w jakiej FORMIE. Musi dać się wykonać i sprawdzić.]</span></li>
+</ol>
+<p class="ust"><b>Termin:</b> <span class="fill">[ile dni i od czego liczony — przy żądaniach z RODO
+termin ustawowy z art. 12 ust. 3 RODO]</span>.</p>
+
+<div class="ramka"><b>Zastrzeżenie.</b> Jeżeli adresat nie jest podmiotem odpowiedzialnym za opisane
+działanie, wzywam do wskazania w terminie 7 dni pełnych danych identyfikacyjnych podmiotu
+odpowiedzialnego wraz z przekazaniem mu niniejszego pisma. Brak wskazania będzie traktowany jako
+potwierdzenie, że to adresat jest podmiotem odpowiedzialnym.</div>
+
+<h2>Skutki bezskutecznego upływu terminu</h2>
+<p class="ust">W razie bezskutecznego upływu wyznaczonego terminu — bez dalszego wezwania:</p>
+<ol class="pkt">
+  <li><span class="fill">[Krok realny, z podstawą prawną i organem wskazanym z nazwy. Nie zapowiadaj
+  czegoś, czego nie zrobisz.]</span></li>
+</ol>
+
+<div class="podpis-blok">
+  <p class="podpis-formula">Z poważaniem,</p>
+  <div class="podpis-pole prawy"><span class="fill">[imię i nazwisko]</span></div>
+  <p class="podpis-instrukcja">
+    <!-- INSTRUKCJA PODPISU — wybierz jeden wariant i usuń pozostałe wraz z tym komentarzem.
+         Szczegóły: skill kruczek:redagowanie-pism, sekcja „Podpis”.
+      A) Papier do przedsiębiorcy / wezwanie / reklamacja:
+         podpis własnoręczny długopisem w polu wyżej.
+      B) E-mail do przedsiębiorcy (forma dokumentowa, art. 77(2) k.c.):
+         podpis nie jest prawnie konieczny; wystarczy imię i nazwisko w treści.
+      C) Pismo procesowe do sądu wysłane pocztą:
+         podpis własnoręczny OBOWIĄZKOWY (art. 126 § 1 pkt 6 k.p.c.);
+         brak = wezwanie do uzupełnienia w 7 dni pod rygorem zwrotu (art. 130 k.p.c.).
+      D) Pismo do organu (UODO, UKE, UOKiK) elektronicznie:
+         podpis kwalifikowany, zaufany albo osobisty; e-mail jest bezskuteczny
+         (art. 63 § 1 zd. 3 k.p.a.).
+    -->
+    <span class="fill">[wpisz wybraną instrukcję podpisu albo usuń ten akapit]</span>
+  </p>
+</div>
+
+<div class="zalaczniki">
+  <h4>Załączniki:</h4>
+  <ol class="zal-lista"><!--KRUCZEK:LISTA_ZALACZNIKOW--></ol>
+</div>
+
+<!--KRUCZEK:ZALACZNIKI-->
+
+</body></html>

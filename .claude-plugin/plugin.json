@@ -1,0 +1,23 @@
+{
+  "name": "kruczek",
+  "description": "Prowadzenie spraw spornych z firmami i instytucjami po polsku: teczka sprawy z chronologią i sumami kontrolnymi, archiwum dowodów (z OCR/transkrypcją do .md), budowanie pism z dosłownymi cytatami przepisów ze źródeł urzędowych i baza wiedzy wielokrotnego użytku.",
+  "version": "0.2.0",
+  "author": {
+    "name": "kruczek contributors"
+  },
+  "homepage": "https://github.com/matee911/kruczek",
+  "repository": "https://github.com/matee911/kruczek",
+  "license": "MIT",
+  "keywords": [
+    "polska",
+    "prawo",
+    "reklamacje",
+    "rodo",
+    "spam",
+    "spory",
+    "konsument",
+    "dokumenty",
+    "chain-of-custody",
+    "dziennik-ustaw"
+  ]
+}

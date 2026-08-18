@@ -1,0 +1,6 @@
+# dane osobowe i teczki spraw nie należą do repozytorium pluginu
+_SZABLONY/dane-nadawcy.md
+*.pdf.build.html
+__pycache__/
+*.pyc
+.DS_Store
