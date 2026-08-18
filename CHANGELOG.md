@@ -3,6 +3,11 @@
 Format wg [Keep a Changelog](https://keepachangelog.com/pl/1.1.0/),
 wersjonowanie wg [SemVer](https://semver.org/lang/pl/).
 
+## [0.3.1] — 2026-08-19
+
+### Naprawione
+- `scripts/archiwa.sh save` — szukanie nagłówka `location:` zamiast `Content-Location:` (HTTP/2 Wayback Machine zwraca lowercase, skrypt nie znajdował timestamp i kończył błędem)
+
 ## [0.3.0] — 2026-08-19
 
 ### Dodane
