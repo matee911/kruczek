@@ -39,7 +39,7 @@ EOF
 ├── index.md            ← ten plik: rejestr wszystkich spraw
 ├── BAZA_WIEDZY/        ← przepisy, orzecznictwo, metodyka (wspólne)
 ├── _SZABLONY/          ← wzory pism i plików
-└── <PODMIOT>/          ← jeden katalog na przeciwnika
+└── <PODMIOT>/          ← jeden katalog na drugą stronę
     ├── index.md        ← manifest, chronologia, ustalenia, TODO, eskalacja
     ├── ARCHIWUM/       ← oryginały dowodów — TYLKO DOPISYWANIE, nigdy edycja
     ├── ROBOCZE/        ← notatki, wersje, materiały pomocnicze

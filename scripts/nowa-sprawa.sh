@@ -51,7 +51,7 @@ Opisy plików prowadź w tej sekcji nad manifestem.
 
 ## 5. TODO
 
-- [ ] Ustalić pełne dane rejestrowe przeciwnika
+- [ ] Ustalić pełne dane rejestrowe drugiej strony
 - [ ] Zebrać i zarchiwizować dowody (+ wersje tekstowe dla plików nietekstowych)
 - [ ] Sprawdzić BAZĘ WIEDZY, uzupełnić brakujące przepisy
 - [ ] Przygotować pismo

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# metadane.sh — zbiorcza analiza metadanych plików od przeciwnika
+# metadane.sh — zbiorcza analiza metadanych plików od drugiej strony
 # Użycie: metadane.sh <plik> [plik2 ...]
 # Wypisuje tabelę: plik | data z nazwy | data z metadanych | data z treści | uwagi
 set -euo pipefail
