@@ -3,6 +3,14 @@
 Format wg [Keep a Changelog](https://keepachangelog.com/pl/1.1.0/),
 wersjonowanie wg [SemVer](https://semver.org/lang/pl/).
 
+## [0.3.3] — 2026-08-19
+
+### Naprawione
+- `agents/weryfikuj-cytaty`, `agents/recenzuj`, `agents/napisz-pismo` — pułapka chronologiczna:
+  przepis musi obowiązywać w **dacie zdarzenia**, nie tylko dziś. Nowa sekcja w `weryfikuj-cytaty`
+  z procedurą (`eli.sh referencje`, sprawdzenie daty uchylenia per zdarzenie); w `recenzuj` i
+  `napisz-pismo` — wprost opisany błąd powołania uchylonego przepisu jako 🔴 BLOKUJE WYSYŁKĘ
+
 ## [0.3.2] — 2026-08-19
 
 ### Dodane

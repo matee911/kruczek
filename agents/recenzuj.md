@@ -42,6 +42,9 @@ zarzuty biją dziesięć, z których dwa są do obalenia — bo obalenie dwóch 
 
 `weryfikuj-cytaty` sprawdza czy przepisy obowiązują i czy cytaty są dosłowne. Twoja działka:
 - czy nie powołano przepisu **dla powagi** — tematycznie pasuje, ale nie ma zastosowania do tego stanu faktycznego,
+- czy przepis obowiązywał **w dacie zdarzenia** — nie wystarczy że obowiązuje dziś; sprawdź datę
+  uchylenia przez `eli.sh referencje`. Powołanie przepisu uchylonego przed datą naruszenia to błąd
+  merytoryczny który kompromituje pismo: druga strona wskaże to jako pierwszą odpowiedź,
 - czy zapowiedziane kroki eskalacyjne są **realne**: właściwy organ, istniejący tryb, dotrzymywalny termin. Groźba, której nie wykonasz, kosztuje wiarygodność następnego pisma,
 - czy nie pominięto przepisu **niekorzystnego**, który druga strona i tak podniesie.
 

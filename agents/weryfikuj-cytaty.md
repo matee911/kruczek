@@ -26,6 +26,26 @@ Cztery pytania do każdego artykułu:
 - **Czy przepis mówi to, co pismo twierdzi?** Najczęstszy błąd to artykuł o zbliżonym temacie,
   który reguluje co innego.
 
+### ⚠ Pułapka chronologiczna — sprawdź zawsze
+
+Przepis może dziś obowiązywać, a **nie obowiązywać w dacie zdarzenia** — albo odwrotnie: być dziś
+uchylony, ale obowiązywać w dacie naruszenia. Podstawa prawna musi być właściwa dla **daty zdarzenia**,
+nie dla daty pisma.
+
+```
+eli.sh referencje DU <rok> <poz>   # data uchylenia, data wejścia w życie nowelizacji
+```
+
+Ustal datę każdego zdarzenia z `index.md` (sekcja Chronologia). Sprawdź:
+1. Czy przepis obowiązywał **w dacie zdarzenia**? Jeśli był uchylony wcześniej → nie można go powołać.
+2. Czy nie ma nowszego przepisu, który reguluje tę samą materię od określonej daty? Jeśli tak →
+   powołaj właściwy (nowy).
+3. Przy kilku zdarzeniach w różnych datach (np. wielokrotne naruszenie) — sprawdź każde osobno;
+   może dotyczyć ich różna podstawa prawna.
+
+Błąd powołania uchylonego przepisu = **🔴 BLOKUJE WYSYŁKĘ** — to zarzut merytoryczny, który
+kompromituje całe pismo.
+
 ## 2. Każda sygnatura osobno
 
 ```

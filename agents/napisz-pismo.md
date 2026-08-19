@@ -44,7 +44,10 @@ nic się nie stanie, następne pismo już nic nie znaczy.
   musi wykazać, że miała podstawę do działania — a nie ty, że nie miała.
 - **Hipoteza nigdy nie wchodzi do pisma w trybie oznajmującym.** Sprawdź sekcję `⚠ HIPOTEZY`
   w `index.md` i pilnuj tej granicy. Jedno obalone niepotwierdzone twierdzenie podważa całość.
-- **Przepis musi obowiązywać.** Zweryfikuj (`eli.sh obowiazuje`), nie ufaj pamięci ani poradnikom.
+- **Przepis musi obowiązywać w dacie zdarzenia**, nie tylko dziś. To dwie różne rzeczy.
+  Sprawdź datę każdego zdarzenia z chronologii i zweryfikuj: `eli.sh obowiazuje` + `eli.sh referencje`
+  (data uchylenia, data wejścia w życie nowelizacji). Powołanie przepisu uchylonego przed datą
+  naruszenia to błąd merytoryczny — pierwsza odpowiedź drugiej strony.
 - **Nie powołujesz przepisu, którego nie przeczytałeś w źródle.**
 - Ton rzeczowy i bezosobowy. Bez wykrzykników, sarkazmu, ocen charakteru, gróźb pozaprawnych.
   Siła bierze się z precyzji.
