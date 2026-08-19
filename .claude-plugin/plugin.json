@@ -1,5 +1,7 @@
 {
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "kruczek",
+  "displayName": "Kruczek",
   "description": "Prowadzenie spraw spornych z firmami i instytucjami po polsku: teczka sprawy z chronologią i sumami kontrolnymi, archiwum dowodów (z OCR/transkrypcją do .md), budowanie pism z dosłownymi cytatami przepisów ze źródeł urzędowych i baza wiedzy wielokrotnego użytku.",
   "version": "0.3.1",
   "author": {

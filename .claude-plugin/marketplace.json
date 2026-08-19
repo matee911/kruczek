@@ -4,8 +4,7 @@
     "name": "kruczek contributors"
   },
   "metadata": {
-    "description": "Marketplace jednego pluginu: kruczek — prowadzenie spraw spornych z firmami i instytucjami.",
-    "version": "0.3.1"
+    "description": "Marketplace jednego pluginu: kruczek — prowadzenie spraw spornych z firmami i instytucjami."
   },
   "plugins": [
     {
