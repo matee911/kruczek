@@ -102,5 +102,11 @@ nigdy z pamięci. Przed wysyłką: cross-check i double check (`/kruczek:weryfik
 Ustalenie niepotwierdzone dowodem (np. „to prawdopodobnie ta sama spółka”) trafia do `index.md`
 z nagłówkiem `⚠ HIPOTEZA — NIE cytować w pismach` i wprost wskazanym brakującym ogniwem.
 EOF
+[ -f "$ROOT/_SZABLONY/dane-nadawcy.md" ] || \
+  cp "$(dirname "$SCRIPT_DIR")/templates/dane-nadawcy.md" "$ROOT/_SZABLONY/dane-nadawcy.md"
+
+# CLAUDE.md generujemy zawsze (nadpisujemy) — zawiera dane nadawcy i nawigację
+bash "$SCRIPT_DIR/gen-claude-md.sh" "$ROOT"
+
 echo "Struktura założona w: $(cd "$ROOT" && pwd)"
 find "$ROOT" -maxdepth 2 -not -path '*/.*' | sort

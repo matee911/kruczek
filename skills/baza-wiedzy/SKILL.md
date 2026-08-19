@@ -18,8 +18,16 @@ w źródle urzędowym, ma tu wylądować w formie gotowej do wklejenia do pisma.
 ## 1. Sprawdź, czy tego już nie ma
 
 Przejrzyj `BAZA_WIEDZY/index.md` i pliki w `przepisy/`, `orzecznictwo/`, `decyzje/`.
-Jeśli wpis istnieje — **zaktualizuj go**, nie twórz drugiego. Sprawdź przy okazji, czy nie
-zdezaktualizował się (nowy tekst jednolity, nowelizacja, uchylenie).
+Jeśli wpis istnieje — **zaktualizuj go**, nie twórz drugiego.
+
+**Zawsze weryfikuj aktualność, nawet gdy plik już jest:**
+- Sprawdź pole `Publikator` — czy to tekst jednolity (`t.j. Dz.U. z … poz. …`), czy pierwotny
+  (sam rok uchwalenia). Tekst pierwotny/ogłoszony bez oznaczenia t.j. jest **niezdatny do cytowania**.
+- `eli.sh obowiazuje DU <rok> <poz>` — status + czy istnieje nowszy tekst jednolity
+- `eli.sh referencje` — nowelizacje po dacie tekstu jednolitego
+
+Jeśli plik w bazie ma tekst ogłoszony zamiast jednolitego — oznacz go `⚠ NIEAKTUALNY — tekst ogłoszony,
+nie cytować` i pobierz właściwy tekst jednolity zanim zaczniesz analizę.
 
 ## 2. Nazwij plik
 
@@ -35,7 +43,7 @@ zdezaktualizował się (nowy tekst jednolity, nowelizacja, uchylenie).
 # <Nazwa ustawy> — <czego dotyczą przepisy>
 
 - **Akt:** <pełna nazwa z datą>
-- **Publikator:** Dz. U. <rok> poz. <poz> (t.j. Dz. U. z <rok> r. poz. <poz>)
+- **Publikator:** t.j. Dz. U. z <rok> r. poz. <poz> ← ZAWSZE tekst jednolity; jeśli nie istnieje, podaj ogłoszony + oznacz ⚠ NIEAKTUALNY
 - **Status:** obowiązujący / uchylony od <data> przez <akt>
 - **Źródło:** <URL do api.sejm.gov.pl / EUR-Lex>
 - **Zweryfikowano:** <RRRR-MM-DD>

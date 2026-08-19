@@ -3,6 +3,26 @@
 Format wg [Keep a Changelog](https://keepachangelog.com/pl/1.1.0/),
 wersjonowanie wg [SemVer](https://semver.org/lang/pl/).
 
+## [0.3.2] — 2026-08-19
+
+### Dodane
+- `/kruczek:dane-nadawcy` (skill, sonnet) — wypełnia `_SZABLONY/dane-nadawcy.md` i generuje `CLAUDE.md`
+  z danymi nadawcy i nawigacją; działa przy nowym projekcie i jako ręczna aktualizacja
+- `scripts/gen-claude-md.sh` — generuje `CLAUDE.md` z `dane-nadawcy.md`; wywoływany przez
+  `init-projekt.sh` i przez skill `dane-nadawcy`; bezpieczny do wielokrotnego wywołania (nadpisuje)
+- `podmiot.sh regon` — wyszukiwanie na białej liście VAT po REGON-ie (gdy NIP nieznany)
+
+### Zmienione
+- `agents/ustal-strone`, `skills/zrodla-rejestry` — nowa sekcja „Gdy masz tylko nazwę firmy":
+  kolejność prób (WebFetch stopki → rejestr.io → REGON → pytanie użytkownika z gotowymi linkami);
+  wyraźny zakaz próbowania `/search/name` (endpoint nie istnieje w API MF)
+- `skills/zrodla-prawa` — procedura weryfikacji aktualności przepisu przed analizą: `eli.sh obowiazuje`
+  → tekst jednolity → nagłówek „Opracowano na podstawie" → `eli.sh referencje`; ostrzeżenie że tekst
+  ogłoszony (pierwotny) jest niezdatny do cytowania nawet gdy plik jest już w bazie
+- `skills/baza-wiedzy` — weryfikacja aktualności przy każdym dostępie do istniejącego pliku;
+  szablon Publikatora wymaga t.j., nie tekstu ogłoszonego
+- `skills/nowy-projekt` — krok 4 deleguje do `/kruczek:dane-nadawcy` zamiast AskUserQuestion
+
 ## [0.3.1] — 2026-08-19
 
 ### Naprawione

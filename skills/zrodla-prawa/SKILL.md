@@ -72,8 +72,19 @@ stosowanej formie elektronicznej**". Jedyne wiarygodne źródło to EUR-Lex.
 
 ## Zanim zaczniesz szukać
 
-Sprawdź `BAZA_WIEDZY/przepisy/` w projekcie. Jeśli przepis już tam jest i data weryfikacji
-nie jest stara — użyj tego. Po nowym researchu dopisz wynik do bazy (`/kruczek:baza-wiedzy`).
+Sprawdź `BAZA_WIEDZY/przepisy/` w projekcie. Jeśli przepis już tam jest — **nie zakładaj, że jest aktualny**.
+Nawet gdy masz plik z Dz.U., sprawdź przez `eli.sh obowiazuje` czy to tekst jednolity, czy pierwotny
+(ogłoszony). Tekst ogłoszony z roku uchwalenia jest **niezdatny do cytowania** — może być kilkadziesiąt
+nowelizacji za sobą.
+
+Procedura przy każdym przepisie, przed analizą i wnioskami:
+1. `eli.sh obowiazuje DU <rok> <poz>` — status (`IN_FORCE` / `NOT_IN_FORCE`) + czy istnieje tekst jednolity
+2. Jeśli `status` zawiera „akt posiada tekst jednolity" — pobierz go: `eli.sh ujednolicony`
+3. Sprawdź nagłówek PDF „Opracowano na podstawie:" — do której nowelizacji sięga
+4. `eli.sh referencje` — czy są nowelizacje **po** dacie tekstu jednolitego; jeśli tak, przepis mógł się zmienić
+5. Dopiero po tych krokach zacznij analizę i wyciągaj wnioski
+
+Po nowym researchu dopisz wynik do bazy (`/kruczek:baza-wiedzy`).
 
 ## Delegowanie
 

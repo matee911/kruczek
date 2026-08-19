@@ -2,6 +2,7 @@
 # podmiot.sh — ustalanie tożsamości drugiej strony z otwartych rejestrów.
 #
 #   podmiot.sh nip 5252344078        — Biała lista VAT (MF): nazwa, REGON, KRS, adres, rachunki
+#   podmiot.sh regon 140182840       — Biała lista VAT po REGON-ie (gdy NIP nieznany)
 #   podmiot.sh krs 0000240611 [P|S]  — Odpis aktualny z KRS (P=przedsiębiorcy, S=stowarzyszenia)
 #   podmiot.sh ceidg 5252344078      — CEIDG API v3: pełne dane JDG (imię, nazwisko, adres zam.)
 #   podmiot.sh domena example.pl     — RDAP: rejestrator, abonent, daty, nameservery (.pl przez NASK)
@@ -50,6 +51,12 @@ nip() {
   | jq '.result.subject | {name, nip, regon, krs, statusVat, workingAddress, residenceAddress,
                            registrationLegalDate, representatives, accountNumbers}'
 }
+regon() {
+  local r="${1//[^0-9]/}"
+  curl -sSfL --max-time 30 "https://wl-api.mf.gov.pl/api/search/regon/${r}?date=${today}" \
+  | jq '.result.subject | {name, nip, regon, krs, statusVat, workingAddress, residenceAddress,
+                           registrationLegalDate, representatives, accountNumbers}'
+}
 krs() {
   curl -sSfL --max-time 30 "https://api-krs.ms.gov.pl/api/krs/OdpisAktualny/${1}?rejestr=${2:-P}&format=json" \
   | jq '{
@@ -82,6 +89,7 @@ strona() {
 
 case "${1:-}" in
   nip)    nip "$2" ;;
+  regon)  regon "$2" ;;
   krs)    krs "$2" "${3:-P}" ;;
   ceidg)  ceidg "$2" ;;
   domena) domena "$2" ;;

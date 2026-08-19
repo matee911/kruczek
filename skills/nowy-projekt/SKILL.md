@@ -39,18 +39,12 @@ Skrypt jest idempotentny — nie nadpisuje istniejących plików.
 cp ${CLAUDE_PLUGIN_ROOT}/templates/pismo.html <katalog>/_SZABLONY/
 ```
 
-## 4. Dopytaj o kontekst i zapisz go
+## 4. Wypełnij dane nadawcy i wygeneruj CLAUDE.md
 
-Zapytaj użytkownika **jednym** wywołaniem AskUserQuestion o rzeczy, które będą wracać w każdym piśmie:
+Uruchom skill `/kruczek:dane-nadawcy <katalog>` — zbierze dane i wygeneruje CLAUDE.md.
 
-- czy występuje jako **osoba fizyczna / konsument** czy jako **przedsiębiorca** (to zmienia podstawy prawne
-  i katalog roszczeń — konsument ma UOKiK, Rzecznika Finansowego i rękojmię, przedsiębiorca ma u.z.n.k.)
-- dane do nagłówka pism: imię i nazwisko lub firma, adres korespondencyjny, NIP, e-mail, miejscowość
-- czy pisma papierowe wysyła sam, czy przez usługę online (np. Envelo) — od tego zależy, czy załączniki
-  mają być wdrukowane w PDF
-
-Zapisz odpowiedzi w `<katalog>/_SZABLONY/dane-nadawcy.md`. Uprzedź, że plik zawiera dane osobowe —
-jeśli repozytorium trafi do gita, powinien być w `.gitignore`.
+Uprzedź użytkownika, że `_SZABLONY/dane-nadawcy.md` zawiera dane osobowe — jeśli repozytorium
+trafi do gita, powinien być w `.gitignore`.
 
 ## 5. Podsumuj
 

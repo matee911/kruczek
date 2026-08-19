@@ -24,6 +24,29 @@ Dla JDG (brak KRS): `podmiot.sh ceidg <NIP>` → pełne dane osobowe, adres zami
 Gdy masz tylko stronę WWW: `strona` (dokąd przekierowuje) → `domena` (kto i kiedy zarejestrował)
 → WebFetch stopki i podstron „Kontakt", „Regulamin", „Polityka prywatności" po NIP i formę prawną.
 
+## Gdy masz tylko nazwę firmy (bez NIP/REGON)
+
+API Białej listy VAT **nie obsługuje wyszukiwania po nazwie** — endpointy są tylko dla NIP, REGON
+i numeru rachunku. Nie próbuj `/search/name` ani żadnych wariantów — to endpoint nieistniejący.
+
+Kolejność prób zdobycia NIP/REGON:
+
+1. **WebFetch strony firmy** — szukaj w stopce, regulaminie lub „O nas" wartości `NIP:`, `REGON:`,
+   `KRS:`, `NIP/REGON`, `nr KRS`. Wzorzec: 10 cyfr (NIP), 9 lub 14 cyfr (REGON), 10 cyfr (KRS).
+2. **WebFetch** `https://rejestr.io/krs/<NAZWA_URL>` lub `https://www.google.com/search?q=<NAZWA>+NIP`
+   — wyciągnij NIP z wyników jeśli jest jawny.
+3. **Biała lista VAT po REGON-ie** (jeśli REGON znaleziono zamiast NIP-u):
+   `podmiot.sh` nie ma subkomendy `regon`, ale można:
+   `curl -s "https://wl-api.mf.gov.pl/api/search/regon/<REGON>?date=$(date +%F)" | jq '.result.subject | {name, nip, krs}'`
+4. **Jeśli nic nie działa** — zatrzymaj się i powiedz użytkownikowi wprost:
+
+   > Nie udało mi się ustalić NIP-u firmy „[NAZWA]" automatycznie.
+   > Proszę wyszukaj ją ręcznie w jednym z poniższych miejsc i podaj mi NIP lub REGON:
+   > - https://wyszukiwarce.gov.pl (wyszukiwarka KRS/CEIDG)
+   > - https://ceidg.gov.pl → Wyszukiwarka podmiotów
+   > - stopka lub regulamin na stronie firmy
+   > - faktura lub korespondencja od nich
+
 ## Co jest szczególnie wartościowe
 
 - **Data rejestracji domeny.** Domena zarejestrowana kilka dni przed spornym zdarzeniem to mocny

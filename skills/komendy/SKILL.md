@@ -19,6 +19,7 @@ a jeśli z rozmowy wynika konkretna potrzeba — wskaż jedną, właściwą pozy
 |---|---|---|
 | `/kruczek:komendy` | ten spis | haiku |
 | `/kruczek:nowy-projekt` | zakłada repozytorium spraw: BAZA_WIEDZY, KONWENCJE.md, rejestr | sonnet |
+| `/kruczek:dane-nadawcy` | wypełnia/aktualizuje dane nadawcy i regeneruje CLAUDE.md | sonnet |
 | `/kruczek:nowa-sprawa` | zakłada teczkę sprawy z chronologią, manifestem i TODO | sonnet |
 | `/kruczek:dowod` | wciąga dowód do archiwum: suma kontrolna, OCR/transkrypcja, wpis w chronologii | haiku |
 | `/kruczek:chronologia` | dopisuje zdarzenie do chronologii sprawy | haiku |
@@ -72,6 +73,7 @@ a jeśli z rozmowy wynika konkretna potrzeba — wskaż jedną, właściwą pozy
 | Skrypt | Do czego |
 |---|---|
 | `init-projekt.sh` | struktura repozytorium |
+| `gen-claude-md.sh` | generuje CLAUDE.md z danych nadawcy (wołany też przez init-projekt.sh) |
 | `nowa-sprawa.sh` | katalog sprawy + `index.md` |
 | `eml-forensics.py` | pełna analiza `.eml` → raport markdown |
 | `manifest.py` | sumy kontrolne, manifest, weryfikacja spójności |

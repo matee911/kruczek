@@ -74,6 +74,20 @@ Bilans i rachunek zysków/strat zdradzają realną kondycję finansową drugiej 
 
 Zanim uznasz źródło za niedostępne, przejdź drabinkę obejść ze skillu **`fallback-przegladarka`**: zmiana narzędzia (WebFetch ↔ curl), boczne API, Claude in Chrome z sesją użytkownika, Playwright dla stron renderowanych JS-em, a na końcu przekazanie zadania użytkownikowi z gotową instrukcją krok po kroku. Nie omijamy captcha ani logowania.
 
+## Gdy masz tylko nazwę firmy (bez NIP/REGON)
+
+API Białej listy VAT (`wl-api.mf.gov.pl`) **nie ma endpointu `/search/name`** — obsługuje wyłącznie
+NIP, REGON i numer rachunku. Nie próbuj szukania po nazwie przez to API.
+
+Kolejność:
+1. WebFetch stopki/regulaminu/„O nas" na stronie firmy — szukaj `NIP:`, `REGON:`, `KRS:` (wzorce: 10/9/14/10 cyfr).
+2. WebFetch `rejestr.io` lub wyników wyszukiwarki z nazwą + „NIP".
+3. Jeśli REGON znaleziony zamiast NIP-u: `curl -s "https://wl-api.mf.gov.pl/api/search/regon/<REGON>?date=$(date +%F)" | jq '.result.subject | {name,nip,krs}'`
+4. Gdy nic nie działa — powiedz użytkownikowi wprost i podaj gotowe linki:
+   - `https://wyszukiwarce.gov.pl`
+   - `https://ceidg.gov.pl` → Wyszukiwarka podmiotów
+   - stopka / regulamin / faktura od firmy
+
 ## Gdy dane ze strony nie zgadzają się z rejestrem
 
 To częsta sytuacja: serwis podaje nazwę handlową i adres, ale nie NIP-u ani formy prawnej.
