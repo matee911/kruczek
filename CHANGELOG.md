@@ -3,6 +3,13 @@
 Format wg [Keep a Changelog](https://keepachangelog.com/pl/1.1.0/),
 wersjonowanie wg [SemVer](https://semver.org/lang/pl/).
 
+## [0.3.5] — 2026-08-19
+
+### Zmienione
+- `skills/dane-nadawcy` — weryfikacja rejestrowa po wypełnieniu danych: JDG przez CEIDG
+  (adres doręczeń, e-mail, status, pełna firma), spółka przez NIP+KRS (siedziba, reprezentacja,
+  status); raport rozbieżności z pytaniem które dane użyć; pominięcie dla osób fizycznych
+
 ## [0.3.4] — 2026-08-19
 
 ### Zmienione
