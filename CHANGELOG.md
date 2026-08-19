@@ -3,6 +3,15 @@
 Format wg [Keep a Changelog](https://keepachangelog.com/pl/1.1.0/),
 wersjonowanie wg [SemVer](https://semver.org/lang/pl/).
 
+## [0.3.4] — 2026-08-19
+
+### Zmienione
+- `gen-claude-md.sh` — usuniięto dane osobowe z CLAUDE.md; skrypt nie wymaga już
+  `dane-nadawcy.md` i jest bezpieczny do commitowania; CLAUDE.md wskazuje na plik
+  `_SZABLONY/dane-nadawcy.md` zamiast kopiować jego zawartość
+- `skills/dane-nadawcy` — skill nie wywołuje już `gen-claude-md.sh`; zarządza wyłącznie
+  `_SZABLONY/dane-nadawcy.md`
+
 ## [0.3.3] — 2026-08-19
 
 ### Naprawione

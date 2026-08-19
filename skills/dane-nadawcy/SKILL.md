@@ -1,10 +1,10 @@
 ---
 name: dane-nadawcy
-description: Wypełnia lub aktualizuje _SZABLONY/dane-nadawcy.md i regeneruje CLAUDE.md. Użyj przy zakładaniu projektu, gdy dane się zmieniły (nowy adres, e-mail, NIP) lub gdy CLAUDE.md jest nieaktualny.
+description: Wypełnia lub aktualizuje _SZABLONY/dane-nadawcy.md z danymi nadawcy (NIP, adres, e-mail). Użyj przy zakładaniu projektu lub gdy dane się zmieniły. Nie dotyka CLAUDE.md.
 argument-hint: "[katalog projektu]"
 model: sonnet
 effort: low
-allowed-tools: Read Write Edit Bash(${CLAUDE_PLUGIN_ROOT}/scripts/gen-claude-md.sh *)
+allowed-tools: Read Write Edit
 ---
 
 # Aktualizacja danych nadawcy
@@ -41,13 +41,7 @@ Minimum potrzebne do pisania pism:
 Edit `<katalog>/_SZABLONY/dane-nadawcy.md` — wpisz podane wartości w odpowiednie wiersze tabeli.
 Nie zmieniaj struktury pliku ani innych pól.
 
-## 5. Wygeneruj CLAUDE.md
+## 5. Potwierdź
 
-```
-${CLAUDE_PLUGIN_ROOT}/scripts/gen-claude-md.sh <katalog>
-```
-
-## 6. Potwierdź
-
-Pokaż użytkownikowi sekcję „Dane nadawcy" z wygenerowanego CLAUDE.md.
-Powiedz które pola nadal są puste — jeśli są krytyczne (NIP, adres) — wskaż to wprost.
+Pokaż użytkownikowi wypełnione pola. Powiedz które nadal są puste — jeśli są krytyczne
+(NIP, adres) — wskaż to wprost.
