@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""eml-forensics.py — mechaniczna analiza wiadomości .eml pod kątem dowodowym.
+"""eml_forensics.py — mechaniczna analiza wiadomości .eml pod kątem dowodowym.
 
 Wypluwa gotowy raport markdown: droga wiadomości, uwierzytelnienie (SPF/DKIM/DMARC),
 rozbieżność domen, sfingowany wątek, tokeny śledzące, katalog technik obfuskacji,
 treść po deobfuskacji, sumy kontrolne. Zero interpretacji prawnej — same fakty.
 
 Użycie:
-    eml-forensics.py wiadomosc.eml [--outdir KATALOG]
+    eml_forensics.py wiadomosc.eml [--outdir KATALOG]
 
 Zapisuje w --outdir (domyślnie obok pliku):
     <stem>_naglowki.txt      pełne nagłówki
@@ -173,7 +173,7 @@ def main():
     W = L.append
     W(f"# Analiza techniczna wiadomości `{os.path.basename(a.eml)}`\n")
     W(
-        f"Wygenerowano skryptem `eml-forensics.py`. SHA-256 pliku źródłowego: `{sha256(a.eml)}`\n"
+        f"Wygenerowano skryptem `eml_forensics.py`. SHA-256 pliku źródłowego: `{sha256(a.eml)}`\n"
     )
 
     W("## 1. Identyfikacja\n")

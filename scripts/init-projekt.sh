@@ -77,7 +77,7 @@ Skan, zdjęcie, PDF z obrazem, nagranie rozmowy, screenshot — **od razu** przy
 plik `.md` obok oryginału, o tej samej nazwie bazowej z sufiksem `_tekst.md`:
 - skan / zdjęcie / PDF-obraz → OCR (`ocrmypdf`, `tesseract -l pol`) albo odczyt modelem vision
 - nagranie audio/wideo → transkrypcja z **znacznikami czasu** i oznaczeniem mówców
-- e-mail `.eml` → `eml-forensics.py` (nagłówki + treść + analiza)
+- e-mail `.eml` → `eml_forensics.py` (nagłówki + treść + analiza)
 
 W nagłówku pliku tekstowego zapisz: metodę (OCR/vision/transkrypcja), narzędzie, datę,
 oraz **wyraźne ostrzeżenie, że to odczyt pomocniczy, a wiążący jest oryginał**.

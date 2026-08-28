@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""kontrola-pisma.py — mechaniczna kontrola gotowego pisma przed przekazaniem użytkownikowi.
+"""kontrola_pisma.py — mechaniczna kontrola gotowego pisma przed przekazaniem użytkownikowi.
 
 Sprawdza to, co da się sprawdzić bez czytania ze zrozumieniem:
   * czy nie zostały niewypełnione pola [w nawiasach] i placeholdery
@@ -15,7 +15,7 @@ Sprawdza to, co da się sprawdzić bez czytania ze zrozumieniem:
 Nie ocenia treści ani prawa — od tego jest recenzent (opus).
 
 Użycie:
-    kontrola-pisma.py pismo.pdf --sprawa <katalog-sprawy> [--zip dowody.zip]
+    kontrola_pisma.py pismo.pdf --sprawa <katalog-sprawy> [--zip dowody.zip]
 Kod wyjścia: 0 = brak błędów blokujących, 1 = są błędy.
 """
 

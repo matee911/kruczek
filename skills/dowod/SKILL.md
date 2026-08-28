@@ -5,7 +5,7 @@ argument-hint: "[ścieżka do pliku] [katalog sprawy]"
 disable-model-invocation: true
 model: haiku
 effort: low
-allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/eml-forensics.py *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/manifest.py *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/metadane.sh *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/archiwa.sh *) Bash(cp *) Bash(mkdir *) Bash(sha256sum *) Bash(file *) Bash(ls *) Bash(qpdf *) Bash(unzip *) Bash(7z *) Read Write Edit
+allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/eml_forensics.py *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/manifest.py *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/metadane.sh *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/archiwa.sh *) Bash(cp *) Bash(mkdir *) Bash(sha256sum *) Bash(file *) Bash(ls *) Bash(qpdf *) Bash(unzip *) Bash(7z *) Read Write Edit
 ---
 
 # Wciągnięcie dowodu do archiwum
@@ -66,7 +66,7 @@ cp <źródło> <sprawa>/ARCHIWUM/<nazwa-wg-konwencji>
 
 ### `.eml` / `.msg`
 ```bash
-${CLAUDE_PLUGIN_ROOT}/scripts/eml-forensics.py <plik> --outdir <sprawa>/ARCHIWUM
+${CLAUDE_PLUGIN_ROOT}/scripts/eml_forensics.py <plik> --outdir <sprawa>/ARCHIWUM
 ```
 Zleć subagentowi `analizuj-eml` (haiku).
 
@@ -120,7 +120,7 @@ Gdy dane nadawcy są puste — zrób sam zrzut lokalny, a `save` dopisz do TODO.
 
 | Typ | Co zrobić | Plik wynikowy |
 |---|---|---|
-| `.eml` / `.msg` | `eml-forensics.py` (krok 5) | `_naglowki.txt`, `_tresc.html`, `_analiza.md` |
+| `.eml` / `.msg` | `eml_forensics.py` (krok 5) | `_naglowki.txt`, `_tresc.html`, `_analiza.md` |
 | skan / zdjęcie / PDF bez tekstu | `transkrybuj` (sonnet) | `<nazwa>_tekst.md` |
 | PDF z warstwą tekstową | `pdftotext -layout` | `<nazwa>_tekst.md` |
 | nagranie audio / wideo | `transkrybuj` (sonnet) | `<nazwa>_tekst.md` |

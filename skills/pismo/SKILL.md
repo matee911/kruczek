@@ -5,7 +5,7 @@ argument-hint: "[katalog sprawy] [rodzaj pisma]"
 disable-model-invocation: true
 model: opus
 effort: high
-allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/check-deps.sh) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/build-pismo.py *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/kontrola-pisma.py *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/eli.sh *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/orzecznictwo.sh *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/manifest.py *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/podmiot.sh *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/dns.sh *) Bash(mkdir *) Bash(cp *) Bash(zip *) Bash(sha256sum *) Bash(date *) Read Write Edit
+allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/check-deps.sh) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/build_pismo.py *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/kontrola_pisma.py *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/eli.sh *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/orzecznictwo.sh *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/manifest.py *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/podmiot.sh *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/dns.sh *) Bash(mkdir *) Bash(cp *) Bash(zip *) Bash(sha256sum *) Bash(date *) Read Write Edit
 ---
 
 # Budowa pisma
@@ -134,7 +134,7 @@ Skutki: tylko kroki, które naprawdę zostaną podjęte.
 mkdir -p <sprawa>/<RRRR_MM_DD>-<CO>-<DO_KOGO>-DO_WYSYLKI/ROBOCZE
 cp ${CLAUDE_PLUGIN_ROOT}/templates/pismo.html <wysylka>/ROBOCZE/pismo.html
 # uzupełnij treść; z wypełnionych pól USUŃ class="fill"
-${CLAUDE_PLUGIN_ROOT}/scripts/build-pismo.py <wysylka>/ROBOCZE/pismo.html \
+${CLAUDE_PLUGIN_ROOT}/scripts/build_pismo.py <wysylka>/ROBOCZE/pismo.html \
     -o <wysylka>/<RRRR-MM-DD>_<Rodzaj>_<Adresat>.pdf \
     -z <sprawa>/ARCHIWUM/<dowod>.md:"Tytuł załącznika" \
     --stopka "<Rodzaj pisma> z <data>"

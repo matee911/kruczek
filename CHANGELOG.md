@@ -16,7 +16,7 @@ wersjonowanie wg [SemVer](https://semver.org/lang/pl/).
   zabezpieczonego dowodu
 - `templates/dane-nadawcy.md` — sekcja **„osoby, które reprezentuję"**: sprawy prowadzone
   w cudzym imieniu (nadawcą jest ta osoba, wymagane pełnomocnictwo jako załącznik)
-- `scripts/dane-nadawcy-status.py` + `scripts/smoketest.sh` + `.github/workflows/smoketest.yml`
+- `scripts/dane_nadawcy_status.py` + `scripts/smoketest.sh` + `.github/workflows/smoketest.yml`
   — status pól krytycznych bez ujawniania wartości oraz mechaniczny smoketest skryptów
   (osobny job dla systemowego basha 3.2 na macOS)
 - `lib.sh` — przenośna funkcja `sha256()` (`sha256sum` → `shasum` → `python3`)
@@ -178,7 +178,7 @@ wersjonowanie wg [SemVer](https://semver.org/lang/pl/).
 - skill `fallback-przegladarka` — drabinka obejść dla źródeł zablokowanych dla automatu:
   zmiana narzędzia, boczne API, Claude in Chrome, Playwright, computer use, przekazanie użytkownikowi
 - agenci `recenzuj` (opus) i `sprawdz-zalaczniki` (haiku)
-- `scripts/kontrola-pisma.py` — mechaniczna kontrola spójności gotowego PDF-u
+- `scripts/kontrola_pisma.py` — mechaniczna kontrola spójności gotowego PDF-u
 - `templates/tldr.md` — dokument dla użytkownika: co wysyłasz, co możesz ugrać, gdzie jesteśmy słabi
 - `templates/dane-nadawcy.md` — trwała pamięć danych korespondencyjnych, żeby nie pytać za każdym razem
 
@@ -188,7 +188,7 @@ wersjonowanie wg [SemVer](https://semver.org/lang/pl/).
   metrycznie zgodny z Times New Roman, interlinia 1,4
 - **Numeracja generowana licznikami CSS** wg hierarchii z Zasad techniki prawodawczej:
   `I.` → `1.` (ciągłe przez całe pismo) → `1)` → `a)` → `–`. Koniec z mylącym „1." wewnątrz „1."
-- `build-pismo.py` ustawia marginesy, sprawdza osadzenie fontów, rozmiar pliku i liczbę kartek
+- `build_pismo.py` ustawia marginesy, sprawdza osadzenie fontów, rozmiar pliku i liczbę kartek
   pod wymogi print&mail
 - `redagowanie-pism` rozbudowany o pełną konwencję: skład, hierarchia numeracji, układ nagłówka,
   oznaczenie stron wg art. 43⁴ k.c. i art. 126 k.p.c., załączniki, **dobór podpisu**
@@ -199,8 +199,8 @@ wersjonowanie wg [SemVer](https://semver.org/lang/pl/).
 
 ### Naprawione
 - `manifest.py sprawdz` zgłaszał wszystkie pliki jako nowe (nieobcięty znak nowego wiersza)
-- `build-pismo.py` błędnie raportował fonty jako nieosadzone (kolumna `type` bywa dwuwyrazowa)
-- `eml-forensics.py` nie wykrywał tokenu Base64 bez nazwy parametru (`?bWF0ZWU…`)
+- `build_pismo.py` błędnie raportował fonty jako nieosadzone (kolumna `type` bywa dwuwyrazowa)
+- `eml_forensics.py` nie wykrywał tokenu Base64 bez nazwy parametru (`?bWF0ZWU…`)
 
 ## [0.1.0] — 2026-08-18
 
@@ -214,6 +214,6 @@ Pierwsze wydanie.
 - 9 subagentów z dobranymi modelami: `analizuj-eml`, `archiwizuj`, `dopisz-chronologie`,
   `ustal-strone` (haiku), `transkrybuj`, `pobierz-przepis`, `szukaj-orzeczen` (sonnet),
   `napisz-pismo`, `weryfikuj-cytaty` (opus)
-- 8 skryptów: `init-projekt.sh`, `nowa-sprawa.sh`, `eml-forensics.py`, `manifest.py`, `eli.sh`,
-  `orzecznictwo.sh`, `podmiot.sh`, `build-pismo.py`
+- 8 skryptów: `init-projekt.sh`, `nowa-sprawa.sh`, `eml_forensics.py`, `manifest.py`, `eli.sh`,
+  `orzecznictwo.sh`, `podmiot.sh`, `build_pismo.py`
 - szablon pisma A4 z wdrukowywanymi załącznikami

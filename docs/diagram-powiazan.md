@@ -23,18 +23,18 @@ Dane do zmapowania (z /kruczek:komendy):
 KOMENDY i co wyzwalają:
 - /nowy-projekt → skill:nowy-projekt → skrypt:init-projekt.sh
 - /nowa-sprawa → skill:nowa-sprawa, skill:konwencje-teczki → skrypt:nowa-sprawa.sh
-- /dowod → skill:dowod, skill:konwencje-teczki → agent:archiwizuj, agent:transkrybuj → skrypt:manifest.py, skrypt:eml-forensics.py
+- /dowod → skill:dowod, skill:konwencje-teczki → agent:archiwizuj, agent:transkrybuj → skrypt:manifest.py, skrypt:eml_forensics.py
 - /chronologia → skill:chronologia → agent:dopisz-chronologie
 - /status → skill:status
 - /baza-wiedzy → skill:baza-wiedzy, skill:zrodla-prawa, skill:zrodla-orzecznictwa
-- /pismo → skill:pismo, skill:redagowanie-pism, skill:konwencje-teczki → agent:napisz-pismo, agent:pobierz-przepis, agent:szukaj-orzeczen → skrypt:build-pismo.py
-- /kontrola → skill:kontrola → agent:sprawdz-zalaczniki → skrypt:kontrola-pisma.py
+- /pismo → skill:pismo, skill:redagowanie-pism, skill:konwencje-teczki → agent:napisz-pismo, agent:pobierz-przepis, agent:szukaj-orzeczen → skrypt:build_pismo.py
+- /kontrola → skill:kontrola → agent:sprawdz-zalaczniki → skrypt:kontrola_pisma.py
 - /weryfikuj → skill:weryfikuj → agent:weryfikuj-cytaty → skill:zrodla-prawa, skill:zrodla-orzecznictwa
 - /recenzja → skill:recenzja → agent:recenzuj, agent:weryfikuj-cytaty
 - /eskalacja → skill:eskalacja
 
 SKILLE WIEDZY (ładowane automatycznie przez kontekst, nie przez komendę):
-- analiza-eml → agent:analizuj-eml → skrypt:eml-forensics.py
+- analiza-eml → agent:analizuj-eml → skrypt:eml_forensics.py
 - zrodla-dns-poczta → skrypt:dns.sh
 - zrodla-rejestry → skrypt:podmiot.sh
 - ocr-transkrypcja → agent:transkrybuj
@@ -114,14 +114,14 @@ flowchart LR
   subgraph SKRYPTY
     sc_init[(init-projekt.sh)]
     sc_nowa[(nowa-sprawa.sh)]
-    sc_eml[(eml-forensics.py)]
+    sc_eml[(eml_forensics.py)]
     sc_manifest[(manifest.py)]
     sc_eli[(eli.sh)]
     sc_orzecznictwo[(orzecznictwo.sh)]
     sc_podmiot[(podmiot.sh)]
     sc_dns[(dns.sh)]
-    sc_build[(build-pismo.py)]
-    sc_kontrola[(kontrola-pisma.py)]
+    sc_build[(build_pismo.py)]
+    sc_kontrola[(kontrola_pisma.py)]
   end
 
   cmd_init --> sk_init --> sc_init

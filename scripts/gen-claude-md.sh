@@ -16,7 +16,7 @@ DZIS=$(date +%F)
 
 # Status pól krytycznych dane-nadawcy.md — tylko status (OK/BRAK), nigdy wartości,
 # żeby PII nie trafiały do pliku, który bywa commitowany.
-STATUS_RAW=$(python3 "$SCRIPT_DIR/dane-nadawcy-status.py" "$ROOT/_SZABLONY/dane-nadawcy.md" 2>/dev/null || true)
+STATUS_RAW=$(python3 "$SCRIPT_DIR/dane_nadawcy_status.py" "$ROOT/_SZABLONY/dane-nadawcy.md" 2>/dev/null || true)
 STATUS_BLOK=$(printf '%s\n' "$STATUS_RAW" | awk '
   /^OK / { print "- ✓ " substr($0,4); next }
   /^BRAK-PLIK/ { next }

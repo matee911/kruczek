@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""build-pismo.py — składa pismo w PDF razem z wdrukowanymi załącznikami.
+"""build_pismo.py — składa pismo w PDF razem z wdrukowanymi załącznikami.
 
 Marginesy 25/20/25/20 mm (góra/dół/lewy/prawy) — spełniają jednocześnie:
   * Envelo neoList: min. 8 mm góra/dół, 15 mm boki
@@ -9,7 +9,7 @@ Prawy górny róg stron nieparzystych zostaje wolny (Envelo drukuje tam kod 15×
 dla maszyn kopertujących, 22 mm od górnej krawędzi).
 
 Użycie:
-    build-pismo.py pismo.html -o wyjscie.pdf \\
+    build_pismo.py pismo.html -o wyjscie.pdf \\
         -z dowody/naglowki.txt:"Pełne nagłówki wiadomości" \\
         -z dowody/analiza.md:"Analiza techniczna" \\
         --stopka "Wezwanie z 18.08.2026"
@@ -279,7 +279,7 @@ def main():
         print("\n  → Popraw powyższe przed wysyłką przez Envelo / e-Doręczenia.")
 
     print("\nZanim przekażesz pismo użytkownikowi: uruchom kontrolę spójności")
-    print(f"  kontrola-pisma.py {a.out} --sprawa <katalog-sprawy>")
+    print(f"  kontrola_pisma.py {a.out} --sprawa <katalog-sprawy>")
 
 
 if __name__ == "__main__":

@@ -4,7 +4,7 @@ description: Analiza wiadomości e-mail (.eml) pod kątem dowodowym — droga wi
 when_to_use: Plik .eml w sprawie, spam, niezamówiona informacja handlowa, marketing bez zgody, nagłówki maila, kto naprawdę wysłał wiadomość, czy mail jest podszyciem.
 model: haiku
 effort: low
-allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/eml-forensics.py *)
+allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/eml_forensics.py *)
 ---
 
 # Analiza dowodowa wiadomości e-mail
@@ -12,7 +12,7 @@ allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/eml-forensics.py *)
 Robotę wykonuje skrypt. Twoim zadaniem jest go uruchomić i opisać wynik — nie liczyć niczego ręcznie.
 
 ```
-${CLAUDE_PLUGIN_ROOT}/scripts/eml-forensics.py <plik.eml> --outdir <sprawa>/ARCHIWUM
+${CLAUDE_PLUGIN_ROOT}/scripts/eml_forensics.py <plik.eml> --outdir <sprawa>/ARCHIWUM
 ```
 
 Skrypt zapisuje obok oryginału: `_naglowki.txt`, `_tresc.html`, `_analiza.md` (gotowy raport
@@ -69,7 +69,7 @@ samodzielnym dowodem — zestaw ją z nimi, nie przedstawiaj osobno.
 
 ## Po analizie
 
-1. Wynik `_analiza.md` dołącz do pisma jako załącznik (`build-pismo.py -z`).
+1. Wynik `_analiza.md` dołącz do pisma jako załącznik (`build_pismo.py -z`).
 2. Sprawdź domeny w RDAP i zapisz łańcuch przekierowań (`podmiot.sh domena` / `podmiot.sh strona`)
    — przekierowanie może zniknąć, więc trzeba je udokumentować teraz.
 3. Zaktualizuj manifest i chronologię (`/kruczek:dowod` robi to za ciebie).

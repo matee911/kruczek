@@ -26,7 +26,7 @@ Nie ma przepisu narzucającego krój ani stopień pisma w pismach procesowych �
 k.p.c. milczy, zarządzenie MS o sekretariatach sądowych też. Ale skoro Sąd UE wymaga min. 12 pt
 i marginesów 2,5 cm, to jest dobry punkt odniesienia i trzymamy się go wszędzie.
 
-Szablon: `${CLAUDE_PLUGIN_ROOT}/templates/pismo.html`. Składanie: `build-pismo.py` (ustawia
+Szablon: `${CLAUDE_PLUGIN_ROOT}/templates/pismo.html`. Składanie: `build_pismo.py` (ustawia
 marginesy sam). Nie zmieniaj marginesów bez powodu.
 
 ---
@@ -163,13 +163,13 @@ Lista **po podpisie**, na końcu pisma, pod nagłówkiem `Załączniki:`. Numera
 W treści odsyłasz `(zał. 3)`. Na samej stronie załącznika nagłówek `Załącznik nr 3 — <tytuł>`.
 
 **Tytuł na liście i tytuł na stronie załącznika muszą być identyczne.** Rozjazd tych dwóch to
-klasyczny błąd, przez który odbiorca twierdzi, że czegoś nie dostał. `kontrola-pisma.py` to sprawdza.
+klasyczny błąd, przez który odbiorca twierdzi, że czegoś nie dostał. `kontrola_pisma.py` to sprawdza.
 
 Wymienienie załączników jest obowiązkowe w piśmie procesowym (art. 126 § 1 pkt 7 k.p.c.), a same
 załączniki trzeba dołączyć (§ 1¹). Do sądu dołącza się też **odpisy dla stron przeciwnych**
 (art. 128 § 1 k.p.c.) — pamiętaj o tym przy liczeniu egzemplarzy.
 
-Przy wysyłce papierowej **załączniki wdrukuj w PDF** (`build-pismo.py -z`), żeby wydruk był
+Przy wysyłce papierowej **załączniki wdrukuj w PDF** (`build_pismo.py -z`), żeby wydruk był
 kompletny bez dokładania czegokolwiek. Równolegle `dowody.zip` do wysyłki elektronicznej,
 z `SHA256SUMS.txt` w środku.
 
