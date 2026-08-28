@@ -4,6 +4,9 @@ name: Smoketest
 # biznesowej (od tego jest test_kontrola_logika.py, uruchamiany tu też) — łapie błędy
 # składni i crashe przy starcie, w tym regresje specyficzne dla bashu 3.2 (domyślny
 # /bin/bash na macOS — patrz job macos-bash32 i scripts/smoketest.sh).
+#
+# Job ubuntu-owy mierzy przy okazji pokrycie testami i wysyła je do codecov.io.
+# Zakres pomiaru i powód, dla którego nie obejmuje skryptów CLI — w .coveragerc.
 
 on:
   push:
@@ -48,10 +51,34 @@ jobs:
       - uses: actions/checkout@v4
       - name: Smoketest wszystkich skryptów
         run: bash scripts/smoketest.sh scripts
+      # coverage jest instalowany tylko tutaj: pokrycie mierzymy raz, na ubuntu.
+      # Job macos-owy celowo zostaje na gołym python3 — jest od regresji specyficznych
+      # dla macOS (bash 3.2), nie od metryk, a drugi upload tego samego pomiaru tylko
+      # zaszumiałby raport w codecov.
+      # setup-python, a nie systemowy python3: Ubuntu oznacza swojego interpretera jako
+      # "externally managed" (PEP 668), przez co gołe `pip install` kończy się błędem.
+      # Wszystko wołamy przez `python -m`, żeby nie zależeć od tego, czy katalog ze
+      # skryptami pip-a wylądował w PATH.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Zainstaluj coverage
+        run: python -m pip install coverage
       - name: Testy jednostkowe (kontrola-pisma.py)
-        run: python3 scripts/test_kontrola_logika.py
+        run: python -m coverage run --parallel-mode scripts/test_kontrola_logika.py
       - name: Doctesty (utils.py)
-        run: python3 -m doctest scripts/utils.py
+        run: python -m coverage run --parallel-mode -m doctest scripts/utils.py
+      - name: Zbierz pokrycie
+        run: |
+          python -m coverage combine
+          python -m coverage report
+          python -m coverage xml
+      - name: Wyślij pokrycie do codecov
+        uses: codecov/codecov-action@v5
+        with:
+          files: ./coverage.xml
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
 
   smoketest-macos:
     # macOS ma domyślnie /bin/bash w wersji 3.2.57 (Apple nie aktualizuje ze względu na

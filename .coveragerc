@@ -1,0 +1,28 @@
+# Konfiguracja coverage.py — pomiar pokrycia testami dla codecov.io.
+#
+# Co jest mierzone i dlaczego akurat to:
+#
+# Skrypty CLI kruczka mają myślnik w nazwie (build-pismo.py, kontrola-pisma.py,
+# eml-forensics.py, dane-nadawcy-status.py) — a myślnik jest w Pythonie niedozwolony
+# w nazwie modułu, więc tych plików NIE DA SIĘ zaimportować w teście. Dokładnie z tego
+# powodu istnieje osobne kontrola_logika.py (z podkreśleniem): czysta logika wyjęta
+# z kontrola-pisma.py po to, żeby dało się ją testować.
+#
+# Skrypty z myślnikiem są uruchamiane przez scripts/smoketest.sh jako osobne procesy.
+# coverage.py nie widzi subprocesów bez --parallel-mode i COVERAGE_PROCESS_START, a ta
+# maszyneria bywa krucha na dwóch systemach naraz (CI chodzi na ubuntu i macos) — więc
+# świadomie ich nie mierzymy, zamiast raportować dla nich fałszywe 0%.
+#
+# manifest.py mierzymy mimo braku testów: jest importowalny, więc 0% jest tu prawdziwym
+# zdaniem o stanie pokrycia, a nie artefaktem narzędzia.
+
+[run]
+source = scripts
+omit =
+    scripts/test_*.py
+    scripts/*-*.py
+
+[report]
+show_missing = True
+exclude_also =
+    if __name__ == .__main__.:

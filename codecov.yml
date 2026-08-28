@@ -1,0 +1,23 @@
+# Konfiguracja codecov.io.
+#
+# Statusy są ustawione jako "informational" — codecov komentuje zmianę pokrycia, ale
+# NIE blokuje PR-a. Powód: mierzymy dziś wyłącznie moduły importowalne
+# (kontrola_logika.py, utils.py, manifest.py — patrz .coveragerc), więc bezwzględna
+# liczba mówi mało o realnym stanie testów, a próg blokujący na takiej podstawie
+# wymuszałby pisanie testów pod metrykę zamiast pod ryzyko.
+#
+# Gdy logika zostanie wyjęta z pozostałych skryptów do modułów *_logika.py i obudowana
+# testami, warto wrócić tu i przestawić na próg blokujący.
+
+coverage:
+  status:
+    project:
+      default:
+        informational: true
+    patch:
+      default:
+        informational: true
+
+comment:
+  layout: "diff, files"
+  require_changes: true
