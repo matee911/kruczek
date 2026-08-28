@@ -5,6 +5,7 @@ set -euo pipefail
 
 REQUIRED=(curl jq python3)
 OPTIONAL_PDF=(weasyprint wkhtmltopdf)
+# Chrome/Chromium sprawdzane osobno (has_chrome) — na macOS to .app, nie binarka w PATH
 # ggrep (macOS) — GNU grep z obsługą -P (PCRE); na Linux zwykły grep już ma -P
 case "$(uname -s)" in
   Darwin) OPTIONAL_REST=(pandoc pdftotext pdfinfo tesseract ocrmypdf qpdf p7zip exiftool ggrep unzip) ;;
@@ -17,6 +18,15 @@ warn() { printf "${YELLOW}  ⚠${NC} %s\n" "$1"; }
 err()  { printf "${RED}  ✗${NC} %s\n" "$1"; }
 
 has() { command -v "$1" &>/dev/null; }
+
+has_chrome() {
+  for cmd in google-chrome google-chrome-stable chromium chromium-browser; do
+    has "$cmd" && return 0
+  done
+  [ -x "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" ] && return 0
+  [ -x "/Applications/Chromium.app/Contents/MacOS/Chromium" ] && return 0
+  return 1
+}
 
 OS="$(uname -s)"
 case "$OS" in
@@ -44,7 +54,7 @@ for cmd in "${REQUIRED[@]}"; do
 done
 
 echo ""
-echo "PDF (wystarczy jedno):"
+echo "PDF (wystarczy jedno; próbowane w kolejności: weasyprint, Chrome/Chromium, wkhtmltopdf):"
 for cmd in "${OPTIONAL_PDF[@]}"; do
   if has "$cmd"; then
     ok "$cmd"
@@ -53,6 +63,12 @@ for cmd in "${OPTIONAL_PDF[@]}"; do
     warn "$cmd  (brak)"
   fi
 done
+if has_chrome; then
+  ok "Chrome/Chromium (headless)"
+  pdf_found=true
+else
+  warn "Chrome/Chromium  (brak)"
+fi
 
 echo ""
 echo "Opcjonalne:"
@@ -71,9 +87,16 @@ if [ "${#missing_required[@]}" -gt 0 ] || ! $pdf_found || [ "${#missing_optional
   echo ""
 
   # Zbierz wszystkie brakujące do zainstalowania
-  to_install=("${missing_required[@]}")
-  ! $pdf_found && to_install+=(wkhtmltopdf)
-  to_install+=("${missing_optional[@]}")
+  # Uwaga: "${arr[@]}" na PUSTEJ tablicy pod `set -u` wywraca się w bashu 3.2
+  # (domyślny /bin/bash na macOS) błędem "unbound variable" — naprawione w bashu
+  # 4.4+, ale kruczek ma działać też na starym systemowym bashu. Stąd wszędzie
+  # niżej idiom "${arr[@]+"${arr[@]}"}" zamiast gołego "${arr[@]}".
+  to_install=("${missing_required[@]+"${missing_required[@]}"}")
+  # weasyprint ma najlepsze wsparcie CSS @page (marginesy pisma) — sugerujemy je
+  # jako pierwsze do instalacji, ale Chrome/Chromium (już często obecny) też
+  # wystarczy i nie wymaga żadnej instalacji.
+  ! $pdf_found && to_install+=(weasyprint)
+  to_install+=("${missing_optional[@]+"${missing_optional[@]}"}")
 
   case "$PLATFORM" in
     macos)
@@ -95,7 +118,7 @@ if [ "${#missing_required[@]}" -gt 0 ] || ! $pdf_found || [ "${#missing_optional
         esac
       done
       # Deduplicate
-      brew_pkgs=($(printf '%s\n' "${brew_pkgs[@]}" | sort -u))
+      brew_pkgs=($(printf '%s\n' "${brew_pkgs[@]+"${brew_pkgs[@]}"}" | sort -u))
       [ "${#brew_pkgs[@]}" -gt 0 ] && echo "  brew install ${brew_pkgs[*]}"
       [ "${#brew_cask_pkgs[@]}" -gt 0 ] && echo "  brew install --cask ${brew_cask_pkgs[*]}"
       ;;
@@ -113,8 +136,12 @@ if [ "${#missing_required[@]}" -gt 0 ] || ! $pdf_found || [ "${#missing_optional
           *)           apt_pkgs+=("$cmd") ;;
         esac
       done
-      apt_pkgs=($(printf '%s\n' "${apt_pkgs[@]}" | sort -u))
+      apt_pkgs=($(printf '%s\n' "${apt_pkgs[@]+"${apt_pkgs[@]}"}" | sort -u))
       [ "${#apt_pkgs[@]}" -gt 0 ] && echo "  sudo apt install ${apt_pkgs[*]}"
+      if [ "${#apt_pkgs[@]}" -gt 0 ] && printf '%s\n' "${apt_pkgs[@]}" | grep -qx weasyprint; then
+        echo "  (jeśli apt nie ma pakietu weasyprint w Twojej dystrybucji: pip install weasyprint," \
+             "albo zainstaluj chromium: sudo apt install chromium)"
+      fi
       ;;
     *)
       echo "  Zainstaluj ręcznie: ${to_install[*]}"

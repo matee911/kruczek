@@ -5,7 +5,7 @@ argument-hint: "[katalog sprawy] [rodzaj pisma]"
 disable-model-invocation: true
 model: opus
 effort: high
-allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/build-pismo.py *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/kontrola-pisma.py *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/eli.sh *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/orzecznictwo.sh *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/manifest.py *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/podmiot.sh *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/dns.sh *) Bash(mkdir *) Bash(cp *) Bash(zip *) Bash(sha256sum *) Bash(date *) Read Write Edit
+allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/check-deps.sh) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/build-pismo.py *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/kontrola-pisma.py *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/eli.sh *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/orzecznictwo.sh *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/manifest.py *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/podmiot.sh *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/dns.sh *) Bash(mkdir *) Bash(cp *) Bash(zip *) Bash(sha256sum *) Bash(date *) Read Write Edit
 ---
 
 # Budowa pisma
@@ -21,13 +21,28 @@ Konwencję redakcyjną (skład, numeracja, adresat, załączniki, podpis) masz w
 
 ---
 
+## 0. Sprawdź zależności
+
+```
+${CLAUDE_PLUGIN_ROOT}/scripts/check-deps.sh
+```
+
+Rób to na starcie, nie w połowie roboty. Jeśli brak silnika PDF (weasyprint / Chrome
+lub Chromium / wkhtmltopdf) — poinformuj użytkownika wprost, gotową komendą instalacji
+z wyjścia skryptu, i przerwij zanim zaczniesz pisać pismo.
+
 ## 1. Wczytaj sprawę i dane nadawcy
 
 Przeczytaj `index.md` sprawy: chronologię, ustalenia, **sekcję `⚠ HIPOTEZY`**, dotychczasową
 podstawę prawną, manifest. Przeczytaj wersje tekstowe kluczowych dowodów z `ARCHIWUM/`.
 
-Sprawdź `_SZABLONY/dane-nadawcy.md`. **Jeśli plik istnieje — użyj go i nie pytaj o to, co tam jest.**
-Jeśli nie istnieje, skopiuj szablon:
+Sprawdź `_SZABLONY/dane-nadawcy.md` i status pól krytycznych w `CLAUDE.md` (sekcja
+„Dane nadawcy" — ✓ / ⚠ BRAK). **Pola ✓ są gotowe — nie pytaj o nie ponownie.** Pola
+⚠ BRAK dopytaj w kroku 2. Nigdy nie wpisuj do pisma tekstu zastępczego („[NAZWISKO —
+UZUPEŁNIĆ]" i podobnych) zamiast prawdziwej wartości — to trafia do dokumentu, który
+zostaje wysłany.
+
+Jeśli `_SZABLONY/dane-nadawcy.md` nie istnieje, skopiuj szablon:
 ```
 cp ${CLAUDE_PLUGIN_ROOT}/templates/dane-nadawcy.md <projekt>/_SZABLONY/
 ```
@@ -41,8 +56,12 @@ nie ma w teczce ani w `dane-nadawcy.md`:
   organu / zawiadomienie / odpowiedź na pismo
 - **czego użytkownik chce osiągnąć** — pieniądze / naprawa / zaprzestanie / informacja / ukaranie.
   To determinuje całą konstrukcję pisma, a nie da się tego wywnioskować z dowodów
-- **status nadawcy** — konsument czy przedsiębiorca (inne podstawy prawne, inny katalog roszczeń)
+- **status nadawcy** — odczytaj z pola **Występuję jako** w nagłówku `index.md` sprawy (konsument /
+  przedsiębiorca / w cudzym imieniu — inne podstawy prawne, inny katalog roszczeń). Dopytaj tylko,
+  jeśli pole jest puste. Gdy sprawa jest prowadzona w cudzym imieniu, nadawcą pisma jest **osoba
+  reprezentowana**, a pełnomocnictwo musi trafić do załączników
 - brakujące dane twarde: kwota, numer rachunku, numer zgłoszenia, data zdarzenia
+- pola oznaczone ⚠ BRAK w sekcji „Dane nadawcy" w CLAUDE.md (krok 1)
 
 Odpowiedzi dotyczące danych stałych (adres, NIP, sposób wysyłki, podpis) **dopisz do
 `dane-nadawcy.md`** — żeby przy następnym piśmie już nie pytać.

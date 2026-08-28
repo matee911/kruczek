@@ -30,8 +30,10 @@ działalności. Bez klucza API.
 Odpis aktualny zawiera reprezentację i wspólników; przy spółce cywilnej wspólnicy są osobami
 fizycznymi i to **ich** trzeba oznaczyć w piśmie.
 
-**CEIDG API v3** daje pełne dane JDG: imię i nazwisko właściciela, adres zamieszkania (nie tylko
-siedzibę), datę urodzenia, historię działalności i zawieszenia. Wymaga tokenu Bearer — jednorazowa
+**CEIDG API v3** (`/firma?nip=`) daje dane JDG: imię i nazwisko właściciela, NIP i REGON, adres
+działalności i korespondencyjny, status, daty rozpoczęcia/zawieszenia/wznowienia/wykreślenia, PKD,
+kontakt, zakazy i upadłości. **Nie zwraca adresu zamieszkania ani daty urodzenia** — nie obiecuj
+ich użytkownikowi (specyfikacja OpenAPI „API HD v3", kwiecień 2026). Wymaga tokenu Bearer — jednorazowa
 rejestracja przez Profil Zaufany: `biznes.gov.pl/pl/e-uslugi/00_9999_00`. Token przychodzi mailem
 w ciągu kilku minut. Zapisz go w `~/.kruczek/ceidg_token` — `podmiot.sh pelny` użyje go
 automatycznie gdy brak KRS. Bez tokenu poprzestań na białej liście VAT i zasugeruj użytkownikowi
@@ -40,8 +42,9 @@ rejestrację jeśli sprawa dotyczy JDG.
 ## Domeny
 
 RDAP NASK obsługuje `.pl`. Zwraca datę rejestracji, rejestratora, nameservery. Dane abonenta
-będącego osobą fizyczną są zanonimizowane, ale **data rejestracji bywa najmocniejszym dowodem**:
-domena zarejestrowana kilka dni przed wysyłką to twardy ślad rotacji domen.
+będącego osobą fizyczną są zanonimizowane, ale **data rejestracji bywa najmocniejszym ustaleniem
+technicznym**: domena zarejestrowana kilka dni przed wysyłką to poszlaka rotacji domen. Sama
+zbieżność dat niczego nie przesądza — dopóki nie ma drugiego ogniwa, trzymaj ją w `⚠ HIPOTEZY`.
 
 Dla `.eu` nie ma publicznego RDAP ani WHOIS po HTTP (EURid za anty-botem) — udokumentuj ręcznie
 zrzutem ekranu i zarchiwizuj go jako dowód.
@@ -53,8 +56,9 @@ Zapisz wynik do `ARCHIWUM/` jako dowód, bo przekierowanie może zniknąć.
 
 **CRBR** (Centralny Rejestr Beneficjentów Rzeczywistych, `crbr.podatki.gov.pl`) — kto faktycznie
 kontroluje spółkę, nawet przez łańcuch udziałów. Brak publicznego API; użyj `fallback-przegladarka`
-(Claude in Chrome) i wyszukaj po NIP. Ujawnienie beneficjenta to mocny dowód ukrytej struktury
-własnościowej.
+(Claude in Chrome) i wyszukaj po NIP. Pozwala ustalić, kto faktycznie kontroluje spółkę, także
+przez łańcuch udziałów. CRBR jest rejestrem jawnym i obowiązkowym — wpis dowodzi struktury
+własnościowej, nie tego, że była ona „ukrywana".
 
 **Rejestr.io** (`rejestr.io/krs/<NIP>`) — wizualizacja powiązań między podmiotami (wspólnicy,
 zarządy, spółki córki). Blokuje WebFetch; użyj `fallback-przegladarka`. Przydatne gdy druga strona
@@ -97,11 +101,16 @@ Wtedy:
    w `index.md` z wyraźnym wskazaniem brakującego ogniwa.
 2. Ustalenie tożsamości administratora danych bywa **samodzielnym celem pierwszego pisma** —
    żądanie z art. 15 RODO zmusza do ujawnienia, kto jest administratorem.
-3. Brak danych identyfikujących usługodawcę w serwisie to samodzielne naruszenie
-   (art. 5 ustawy o świadczeniu usług drogą elektroniczną) — warto to w piśmie wytknąć.
+3. Brak danych identyfikujących usługodawcę w serwisie to **prawdopodobne** naruszenie obowiązku
+   informacyjnego z art. 5 ustawy o świadczeniu usług drogą elektroniczną. Zanim wejdzie do pisma:
+   sprawdź regulamin i podstrony (ustawa wymaga „udostępnienia" danych, niekoniecznie na stronie
+   głównej) i potwierdź, że podmiot jest usługodawcą w rozumieniu ustawy i podlega prawu polskiemu.
 4. Zaadresuj pismo na nazwę handlową i adres ze strony, ale dodaj zastrzeżenie: jeżeli adresat nie
-   jest podmiotem odpowiedzialnym, ma wskazać ten podmiot w 7 dni, a brak wskazania będzie
-   traktowany jako potwierdzenie odpowiedzialności adresata.
+   jest podmiotem odpowiedzialnym, ma wskazać ten podmiot w 7 dni, a brak odpowiedzi w tym terminie
+   będzie traktowany jako odmowa wskazania podmiotu odpowiedzialnego i uzasadni skierowanie sprawy
+   do właściwego organu przeciwko adresatowi jako podmiotowi prowadzącemu serwis. **Nie pisz, że
+   milczenie „potwierdza odpowiedzialność"** — takie domniemanie nie istnieje, a adresat zacytuje
+   je jako dowód, że nadawca sam nie wie, kogo obwinia.
 
 ## Delegowanie
 

@@ -95,7 +95,10 @@ EOF
   echo "## Dane rejestracyjne domeny"
   echo
   echo 'Uzupełnij przez `podmiot.sh domena '"$d"'` (RDAP). Data rejestracji bliska dacie spornego'
-  echo 'zdarzenia jest samodzielnym dowodem — domena założona na potrzeby jednej akcji.'
+  echo 'zdarzenia to poszlaka, nie samodzielny dowód — może wskazywać na domenę założoną na'
+  echo 'potrzeby jednej akcji, ale sama zbieżność dat tego nie przesądza. Wzmocnij innymi'
+  echo 'ustaleniami (np. treść strony, brak innych śladów działalności, rejestrator typowy'
+  echo 'dla masowych wysyłek).'
 }
 
 porownaj() {

@@ -1,0 +1,71 @@
+name: Smoketest
+
+# Mechaniczny "czy się w ogóle uruchamia" test dla skryptów kruczka. Nie sprawdza logiki
+# biznesowej (od tego jest test_kontrola_logika.py, uruchamiany tu też) — łapie błędy
+# składni i crashe przy starcie, w tym regresje specyficzne dla bashu 3.2 (domyślny
+# /bin/bash na macOS — patrz job macos-bash32 i scripts/smoketest.sh).
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  check-permissions:
+    # Szybki, niezależny od systemu check: bit +x jest częścią trybu pliku śledzonego
+    # przez git (100755 vs 100644), więc to samo z ubuntu-latest wystarcza dla obu OS.
+    # Znalezione na żywym organizmie 2026-08-28: archiwa.sh, gen-claude-md.sh i
+    # metadane.sh były commitowane bez +x — skille wywołują skrypty bezpośrednio
+    # (bez "bash" z przodu), więc to kończyło się "Permission denied" w realnej sesji.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Sprawdź bit +x na skryptach .sh/.py
+        run: |
+          set -euo pipefail
+          MISSING=0
+          for f in $(git ls-files 'scripts/*.sh' 'scripts/*.py'); do
+            case "$(basename "$f")" in
+              # celowo bez +x: nie do bezpośredniego uruchamiania (source/import, nie CLI)
+              lib.sh|utils.py|kontrola_logika.py|test_kontrola_logika.py) continue ;;
+            esac
+            mode=$(git ls-files -s "$f" | awk '{print $1}')
+            if [ "$mode" != "100755" ]; then
+              echo "✗ brak +x: $f (tryb=$mode, oczekiwano 100755)"
+              MISSING=1
+            fi
+          done
+          if [ "$MISSING" -eq 1 ]; then
+            echo
+            echo "Napraw lokalnie: chmod +x <plik> && git add <plik> && git commit"
+            exit 1
+          fi
+          echo "OK — wszystkie skrypty CLI mają +x"
+
+  smoketest-ubuntu:
+    needs: check-permissions
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Smoketest wszystkich skryptów
+        run: bash scripts/smoketest.sh scripts
+      - name: Testy jednostkowe (kontrola-pisma.py)
+        run: python3 scripts/test_kontrola_logika.py
+      - name: Doctesty (utils.py)
+        run: python3 -m doctest scripts/utils.py
+
+  smoketest-macos:
+    # macOS ma domyślnie /bin/bash w wersji 3.2.57 (Apple nie aktualizuje ze względu na
+    # licencję GPLv3) — w tej wersji "${arr[@]}" na PUSTEJ tablicy pod `set -u` rzuca
+    # "unbound variable", naprawione dopiero w bashu 4.4+. scripts/smoketest.sh uruchamia
+    # każdy skrypt też pod /bin/bash właśnie po to, żeby to złapać niezależnie od tego,
+    # jaki bash jest domyślny w PATH na runnerze.
+    needs: check-permissions
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Smoketest wszystkich skryptów
+        run: bash scripts/smoketest.sh scripts
+      - name: Testy jednostkowe (kontrola-pisma.py)
+        run: python3 scripts/test_kontrola_logika.py
+      - name: Doctesty (utils.py)
+        run: python3 -m doctest scripts/utils.py

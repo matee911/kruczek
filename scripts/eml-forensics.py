@@ -237,8 +237,11 @@ def main():
             W("\n" + ", ".join(verdict) + ".")
             if "dkim=pass" in auth and "spf=pass" in auth:
                 W(
-                    "\n> Wysyłka jest uwierzytelniona przez domenę nadawczą — **to nie jest podszycie**. "
-                    'Wyklucza to linię obrony „ktoś podszył się pod naszą firmę".'
+                    "\n> Wysyłka jest uwierzytelniona przez domenę nadawczą — wiadomość wyszła "
+                    "z infrastruktury autoryzowanej przez tę domenę. Jeżeli zgadza się ona "
+                    'z domeną z `From`, osłabia to linię obrony „ktoś podszył się pod naszą '
+                    'firmę"; nie wyklucza jednak wysyłki z przejętego konta ani z domeny '
+                    "łudząco podobnej."
                 )
     else:
         W("_Brak nagłówków Authentication-Results / Received-SPF._")
@@ -281,8 +284,11 @@ def main():
     has_thread = bool(msg.get("In-Reply-To") or msg.get("References"))
     if re.match(r"\s*(re|odp|fwd|fw)\s*:", subj, re.I) and not has_thread:
         W(
-            f"> **Wątek sfingowany.** Temat `{subj}` sugeruje odpowiedź na wcześniejszą korespondencję, "
-            "ale brak nagłówków `In-Reply-To` i `References` — wiadomość nie jest odpowiedzią na nic.\n"
+            f"> **Brak powiązania z wątkiem.** Temat `{subj}` sugeruje odpowiedź na wcześniejszą "
+            "korespondencję, ale brak nagłówków `In-Reply-To` i `References` — technicznie nic "
+            "nie łączy tej wiadomości z wcześniejszym wątkiem. Prefiks bywa też wpisany ręcznie "
+            "albo zgubiony przez klienta pocztowego; poszlaką sfingowania staje się to dopiero, "
+            "gdy odbiorca potwierdzi, że wcześniejszej korespondencji nie było.\n"
         )
     elif has_thread:
         W("Wiadomość należy do wątku (`In-Reply-To`/`References` obecne).\n")
@@ -303,7 +309,8 @@ def main():
             W(f"| `{r[:60]}` | `{d}` |")
         W(
             "\n> Zakodowany identyfikator w linku dowodzi, że wysyłka była **spersonalizowana per odbiorca**, "
-            "nadawca prowadzi bazę adresową i wiąże wejście na stronę z konkretnym adresem.\n"
+            "i wskazuje, że nadawca dysponował adresem w formie umożliwiającej powiązanie wejścia "
+            "na stronę z konkretnym adresem.\n"
         )
     else:
         W("_Nie wykryto tokenów Base64 w URL-ach._\n")

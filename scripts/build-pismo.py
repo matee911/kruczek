@@ -14,7 +14,14 @@ Użycie:
         -z dowody/analiza.md:"Analiza techniczna" \\
         --stopka "Wezwanie z 18.08.2026"
 
-Wymaga: wkhtmltopdf (albo weasyprint). Dla .md dodatkowo pandoc.
+Wymaga jeden z: weasyprint, Chrome/Chromium, wkhtmltopdf (próbowane w tej kolejności —
+żaden nie jest zakładany jako "ten jeden słuszny", bo różni użytkownicy mają różne
+narzędzia zainstalowane). Dla .md dodatkowo pandoc.
+
+Marginesy 25/20/25/20 mm są ustawione w templates/pismo.html jako reguła CSS @page —
+weasyprint i Chrome ją honorują. wkhtmltopdf ma słabe wsparcie @page, więc dostaje
+też te same wartości jako flagi CLI (MARGINS niżej) — trzymaj je zsynchronizowane
+z @page w szablonie, jeśli zmieniasz jedno albo drugie.
 """
 
 import argparse, os, html as H, re, subprocess, shutil, sys
@@ -23,6 +30,28 @@ from utils import sha256_file as sha, human_size as human
 PRE_EXT = {".txt", ".eml", ".log", ".csv", ".json", ".msg", ".ini", ".xml"}
 IMG_EXT = {".png", ".jpg", ".jpeg", ".gif", ".webp"}
 MARGINS = {"T": "25mm", "B": "20mm", "L": "25mm", "R": "20mm"}
+
+CHROME_CANDIDATES = (
+    "google-chrome",
+    "google-chrome-stable",
+    "chromium",
+    "chromium-browser",
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    "/Applications/Chromium.app/Contents/MacOS/Chromium",
+)
+
+
+def find_chrome():
+    """Zwraca ścieżkę do binarki Chrome/Chromium, albo None."""
+    for c in CHROME_CANDIDATES:
+        if os.path.isabs(c):
+            if os.path.exists(c):
+                return c
+        else:
+            p = shutil.which(c)
+            if p:
+                return p
+    return None
 
 
 def render_md(path):
@@ -115,7 +144,32 @@ def main():
     tmp = a.out + ".build.html"
     open(tmp, "w", encoding="utf-8").write(tpl)
 
-    if shutil.which("wkhtmltopdf"):
+    chrome = find_chrome()
+    if shutil.which("weasyprint"):
+        engine = "weasyprint"
+        subprocess.run(["weasyprint", tmp, a.out], check=True)
+    elif chrome:
+        engine = "chrome"
+        # Marginesy i rozmiar strony bierze z @page w szablonie — Chrome headless
+        # nie ma prostych flag CLI na marginesy (tylko przez DevTools Protocol),
+        # ale poprawnie honoruje CSS paged media, więc @page wystarczy.
+        cmd = [
+            chrome,
+            "--headless",
+            "--disable-gpu",
+            "--no-pdf-header-footer",
+            f"--print-to-pdf={a.out}",
+            "--virtual-time-budget=20000",
+            f"file://{os.path.abspath(tmp)}",
+        ]
+        r = subprocess.run(cmd, capture_output=True, text=True)
+        if r.returncode != 0 or not os.path.exists(a.out):
+            sys.exit("Chrome/Chromium headless: " + (r.stderr or "")[-800:])
+    elif shutil.which("wkhtmltopdf"):
+        engine = "wkhtmltopdf"
+        # Bez --dpi: w praktyce łamał @page i ściskał strony (18 stron wychodziło
+        # jako 8, tekst wylewał się poza wiersz). wkhtmltopdf i tak nie honoruje
+        # @page z szablonu, więc marginesy dostaje tu jawnie jako flagi CLI.
         cmd = [
             "wkhtmltopdf",
             "--encoding",
@@ -123,8 +177,6 @@ def main():
             "--enable-local-file-access",
             "--page-size",
             "A4",
-            "--dpi",
-            "300",
             "-T",
             MARGINS["T"],
             "-B",
@@ -149,10 +201,16 @@ def main():
         r = subprocess.run(cmd, capture_output=True, text=True)
         if r.returncode != 0:
             sys.exit("wkhtmltopdf: " + (r.stderr or "")[-800:])
-    elif shutil.which("weasyprint"):
-        subprocess.run(["weasyprint", tmp, a.out], check=True)
     else:
-        sys.exit("BŁĄD: brak wkhtmltopdf i weasyprint — zainstaluj jedno z nich.")
+        sys.exit(
+            "BŁĄD: brak silnika PDF (weasyprint / Chrome lub Chromium / wkhtmltopdf).\n"
+            "Zainstaluj jedno z nich:\n"
+            "  macOS:  brew install weasyprint         (albo zainstaluj Google Chrome)\n"
+            "  Linux:  sudo apt install weasyprint      (albo: sudo apt install chromium,"
+            " albo: pip install weasyprint)\n"
+            "Potem uruchom ponownie. Pełną listę zależności sprawdza "
+            "${CLAUDE_PLUGIN_ROOT}/scripts/check-deps.sh."
+        )
 
     if not a.keep_html:
         os.remove(tmp)
@@ -168,6 +226,7 @@ def main():
             pages = m.group(1)
 
     print(f"Zapisano:  {a.out}")
+    print(f"Silnik:    {engine}")
     print(f"Stron:     {pages}")
     print(f"Rozmiar:   {human(os.path.getsize(a.out))}")
     print(f"SHA-256:   {sha(a.out)}")

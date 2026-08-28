@@ -46,12 +46,16 @@ case "${1:-}" in
     refid="urn:ndoc:gov:pl:uodo:${rok}:${base}"
     echo "refid: $refid"
     echo "PDF:   https://orzeczenia.uodo.gov.pl/api/documents/public/items/${refid}:0/body.pdf"
+    # "|| true" na końcu: gdy head ucina strumień wcześniej niż curl/sed skończą pisać,
+    # writer dostaje SIGPIPE i pod `set -o pipefail` cały skrypt by się ubił (exit 141) —
+    # obcięcie na 200 linii jest tu celowe, nie błędem, więc nie ma co propagować.
     curl -sSfL --max-time 60 "https://orzeczenia.uodo.gov.pl/api/documents/public/items/${refid}:0/body.html" \
-      | sed -e 's/<[^>]*>//g' -e '/^[[:space:]]*$/d' | head -200
+      | sed -e 's/<[^>]*>//g' -e '/^[[:space:]]*$/d' | head -200 || true
     ;;
   cbosa)
+    # patrz uwaga o "|| true" wyżej (uodo-tresc) — ten sam wzorzec, ten sam powód.
     curl -sSfL --max-time 60 "https://orzeczenia.nsa.gov.pl/doc/$2" \
-      | sed -e 's/<[^>]*>//g' -e '/^[[:space:]]*$/d' | head -400
+      | sed -e 's/<[^>]*>//g' -e '/^[[:space:]]*$/d' | head -400 || true
     ;;
   sn)
     f=$(printf %s "$2" | tr 'A-Z' 'a-z' | sed 's#/#-#g; s/ /%20/g')

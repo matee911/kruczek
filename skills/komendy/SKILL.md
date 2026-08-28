@@ -83,7 +83,7 @@ a jeśli z rozmowy wynika konkretna potrzeba — wskaż jedną, właściwą pozy
 | `dns.sh` | rekordy DNS, SPF/DKIM/DMARC, porównanie infrastruktury domen |
 | `build-pismo.py` | HTML → PDF z wdrukowanymi załącznikami, marginesy pod Envelo i e-Doręczenia |
 | `kontrola-pisma.py` | mechaniczna kontrola spójności gotowego pisma |
-| `archiwa.sh` | Wayback Machine CDX, Save Page Now, TimeTravel, diff snapshotów |
+| `archiwa.sh` | Wayback Machine CDX, Save Page Now, diff snapshotów |
 | `metadane.sh` | zbiorcza tabela metadanych PDF/DOCX/XLSX/obrazów z flagami rozbieżności |
 
 Wszystkie skrypty wypisują pomoc po uruchomieniu bez argumentów.

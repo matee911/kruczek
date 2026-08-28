@@ -4,7 +4,9 @@
 set -euo pipefail
 NAZWA="${1:?podaj nazwę podmiotu}"; PRZEDMIOT="${2:?podaj przedmiot sprawy}"; ROOT="${3:-.}"
 SLUG=$(printf %s "$NAZWA" | iconv -f UTF-8 -t ASCII//TRANSLIT 2>/dev/null || printf %s "$NAZWA")
-SLUG=$(printf %s "$SLUG" | tr 'A-Z' 'a-z' | sed 's/[^a-z0-9]\+/-/g; s/^-//; s/-$//')
+# sed -E (ERE): BSD sed na macOS nie rozumie \+ w podstawowym wyrażeniu regularnym —
+# bez -E slug zostawał niezmieniony i katalog sprawy dostawał nazwę ze spacjami i kropkami.
+SLUG=$(printf %s "$SLUG" | tr 'A-Z' 'a-z' | sed -E 's/[^a-z0-9]+/-/g; s/^-//; s/-$//')
 DIR="$ROOT/$SLUG"; DZIS=$(date +%F)
 mkdir -p "$DIR"/{ARCHIWUM,ROBOCZE}
 [ -f "$DIR/index.md" ] && { echo "Sprawa już istnieje: $DIR/index.md"; exit 0; }
@@ -15,6 +17,7 @@ cat > "$DIR/index.md" <<EOF
 |---|---|
 | **Podmiot** | $NAZWA |
 | **Przedmiot** | $PRZEDMIOT |
+| **Występuję jako** | _(osoba fizyczna / przedsiębiorca / w imieniu: <kto> — tożsamości w \`_SZABLONY/dane-nadawcy.md\`)_ |
 | **Dane rejestrowe** | _(NIP / KRS / adres — uzupełnij: \`podmiot.sh pelny <NIP>\`)_ |
 | **Status** | nowa |
 | **Założono** | $DZIS |
@@ -66,3 +69,9 @@ EOF
 echo "Założono sprawę: $DIR"
 echo "Dopisz ją do rejestru w $ROOT/index.md:"
 echo "| | $NAZWA | $PRZEDMIOT | $DZIS | nowa | — |"
+echo ""
+echo "Dalszą pracę nad tą sprawą prowadź w OSOBNEJ sesji przypiętej do $DIR"
+echo "(nie w sesji obejmującej cały $ROOT) — zapobiega myleniu spraw, gdy pracujesz"
+echo "równolegle nad kilkoma. W Cowork: przypnij $DIR ORAZ $ROOT/BAZA_WIEDZY jako dwa"
+echo "workspace foldery (oba rw — sesja ma dopisywać do bazy wiedzy w trakcie pracy,"
+echo "izolacja dotyczy tylko innych spraw, nie bazy wiedzy)."

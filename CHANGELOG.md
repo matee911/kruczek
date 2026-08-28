@@ -3,6 +3,77 @@
 Format wg [Keep a Changelog](https://keepachangelog.com/pl/1.1.0/),
 wersjonowanie wg [SemVer](https://semver.org/lang/pl/).
 
+## [Unreleased]
+
+## [0.4.0] — 2026-08-28
+
+### Dodane
+- `archiwa.sh lokalnie <url> <katalog>` — **własna kopia strony jako fundament dowodu**:
+  treść, nagłówki, kod HTTP, URL końcowy po przekierowaniach, SHA-256 i metryczka
+  `.zrzut.md` z datą odczytu. Nie wymaga `--kontakt` ani żadnej konfiguracji, bo dowód
+  nie może zależeć od dostępności cudzej usługi. Wayback (`save`) jest teraz dodatkiem
+  dającym niezależne poświadczenie strony trzeciej — nieudany snapshot nie unieważnia
+  zabezpieczonego dowodu
+- `templates/dane-nadawcy.md` — sekcja **„osoby, które reprezentuję"**: sprawy prowadzone
+  w cudzym imieniu (nadawcą jest ta osoba, wymagane pełnomocnictwo jako załącznik)
+- `scripts/dane-nadawcy-status.py` + `scripts/smoketest.sh` + `.github/workflows/smoketest.yml`
+  — status pól krytycznych bez ujawniania wartości oraz mechaniczny smoketest skryptów
+  (osobny job dla systemowego basha 3.2 na macOS)
+- `lib.sh` — przenośna funkcja `sha256()` (`sha256sum` → `shasum` → `python3`)
+
+### Zmienione
+- **„Występuję jako" przeniesione z projektu do sprawy.** To cecha pojedynczej sprawy, nie
+  pliku danych nadawcy: ta sama osoba prowadzi jedną sprawę prywatnie, drugą jako
+  przedsiębiorca, trzecią w cudzym imieniu. `dane-nadawcy.md` trzyma teraz **tożsamości**
+  (ja / moja działalność / osoby reprezentowane), a wybór trafia do nagłówka `index.md`
+  sprawy. Pyta o niego `nowa-sprawa`, czyta `pismo`
+- `archiwa.sh` — kontakt do User-Agenta podawany przez `--kontakt <e-mail>` z
+  `_SZABLONY/dane-nadawcy.md` zamiast zmiennej środowiskowej `KRUCZEK_CONTACT`
+  (zostaje jako fallback dla CI). Konfiguracja przez konwencję, nie przez grzebanie
+  w środowisku użytkownika; wymagają go wyłącznie tryby uderzające w archive.org
+- `skills/nowa-sprawa` — nie pyta już o cel sprawy na starcie (sprawa nie jest jeszcze
+  poznana); to pytanie zostaje w `skills/pismo`, po zebraniu i analizie dowodów
+
+### Naprawione
+- **`podmiot.sh ceidg` nie działał w ogóle** — endpoint `/raport?nip=` zwraca 404 (w API v3
+  raport jest pod `/raport/{id}`). Poprawiono na `/firma?nip=`; filtr `jq` przepisany wg
+  oficjalnej specyfikacji OpenAPI, bo żadne z dotychczasowych pól nie istniało pod tą nazwą
+  (odpowiedź to `{"firma":[…]}`, dane właściciela w zagnieżdżonym `wlasciciel`,
+  `dataRozpoczecia` zamiast `dataPoczatkuDzialalnosci`). Dodano obsługę 204 (NIP spoza
+  CEIDG — nie błąd) i 401/403 (token wygasł)
+- **Przenośność macOS/BSD** — `sed 's/[^a-z0-9]\+/-/g'` w `nowa-sprawa.sh` nie tworzył sluga
+  (katalogi spraw ze spacjami i kropkami), a `sed 's|https\?://||'` w `archiwa.sh` dawał
+  `DOMAIN=https:`, przez co wszystkie snapshoty zapisywały się pod jedną nazwą. BSD sed nie
+  zna `\+` ani `\?` w BRE — wszędzie `sed -E`. `eli.sh` używał nieobecnego na macOS
+  `sha256sum`, `archiwa.sh` — `shasum`; oba przez wspólny helper
+- `archiwa.sh save` — kończył się w ciszy: pod `set -e` niezerowy `curl` ubijał skrypt przed
+  wypisaniem diagnostyki. Dodano jawny kod błędu, `--max-time 120` i komunikat dla timeoutu
+- `archiwa.sh pobierz` — bez `-f` zapisywał stronę błędu 4xx/5xx lub plik pusty **i liczył mu
+  SHA-256**, tworząc pozorny dowód. Teraz kasuje plik i kończy niezerowo
+- `archiwa.sh historia`/`cdx-url` — pusta lub nie-JSON-owa odpowiedź CDX (limit zapytań)
+  wywalała traceback Pythona zamiast komunikatu
+- `smoketest.sh` — `SCRIPTS_DIR` z argumentu nie był normalizowany do ścieżki bezwzględnej,
+  przez co wywołanie z CI (`smoketest.sh scripts`) wywracało trzy testy na `exit=127`
+- `archiwa.sh` — dodano opisowy User-Agent we wszystkich wywołaniach Wayback Machine
+  (SPN i CDX), zgodny z wymaganiami Internet Archive (`archive.org/developers/bots.html`);
+  wersja w UA czytana z `plugin.json`, nazwa modelu przez opcjonalne `KRUCZEK_MODEL`
+- `archiwa.sh` — wykrywanie zablokowanego egressu do `web.archive.org` (typowe w sesjach
+  chmurowych) przed właściwym wywołaniem, zamiast czekania na timeout
+- `skills/archiwa` — dopisano, że w sesji chmurowej trzeba przekazać komendę użytkownikowi
+  do uruchomienia lokalnie (wzorzec z `skills/fallback-przegladarka`)
+
+### Bezpieczeństwo dowodowe
+- **Audyt zbyt mocnych stwierdzeń** — 16 miejsc opisywało poszlakę jako dowód albo przesądzało
+  kwalifikację prawną. M.in.: data rejestracji domeny „dowodzi (…) czego nie da się wytłumaczyć
+  przypadkiem" (sprzeczne z `dns.sh`), `dkim=pass`/`spf=pass` jako „to nie jest podszycie"
+  (dotyczy domeny z `d=`, nie marki z `From`), brak NIP-u w serwisie jako „samodzielne naruszenie
+  art. 5 u.ś.u.d.e.", rada, by napisać w piśmie, że milczenie adresata „będzie traktowane jako
+  potwierdzenie odpowiedzialności" (takie domniemanie nie istnieje), tabela „gotowe zarzuty"
+  w `skills/metadane`. Sekcję „Granica, której nie przekraczasz" dodano do `analiza-eml`,
+  `analizuj-eml` i `metadane`, gdzie skupiała się większość przypadków
+- Sprostowano dane obiecywane przez CEIDG API v3 w `README`, `ustal-strone` i `zrodla-rejestry`
+  — API **nie zwraca** adresu zamieszkania ani daty urodzenia
+
 ## [0.3.5] — 2026-08-19
 
 ### Zmienione

@@ -4,10 +4,15 @@
   SZABLON PISMA — kruczek
   ============================================================================
   Skład: Liberation Serif 12 pt (metrycznie zgodny z Times New Roman),
-  interlinia 1,4. Marginesy ustawia build-pismo.py: 25/20/25/20 mm
-  (góra/dół/lewy/prawy) — spełniają wymogi Envelo (min. 8/15 mm),
-  PUH e-Doręczenia (min. 10/8/15 mm) oraz zostawiają zapas na wpięcie akt
-  wg ISO 838 (dziurki do ~16 mm od krawędzi).
+  interlinia 1,4. Marginesy 25/20/25/20 mm (góra/dół/lewy/prawy) — spełniają
+  wymogi Envelo (min. 8/15 mm), PUH e-Doręczenia (min. 10/8/15 mm) oraz
+  zostawiają zapas na wpięcie akt wg ISO 838 (dziurki do ~16 mm od krawędzi).
+
+  Marginesy ustawia reguła @page poniżej — działa dla weasyprint i Chrome/
+  Chromium headless. wkhtmltopdf ma słabe wsparcie CSS paged media i @page
+  ignoruje, dlatego build-pismo.py dokłada dla niego te same wartości jako
+  flagi CLI (-T/-B/-L/-R). Zmieniasz marginesy tutaj — a jeśli wspierasz
+  też wkhtmltopdf, zmień je równolegle w MARGINS w build-pismo.py.
 
   NUMERACJA — generowana automatycznie licznikami CSS. NIE wpisuj cyfr ręcznie.
     <h2>            → I., II., III.        części pisma
@@ -25,6 +30,7 @@
   ============================================================================
 -->
 <style>
+@page{size:A4; margin:25mm 20mm 20mm 25mm}
 body{
   font-family:"Liberation Serif","Times New Roman","DejaVu Serif",serif;
   font-size:12pt; line-height:1.4; color:#000;

@@ -166,7 +166,7 @@ Wszystkie otwarte, bez kluczy API.
 | [decyzje UOKiK](https://decyzje.uokik.gov.pl) | decyzje Prezesa UOKiK | HTTP |
 | [Biała lista VAT](https://wl-api.mf.gov.pl) | NIP → nazwa, REGON, KRS, adres, rachunki | pełne API |
 | [API KRS](https://api-krs.ms.gov.pl) | odpis aktualny | pełne API |
-| [CEIDG API v3](https://dane.biznes.gov.pl) | pełne dane JDG: imię, nazwisko, adres zamieszkania, historia | token Bearer (jednorazowa rejestracja przez Profil Zaufany) |
+| [CEIDG API v3](https://dane.biznes.gov.pl) | dane JDG: imię, nazwisko, NIP/REGON, adres działalności i korespondencyjny, status, historia (bez adresu zamieszkania) | token Bearer (jednorazowa rejestracja przez Profil Zaufany) |
 | [RDAP NASK](https://rdap.dns.pl) | dane i data rejestracji domeny `.pl` | pełne API |
 | dns.google, cloudflare-dns.com | rekordy DNS, SPF, DKIM, DMARC (DNS-over-HTTPS) | pełne API |
 | [CRBR](https://crbr.podatki.gov.pl) | beneficjenci rzeczywiści spółek | przeglądarka |

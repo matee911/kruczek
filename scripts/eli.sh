@@ -52,7 +52,7 @@ case "${1:-}" in
     [ -z "$out" ] && out="${pub}_${rok}_${poz}_ujednolicony.pdf"
     curl -sSfL --max-time 300 -o "$out" "$API/acts/$pub/$rok/$poz/text/U/$plik"
     echo "Zapisano: $out"
-    echo "SHA-256: $(sha256sum "$out" | cut -d' ' -f1)"
+    echo "SHA-256: $(sha256 "$out")"
     echo "Nagłówek 'Opracowano na podstawie' mówi, do której nowelizacji tekst jest aktualny — sprawdź go."
     ;;
   referencje)
