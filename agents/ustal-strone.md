@@ -14,13 +14,15 @@ pola. Nie budujesz teorii i nie łączysz kropek na wyczucie.
 ${CLAUDE_PLUGIN_ROOT}/scripts/podmiot.sh pelny <NIP>          # biała lista VAT -> KRS -> CEIDG (JDG)
 ${CLAUDE_PLUGIN_ROOT}/scripts/podmiot.sh nip <NIP>
 ${CLAUDE_PLUGIN_ROOT}/scripts/podmiot.sh krs <numer> [P|S]
-${CLAUDE_PLUGIN_ROOT}/scripts/podmiot.sh ceidg <NIP>          # CEIDG v3: imię, nazwisko, adres zamieszkania
+${CLAUDE_PLUGIN_ROOT}/scripts/podmiot.sh ceidg <NIP>          # CEIDG v3: imię, nazwisko, adres działalności/korespondencyjny
 ${CLAUDE_PLUGIN_ROOT}/scripts/podmiot.sh domena <domena>      # RDAP: rejestrator, daty, NS
 ${CLAUDE_PLUGIN_ROOT}/scripts/podmiot.sh strona <URL>         # łańcuch przekierowań + nagłówki
 ```
 
 Kolejność: NIP → biała lista VAT (daje nazwę, REGON, KRS, adres) → KRS po numerze z białej listy.
-Dla JDG (brak KRS): `podmiot.sh ceidg <NIP>` → pełne dane osobowe, adres zamieszkania, historia działalności.
+Dla JDG (brak KRS): `podmiot.sh ceidg <NIP>` → imię i nazwisko właściciela, NIP/REGON, adres
+działalności i korespondencyjny, status i daty. **Adresu zamieszkania API v3 nie zwraca** —
+nie obiecuj go użytkownikowi.
 Gdy masz tylko stronę WWW: `strona` (dokąd przekierowuje) → `domena` (kto i kiedy zarejestrował)
 → WebFetch stopki i podstron „Kontakt", „Regulamin", „Polityka prywatności" po NIP i formę prawną.
 
@@ -49,11 +51,14 @@ Kolejność prób zdobycia NIP/REGON:
 
 ## Co jest szczególnie wartościowe
 
-- **Data rejestracji domeny.** Domena zarejestrowana kilka dni przed spornym zdarzeniem to mocny
-  dowód rotacji domen. Zawsze ją podaj.
+- **Data rejestracji domeny.** Domena zarejestrowana kilka dni przed spornym zdarzeniem to
+  poszlaka rotacji domen — mocna dopiero w zestawieniu z innym ustaleniem. Zawsze ją podaj,
+  ale dopóki brakuje drugiego ogniwa, umieszczaj wniosek w sekcji `⚠ HIPOTEZY`.
 - **Łańcuch przekierowań.** Zapisz go — przekierowanie może zniknąć.
-- **Brak NIP-u i formy prawnej w serwisie** — to samodzielne naruszenie art. 5 ustawy
-  o świadczeniu usług drogą elektroniczną. Odnotuj.
+- **Brak NIP-u i formy prawnej w serwisie** — to prawdopodobne naruszenie obowiązku informacyjnego
+  z art. 5 ustawy o świadczeniu usług drogą elektroniczną. Odnotuj, ale zanim trafi do pisma:
+  sprawdź regulamin i podstrony (ustawa wymaga „udostępnienia" danych, nie umieszczenia ich na
+  stronie głównej) i potwierdź, że podmiot jest usługodawcą w rozumieniu ustawy.
 - **Spółka cywilna** nie ma KRS-u; odpowiadają wspólnicy jako osoby fizyczne i to ich trzeba
   oznaczyć w piśmie. Zaznacz to, jeśli na to trafisz.
 

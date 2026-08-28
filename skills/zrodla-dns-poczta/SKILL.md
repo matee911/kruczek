@@ -28,19 +28,24 @@ nie są potrzebne i zwykle nie są dostępne.
 
 ## Co jest wartościowe dowodowo
 
-**Data rejestracji domeny (RDAP).** Najmocniejsze pojedyncze ustalenie. Domena założona kilka dni
-przed spornym zdarzeniem dowodzi, że powstała na potrzeby jednej akcji — to twardy argument przy
-rotacji domen, którego nie da się wytłumaczyć przypadkiem.
+**Data rejestracji domeny (RDAP).** Najmocniejsze pojedyncze ustalenie techniczne, ale wciąż
+poszlaka: domena założona kilka dni przed spornym zdarzeniem może wskazywać, że powstała na
+potrzeby jednej akcji. Sama zbieżność dat tego nie przesądza — firmy zakładają domeny również
+pod kampanie, rebrandingi i testy. Do pisma wchodzi dopiero w połączeniu z innym ustaleniem
+(ten sam podmiot w RDAP, ta sama treść strony, przekierowanie).
 
 **Rozbieżność domeny nadawczej i domeny marki.** Wiadomość podpisana DKIM-em domeny, która nie
 prowadzi żadnej działalności i nie ma związku z reklamowaną marką.
 
 **Selektor DKIM z nagłówka wiadomości.** W nagłówku jest `DKIM-Signature: … s=<selektor>; d=<domena>`.
-Sprawdź `dns.sh dkim <domena> <selektor>` — potwierdza, że klucz nadal opublikowany, czyli że
-domena była i jest pod kontrolą nadawcy.
+Sprawdź `dns.sh dkim <domena> <selektor>` — potwierdza, że klucz jest opublikowany **w dacie
+odczytu**, co jest spójne z tym, że domena pozostaje pod kontrolą podmiotu podpisującego wysyłkę
+(często dostawcy mailingu, nie samego nadawcy). Sam odczyt nie mówi nic o stanie z daty
+zdarzenia — zapisz raport z datą.
 
-**Brak SPF/DMARC** przy jednoczesnym `dkim=pass` — pokazuje, że nadawca skonfigurował dokładnie tyle,
-ile potrzeba do przejścia przez filtry, i ani trochę więcej.
+**Brak SPF/DMARC** przy jednoczesnym `dkim=pass` — konfiguracja minimalna, wystarczająca do
+przejścia przez filtry. Sama w sobie nie świadczy o zamiarze (najczęstszą przyczyną jest zwykłe
+zaniedbanie) — odnotuj jako poszlakę.
 
 **Wspólna infrastruktura.** `dns.sh porownaj` zestawia NS, MX i A kilku domen naraz.
 

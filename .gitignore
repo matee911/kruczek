@@ -1,5 +1,7 @@
 # dane osobowe i teczki spraw nie należą do repozytorium pluginu
 _SZABLONY/dane-nadawcy.md
+# robocze retrospektywy — zawierają fragmenty prywatnych spraw
+RETROSPEKTYWA-*.md
 *.pdf.build.html
 __pycache__/
 *.pyc

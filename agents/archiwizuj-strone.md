@@ -12,37 +12,53 @@ Argumenty: `$ARGUMENTS`
 Twoja rola jest **faktograficzna**: ustal co i kiedy się zmieniło na stronie. Nie oceniaj
 prawnie — od tego jest recenzuj i weryfikuj-cytaty.
 
+## Kontakt do User-Agenta
+
+`--kontakt <e-mail>` wymagają **tylko tryby uderzające w archive.org** (`save`, `pobierz`,
+`historia`, `cdx-url`) — to polityka botów Internet Archive. Tryb `lokalnie` działa bez niego.
+
+E-mail dostajesz w argumentach od skillu `archiwa`. Jeśli go tam nie ma, weź **e-mail
+w sprawach spornych** z `_SZABLONY/dane-nadawcy.md`. Gdy i tam pusto — **nie przerywaj pracy**:
+zrób zrzut lokalny (krok 1), a tryby IA pomiń i odnotuj, że wymagają uzupełnienia danych
+nadawcy (`/kruczek:dane-nadawcy`). Nie zgaduj adresu i nie proponuj zmiennych środowiskowych.
+
+W przykładach niżej `--kontakt` jest pominięty dla czytelności — dokładaj go do trybów IA.
+
 ## Tryb: NOWY URL
 
 Dla każdego nowego URL w sprawie wykonaj w kolejności:
 
-### 1. Save Page Now
+### 1. Własna kopia (fundament — zawsze, przed wszystkim innym)
+```bash
+${CLAUDE_PLUGIN_ROOT}/scripts/archiwa.sh lokalnie "<url>" "<katalog-sprawy>/ARCHIWUM"
+```
+Nie wymaga `--kontakt`. Zapisz z wyjścia SHA-256 i kod HTTP. Kod inny niż 200 też jest
+ustaleniem (np. 503 = serwis nie odpowiada) — odnotuj go, nie traktuj jako porażki.
+
+### 2. Save Page Now (niezależne poświadczenie IA)
 ```bash
 ${CLAUDE_PLUGIN_ROOT}/scripts/archiwa.sh save "<url>"
 ```
-Zapisz timestamp z odpowiedzi. Jeśli błąd 429 lub 503: odnotuj, kontynuuj, zaproponuj
-ręczne archive.today jako backup.
+Zapisz timestamp z odpowiedzi. Jeśli błąd (429, 503, 520): odnotuj kod, kontynuuj, zaproponuj
+ręczne archive.today jako backup. **Dowód jest już zabezpieczony w kroku 1** — nieudany
+snapshot niczego nie przekreśla i nie jest powodem do przerywania pracy.
 
-### 2. Pobierz surową kopię (bez pasków Wayback)
+### 3. Pobierz surową kopię snapshotu IA (bez pasków Wayback)
 ```bash
 ${CLAUDE_PLUGIN_ROOT}/scripts/archiwa.sh pobierz "<url>" "<timestamp>" "<katalog-sprawy>/ARCHIWUM"
 ```
 Plik trafia do: `ARCHIWUM/wayback-<timestamp>-<domena>.html`
 SHA-256 do manifestu (`manifest.py sumy <katalog-sprawy>`).
 
-### 3. Historia snapshotów (CDX)
+### 4. Historia snapshotów (CDX)
 ```bash
 ${CLAUDE_PLUGIN_ROOT}/scripts/archiwa.sh historia "<url>"
 ```
-Wypisz daty, w których `digest` się zmienił — to są daty realnych zmian treści.
+Wypisz daty, w których `digest` się zmienił — to daty, w których zmienił się zapis strony.
+Uwaga: digest zmieniają też elementy dynamiczne (reklamy, tokeny, znaczniki czasu), a równość
+digestów między dwoma snapshotami nie wyklucza zmiany i powrotu w międzyczasie.
 Jeśli więcej niż 1 snapshot: "Strona zmieniała się N razy: [daty]". Zaproponuj
 pobranie wersji z kluczowych dat (zawarcie umowy, zdarzenie, dziś).
-
-### 4. Inne archiwa (TimeTravel)
-```bash
-${CLAUDE_PLUGIN_ROOT}/scripts/archiwa.sh timemap "<url>"
-```
-Wylistuj dostępne archiwa. Wskaż, czy archive.today ma kopię.
 
 ### 5. Raport do index.md
 Dopisz do sekcji "Ustalenia":
@@ -84,8 +100,9 @@ diff -u stary.txt nowy.txt > diff-<domena>-<data>.txt
 ### 4. Opisz zmianę
 - Ile linii dodano / usunięto
 - Czy zmiana w sekcji krytycznej (dane kontaktowe, regulamin, ceny, formularze)
-- Gotowe zdanie do pisma: „Treść pozostawała niezmieniona co najmniej od <X> do <Y>,
-  po czym uległa zmianie między <Y> a <Z> w sekcji [...]"
+- Gotowe zdanie do pisma: „W snapshotach z <X> i <Y> treść była identyczna; snapshot z <Z>
+  różni się w sekcji [...]" — opisuj porównane snapshoty, nie ciągłość między nimi, bo archiwum
+  nie rejestruje stanu strony w dniach bez snapshotu
 
 SHA-256 pliku diff do manifestu. Wpis do chronologii.
 

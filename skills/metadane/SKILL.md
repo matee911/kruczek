@@ -30,15 +30,30 @@ Otwórz plik (Read lub pdftotext) i poszukaj:
 
 Wpisz ją do tabeli jako „data z treści".
 
-## 3. Oceń rozbieżności — gotowe zarzuty
+## 3. Oceń rozbieżności — propozycje sformułowań (do weryfikacji)
 
-| Rozbieżność | Gotowe sformułowanie do pisma |
+| Rozbieżność | Propozycja sformułowania |
 |---|---|
-| Data metadanych wcześniejsza niż „data wejścia w życie" z treści | „Metadane pliku wskazują datę utworzenia [X], podczas gdy dokument deklaruje wejście w życie [Y] — plik istniał co najmniej [X-Y] dni przed opublikowaniem." |
-| Producer: Word + imię autora | „Dokument nie jest eksportem z systemu — nosi cechy pliku złożonego ręcznie przez [Author] w [Producer]." |
-| Liczba rewizji ≤ 2 + czas edycji < 5 min | „Dokument zawiera [N] rewizji i czas edycji [T] — wskazuje na sporządzenie ad hoc, nie archiwizację systemową." |
-| GPS w zdjęciu | „Zdjęcie zawiera dane lokalizacyjne GPS — serwis przetwarza współrzędne geograficzne użytkownika (art. 5 ust. 1 lit. c RODO)." |
+| Data metadanych wcześniejsza niż „data wejścia w życie" z treści | „Metadane pliku wskazują datę utworzenia [X], podczas gdy dokument deklaruje wejście w życie [Y]." |
+| Producer: Word + imię autora | „Metadane pliku wskazują [Producer] i autora [Author], co może wskazywać na dokument złożony ręcznie, a nie wyeksportowany z systemu." |
+| Liczba rewizji ≤ 2 + czas edycji < 5 min | „Dokument zawiera [N] rewizji i czas edycji [T], co może wskazywać na sporządzenie ad hoc." |
+| GPS w zdjęciu | „Plik zawiera dane lokalizacyjne GPS. Wzywam do wskazania, czy serwis przetwarza współrzędne geograficzne użytkowników i na jakiej podstawie." |
 | Data z nazwy ≠ data z metadanych | „Nazwa pliku sugeruje datę [X], metadane wskazują [Y] — nie należy ufać nazwie pliku." |
+
+## Granica, której nie przekraczasz
+
+Metadane są **łatwe do odziedziczenia i trywialne do podmiany**, więc rozbieżność jest poszlaką,
+nie dowodem. Konkretnie:
+
+- `Producer` i `Author` bywają dziedziczone z szablonu albo ustawiane przez bibliotekę generującą
+  PDF-y — nie dowodzą, kto i jak dokument sporządził.
+- Data utworzenia bywa odziedziczona po szablonie albo ustawiona ręcznie — nie dowodzi, że plik
+  „istniał" przez ten czas.
+- Obecność EXIF z GPS dowodzi tylko, że współrzędne są **w pliku**. Nie dowodzi, że serwis je
+  przetwarza, ani nie przesądza naruszenia zasady minimalizacji.
+
+Do pisma opisuj **co metadane zawierają**, nie co z tego wynika o zamiarze drugiej strony. Wnioski
+wchodzą wyłącznie w zestawieniu z treścią dokumentu albo jako żądanie wyjaśnienia.
 
 ## 4. Higiena własnych plików — przypomnienie
 
@@ -50,7 +65,7 @@ pdftotext pismo.pdf -             # sprawdź ukryte warstwy tekstowe
 
 ## 5. Raport
 
-Tabela ze skryptu + kolumna „data z treści" + kolumna „gotowy zarzut" (jeśli jest).
+Tabela ze skryptu + kolumna „data z treści" + kolumna „propozycja sformułowania" (jeśli jest).
 Wpisz ustalenia do sekcji „Ustalenia" w `index.md`.
 
 ## macOS — skąd pochodzi plik (opcjonalne)

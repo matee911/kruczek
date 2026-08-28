@@ -4,7 +4,8 @@
 #   podmiot.sh nip 5252344078        — Biała lista VAT (MF): nazwa, REGON, KRS, adres, rachunki
 #   podmiot.sh regon 140182840       — Biała lista VAT po REGON-ie (gdy NIP nieznany)
 #   podmiot.sh krs 0000240611 [P|S]  — Odpis aktualny z KRS (P=przedsiębiorcy, S=stowarzyszenia)
-#   podmiot.sh ceidg 5252344078      — CEIDG API v3: pełne dane JDG (imię, nazwisko, adres zam.)
+#   podmiot.sh ceidg 5252344078      — CEIDG API v3: dane JDG (imię, nazwisko, adres działalności
+#                                      i korespondencyjny — adresu ZAMIESZKANIA API nie udostępnia)
 #   podmiot.sh domena example.pl     — RDAP: rejestrator, abonent, daty, nameservery (.pl przez NASK)
 #   podmiot.sh strona https://x.pl   — nagłówki HTTP + łańcuch przekierowań (dowód na rotację domen)
 #   podmiot.sh pelny 5252344078      — nip -> (jeśli jest KRS) krs -> (jeśli JDG) ceidg, jednym ciągiem
@@ -37,12 +38,41 @@ ceidg() {
     echo "Zapisz w ~/.kruczek/ceidg_token lub ustaw CEIDG_TOKEN=... przed wywołaniem."
     exit 1
   fi
-  curl -sSfL --max-time 30 \
+  # Endpoint: /firma?nip= (pełny wpis). NIE /raport?nip= — to 404; w API v3 raport jest
+  # pod /raport/{id} i wymaga identyfikatora w ścieżce, nie NIP-u w query.
+  # Odpowiedź to {"firma":[{...}]} — stąd .firma[0]. Nazwy pól wg oficjalnej specyfikacji
+  # OpenAPI („API HD v3.json" z Dokumentacji dla integratorów v1.4, kwiecień 2026).
+  # Kod 204 = brak treści: NIP nie figuruje w CEIDG (np. to spółka, nie JDG).
+  local kod; kod=$(curl -s -o /tmp/.kruczek_ceidg.$$ -w '%{http_code}' --max-time 30 \
     -H "Authorization: Bearer $token" \
-    "https://dane.biznes.gov.pl/api/ceidg/v3/raport?nip=${n}" \
-  | jq '{imie, nazwisko, nip, regon, adresZamieszkania, adresDzialalnosci,
-         dataPoczatkuDzialalnosci, dataZawieszenia, dataWznowienia, dataWykreslenia,
-         statusDzialalnosci, pkd}'
+    "https://dane.biznes.gov.pl/api/ceidg/v3/firma?nip=${n}") || true
+  case "$kod" in
+    200) : ;;
+    204) rm -f /tmp/.kruczek_ceidg.$$
+         echo "Brak wpisu w CEIDG dla NIP ${n} (HTTP 204)."
+         echo "CEIDG obejmuje wyłącznie jednoosobową działalność gospodarczą i wspólników"
+         echo "spółek cywilnych — dla spółki prawa handlowego użyj: podmiot.sh krs <numer>."
+         return 0 ;;
+    401|403) rm -f /tmp/.kruczek_ceidg.$$
+         echo "CEIDG odrzuciło token (HTTP ${kod}) — wygasł albo jest nieprawidłowy." >&2
+         echo "Nowy: https://biznes.gov.pl/pl/e-uslugi/00_9999_00" >&2
+         return 1 ;;
+    *)   rm -f /tmp/.kruczek_ceidg.$$
+         echo "CEIDG zwróciło HTTP ${kod} dla NIP ${n}." >&2
+         return 1 ;;
+  esac
+  jq '.firma[0] | {
+        nazwa,
+        wlasciciel,
+        status,
+        dataRozpoczecia, dataZawieszenia, dataWznowienia, dataZakonczenia, dataWykreslenia,
+        adresDzialalnosci, adresKorespondencyjny, adresDoreczenElektronicznych,
+        telefon, email, www,
+        pkdGlowny, pkd,
+        zakazy, upadlosci, dataZgonu, zarzadcaSukcesyjny,
+        link
+      }' /tmp/.kruczek_ceidg.$$
+  rm -f /tmp/.kruczek_ceidg.$$
 }
 
 nip() {

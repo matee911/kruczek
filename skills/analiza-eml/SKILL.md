@@ -21,31 +21,51 @@ markdown nadający się na załącznik do pisma) i wypisuje sumy kontrolne wszys
 ## Co skrypt wykrywa i co to znaczy
 
 **Droga wiadomości** — nagłówki `Received` od najstarszego. Pokazują, z jakiego komputera i łącza
-nadano wiadomość. Nazwa hosta typu `user-…play-internet.pl` znaczy, że nadawca wysyłał z domowego
-lub mobilnego łącza, a nie z infrastruktury dostawcy usług mailingowych.
+nadano wiadomość. Nazwa hosta typu `user-…play-internet.pl` wskazuje na wysyłkę z domowego lub
+mobilnego łącza, a nie z infrastruktury dostawcy usług mailingowych. Wiarygodny dowodowo jest
+tylko nagłówek `Received` dodany przez serwer odbiorczy — wcześniejsze da się sfałszować.
 
-**Uwierzytelnienie** — `dkim=pass` i `spf=pass` dla domeny nadawczej oznaczają, że **wysyłka nie
-jest podszyciem**. To zamyka najczęstszą linię obrony: „ktoś podszył się pod naszą firmę".
+**Uwierzytelnienie** — `dkim=pass` i `spf=pass` potwierdzają, że wiadomość wyszła z infrastruktury
+autoryzowanej przez domenę z `d=…`. Sprawdź, czy ta domena odpowiada domenie z `From` — jeśli tak,
+osłabia to linię obrony „ktoś podszył się pod naszą firmę". Nie wyklucza to jednak wysyłki
+z przejętego konta ani z domeny łudząco podobnej.
 
 **Rozbieżność domen** — inna domena w `From`, inna w `Reply-To`, jeszcze inna w linku. Typowa
 rotacja domen służąca omijaniu list blokujących. Sprawdź daty rejestracji domen
-(`podmiot.sh domena <domena>`) — domena zarejestrowana kilka dni przed wysyłką to mocny dowód.
+(`podmiot.sh domena <domena>`) — domena zarejestrowana kilka dni przed wysyłką to poszlaka,
+mocna dopiero w zestawieniu z pozostałymi ustaleniami.
 
 **Sfingowany wątek** — temat z prefiksem „Re:" przy braku nagłówków `In-Reply-To` i `References`.
-Wiadomość udaje odpowiedź na korespondencję, której nie było.
+Oznacza brak technicznego powiązania z wcześniejszą korespondencją; „Re:" bywa też wpisane ręcznie
+albo zgubione przez klienta pocztowego. Jeśli użytkownik potwierdza, że wątku nie było — to
+poszlaka sfingowania.
 
 **Tokeny śledzące** — zakodowany w Base64 adres odbiorcy w parametrze URL. Dowodzi, że wysyłka
-była **spersonalizowana per odbiorca**, nadawca prowadzi bazę adresową i wiąże wejście na stronę
-z konkretną osobą. Ma to znaczenie dla kwalifikacji adresu jako danej osobowej.
+była **spersonalizowana per odbiorca**, i wskazuje, że nadawca dysponował adresem w formie
+umożliwiającej powiązanie wejścia na stronę z konkretną osobą. Ma to znaczenie dla kwalifikacji
+adresu jako danej osobowej.
 
 **Techniki obchodzenia filtrów** — skrypt liczy: komentarze HTML wewnątrz wyrazów, znaki zerowej
 szerokości (U+200B/C/D, U+FEFF), numeryczne encje HTML zamiast liter, puste znaczniki `<span>`
 rozbijające słowa, tekst biały na białym (hash busting), elementy ukryte CSS-em.
 
 **Dlaczego to jest ważne dowodowo:** żadna z tych technik nie powstaje samoczynnie w programie
-pocztowym. Każda wymaga celowej ingerencji w kod HTML. Kilka zastosowanych jednocześnie to dowód
-**umyślności** — wyklucza tłumaczenie „błąd systemu" i wpływa na wymiar kary oraz na roszczenia,
-które przysługują tylko przy czynie zawinionym.
+pocztowym — każda wymaga ingerencji w kod HTML. Ich współwystępowanie jest **okolicznością
+obciążającą przy ocenie umyślności**, ale nie dowodzi jej samo w sobie: część z nich (znaki
+zerowej szerokości, elementy ukryte CSS-em w preheaderze) wstawiają rutynowo szablony i systemy
+mailingowe, bez wiedzy nadawcy. Umyślność wykazuje dopiero zestawienie z innymi okolicznościami
+— powtarzalnością wysyłek mimo sprzeciwu, rotacją domen.
+
+## Granica, której nie przekraczasz
+
+Ustalenia techniczne z nagłówków to **poszlaki, nie dowody zamiaru**. Opisuj co skrypt zmierzył
+(„nagłówek zawiera X", „wykryto N znaków zerowej szerokości"), nie co z tego wynika o stanie
+świadomości nadawcy. Wnioski o umyślności, prowadzeniu bazy adresowej czy sfingowaniu wątku
+wchodzą do pisma wyłącznie jako zestawienie kilku ustaleń albo jako żądanie wyjaśnienia —
+nigdy jako samodzielne twierdzenie.
+
+Powtarzalność wzorca w wielu wiadomościach wzmacnia pozostałe ustalenia, ale nie jest
+samodzielnym dowodem — zestaw ją z nimi, nie przedstawiaj osobno.
 
 ## Po analizie
 

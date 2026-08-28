@@ -33,7 +33,7 @@ Zwięzłe zestawienie faktów, po jednej wiadomości:
 
 - ścieżka do wygenerowanego `_analiza.md` i suma SHA-256 oryginału
 - data i godzina nadania, adres nadawcy, adres zwrotny
-- czy SPF/DKIM przechodzą (czyli: czy to podszycie, czy nie)
+- czy SPF/DKIM przechodzą i dla jakiej domeny (`d=…`) — podaj też, czy zgadza się z domeną z `From`
 - lista różnych domen występujących w wiadomości
 - czy wątek jest sfingowany („Re:" bez `In-Reply-To`/`References`)
 - zdekodowane tokeny śledzące
@@ -43,7 +43,8 @@ Jeśli raport zawiera zalecenie sprawdzenia domeny przez `podmiot.sh` — wymie�
 i zasugeruj delegację do agenta `ustal-strone`.
 
 Przy wielu wiadomościach dodaj tabelę zbiorczą i wskaż to, co powtarzalne: te same techniki,
-ta sama infrastruktura, ten sam schemat nazw domen. Powtarzalność jest osobnym dowodem.
+ta sama infrastruktura, ten sam schemat nazw domen. Powtarzalność wzmacnia pozostałe ustalenia
+— zestaw ją z nimi, ale nie przedstawiaj jako samodzielnego dowodu.
 
 ## Czego nie robisz
 

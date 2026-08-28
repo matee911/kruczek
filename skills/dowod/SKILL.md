@@ -101,9 +101,20 @@ Zleć subagentowi `transkrybuj` (sonnet).
 
 Dla **każdego** nowego URL znalezionego w pliku (w .eml, w PDF, w fakturze):
 ```bash
-${CLAUDE_PLUGIN_ROOT}/scripts/archiwa.sh save "<url>"
+# 1. WŁASNA kopia — fundament, zawsze:
+${CLAUDE_PLUGIN_ROOT}/scripts/archiwa.sh lokalnie "<url>" <sprawa>/ARCHIWUM
+# 2. Niezależne poświadczenie IA — jeśli się uda:
+${CLAUDE_PLUGIN_ROOT}/scripts/archiwa.sh save "<url>" --kontakt "<e-mail nadawcy>"
 ```
-Nie czekaj na analizę — najpierw Save Page Now, potem czytaj.
+Nie czekaj na analizę — najpierw zabezpiecz treść, potem czytaj.
+
+**Kolejność jest istotna.** Wayback bywa niedostępny, zwraca błędy i może odmówić zapisu —
+nie może być jedynym miejscem, w którym istnieje dowód. `lokalnie` nie wymaga `--kontakt`
+ani żadnej konfiguracji i zapisuje treść, nagłówki, kod HTTP, łańcuch przekierowań i SHA-256.
+Nieudany `save` **nie jest** porażką zabezpieczenia dowodu — odnotuj go i idź dalej.
+
+`--kontakt` (tylko dla `save`) to e-mail w sprawach spornych z `_SZABLONY/dane-nadawcy.md`.
+Gdy dane nadawcy są puste — zrób sam zrzut lokalny, a `save` dopisz do TODO.
 
 ## 7. Wersja tekstowa dla plików nietekstowych
 
