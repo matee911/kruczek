@@ -9,6 +9,17 @@ import collections
 # Polskie cudzysłowy i angielskie — maskujemy cytaty, żeby nie wykryć nawiasów w cytatach
 _QUOTE_RE = re.compile(r"[\u201e\u201c\"][^\u201d\u201c\"]{0,400}[\u201d\u201c\"]")
 
+# Zawarto\u015b\u0107 nawiasu, kt\u00f3ra jest DAN\u0104, a nie polem do wype\u0142nienia: liczba, data, kwota
+# \u2014 opcjonalnie z kr\u00f3tk\u0105 jednostk\u0105 na ko\u0144cu (z\u0142, PLN, dni, %, r.). Kluczowe jest to, \u017ce
+# cz\u0119\u015b\u0107 liczbowa musi sta\u0107 NA POCZ\u0104TKU: "[123.45 z\u0142]" to dana, ale "[wpisz 3 dni]"
+# zaczyna si\u0119 s\u0142owem i pozostaje polem do wype\u0142nienia.
+#
+# Bez tego kwota w nawiasie trafia\u0142a do listy niewype\u0142nionych p\u00f3l i BLOKOWA\u0141A wysy\u0142k\u0119
+# gotowego pisma \u2014 fa\u0142szywy alarm na \u015bcie\u017cce heurystycznej (gdy kontroli nie podano --html).
+_DANA_RE = re.compile(
+    r"\[[\d.,:\s/-]+(?:\s*[A-Za-z\u0105\u0107\u0119\u0142\u0144\u00f3\u015b\u017a\u017c\u0104\u0106\u0118\u0141\u0143\u00d3\u015a\u0179\u017b%]{1,4}\.?)?\]"
+)
+
 
 def find_placeholders(t: str) -> list:
     """Znajdź niewypełnione pola [w nawiasach] w tekście pisma.
@@ -22,6 +33,8 @@ def find_placeholders(t: str) -> list:
     []
     >>> find_placeholders("Kwota: [123.45 zł]")
     []
+    >>> find_placeholders("Termin: [wpisz liczbę dni]")
+    ['[wpisz liczbę dni]']
     >>> find_placeholders("Brak pól.")
     []
     >>> find_placeholders("[data doręczenia] i [numer sprawy]")
@@ -31,17 +44,22 @@ def find_placeholders(t: str) -> list:
     return [
         x
         for x in re.findall(r"\[[^\]\n]{3,120}\]", tm)
-        if not re.fullmatch(r"\[[\d.:\s/-]+\]", x) and re.search(r"[a-ząćęłńóśźż]", x)
+        if not _DANA_RE.fullmatch(x) and re.search(r"[a-ząćęłńóśźż]", x)
     ]
 
 
 def find_attachment_page_headers(t: str) -> list:
     """Znajdź nagłówki stron załączników: 'Załącznik nr N — Tytuł'.
 
+    Forma skrócona ("zał. nr 2") NIE jest nagłówkiem strony załącznika — obsługuje ją
+    find_cross_references jako odesłanie w treści. Gdyby łapać ją i tutaj, każde zdanie
+    odsyłające do załącznika liczyłoby się jako jego strona i kontrola zgłaszałaby
+    nieistniejący rozjazd między listą a stronami.
+
     >>> find_attachment_page_headers("Załącznik nr 1 — Umowa z dnia 01.01.2026")
     [('1', 'Umowa z dnia 01.01.2026')]
     >>> find_attachment_page_headers("Zal. nr 2 - Faktura VAT")
-    [('2', 'Faktura VAT')]
+    []
     >>> find_attachment_page_headers("Brak załączników.")
     []
     >>> find_attachment_page_headers("Załącznik nr 1 — Umowa\\nZałącznik nr 2 — Faktura")
