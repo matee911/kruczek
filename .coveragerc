@@ -1,26 +1,27 @@
 # Konfiguracja coverage.py — pomiar pokrycia testami dla codecov.io.
 #
-# Co jest mierzone i dlaczego akurat to:
+# Mierzymy WSZYSTKIE skrypty pythonowe w scripts/, także te nieobjęte żadnym testem.
+# coverage.py nie musi importować pliku, żeby go zaraportować — parsuje go statycznie,
+# więc plik nietknięty przez testy pokazuje się jako 0%. To jest prawdziwe zdanie
+# o stanie pokrycia i ma być widoczne, a nie schowane przez `omit`.
 #
-# Skrypty CLI kruczka mają myślnik w nazwie (build-pismo.py, kontrola-pisma.py,
-# eml-forensics.py, dane-nadawcy-status.py) — a myślnik jest w Pythonie niedozwolony
-# w nazwie modułu, więc tych plików NIE DA SIĘ zaimportować w teście. Dokładnie z tego
-# powodu istnieje osobne kontrola_logika.py (z podkreśleniem): czysta logika wyjęta
-# z kontrola-pisma.py po to, żeby dało się ją testować.
+# Konsekwencja, którą trzeba znać czytając raport: skrypty CLI mają myślnik w nazwie
+# (build-pismo.py, kontrola-pisma.py, eml-forensics.py, dane-nadawcy-status.py), a myślnik
+# jest niedozwolony w nazwie modułu Pythona — więc NIE DA SIĘ ich zaimportować w teście
+# jednostkowym. Dokładnie dlatego istnieje osobne kontrola_logika.py (z podkreśleniem):
+# czysta logika wyjęta z kontrola-pisma.py po to, żeby dało się ją testować.
 #
-# Skrypty z myślnikiem są uruchamiane przez scripts/smoketest.sh jako osobne procesy.
-# coverage.py nie widzi subprocesów bez --parallel-mode i COVERAGE_PROCESS_START, a ta
-# maszyneria bywa krucha na dwóch systemach naraz (CI chodzi na ubuntu i macos) — więc
-# świadomie ich nie mierzymy, zamiast raportować dla nich fałszywe 0%.
+# Droga do podniesienia pokrycia tych plików prowadzi więc przez wyjmowanie z nich logiki
+# do modułów *_logika.py, a nie przez próby testowania ich w obecnej postaci. Uruchamia je
+# scripts/smoketest.sh jako osobne procesy — ale coverage ich tam nie widzi bez
+# COVERAGE_PROCESS_START, a ta maszyneria jest krucha przy dwóch systemach w CI.
 #
-# manifest.py mierzymy mimo braku testów: jest importowalny, więc 0% jest tu prawdziwym
-# zdaniem o stanie pokrycia, a nie artefaktem narzędzia.
+# Pomijamy wyłącznie same pliki testów: mierzymy kod produkcyjny, nie testy.
 
 [run]
 source = scripts
 omit =
     scripts/test_*.py
-    scripts/*-*.py
 
 [report]
 show_missing = True
