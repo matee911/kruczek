@@ -33,13 +33,17 @@ git clone https://github.com/matee911/kruczek && claude --plugin-dir ./kruczek
 |---|---|---|
 | `curl`, `jq` | API rejestrów i orzecznictwa | tak |
 | `python3` (sam stdlib) | analiza `.eml`, manifest, budowa pism | tak |
-| `weasyprint` **albo** `wkhtmltopdf` | składanie pism do PDF | do pism |
+| `weasyprint` **albo** Chrome/Chromium **albo** `wkhtmltopdf` | składanie pism do PDF (próbowane w tej kolejności) | do pism |
 | `pandoc` | załączniki `.md` w PDF | do pism |
 | `poppler-utils` (`pdftotext`, `pdfinfo`) | odczyt PDF, licznik stron | zalecane |
 | `tesseract-ocr` + `tesseract-ocr-pol`, `ocrmypdf` | OCR skanów | do skanów |
 | `exiftool` | metadane PDF i zdjęć (daty, autor, GPS) | zalecane |
-| `unzip` | metadane plików Office (.docx, .xlsx) | zalecane |
+| `unzip`, `qpdf`, `p7zip` | metadane plików Office, odszyfrowanie PDF/ZIP/7z chronionych hasłem | zalecane |
 | `ggrep` (macOS) / `grep` (Linux) | PCRE w `metadane.sh` (pliki Office) | zalecane |
+
+`scripts/check-deps.sh` sprawdza wszystko naraz i wypisuje gotową komendę instalacji brakujących
+pakietów dla Twojego systemu. Skrypty działają tak samo na macOS (BSD, systemowy bash 3.2)
+i na Linuksie — obie platformy są testowane w CI.
 
 ```bash
 # Debian/Ubuntu
@@ -62,7 +66,7 @@ i odczytu skanów.
 /kruczek:dowod                 # wciągnij mail, skan, nagranie — z sumą kontrolną i OCR
 /kruczek:fakt                  # dopisz jeden fakt do chronologii
 /kruczek:metadane              # sprawdź metadane pliku (data, autor, GPS, rozbieżności)
-/kruczek:archiwa               # zarchiwizuj stronę / wątek w Wayback Machine
+/kruczek:archiwa               # zabezpiecz stronę: własna kopia + snapshot w Wayback Machine
 /kruczek:pismo                 # zbuduj pismo z cytatami, załącznikami i TL;DR
 /kruczek:kontrola              # mechanicznie: numeracja, nazwy, sumy, wymogi druku
 /kruczek:weryfikuj             # przepisy i sygnatury w źródłach urzędowych
@@ -89,8 +93,10 @@ moje-sprawy/
 │   ├── wzory/                     sprawdzone sformułowania
 │   └── metodyka/                  checklisty, katalogi technik
 ├── _SZABLONY/
+│   └── dane-nadawcy.md            tożsamości: Ty, Twoja działalność, osoby reprezentowane
 └── nazwa-firmy/
     ├── index.md                   chronologia, ustalenia, hipotezy, manifest, TODO, eskalacja
+    │                              oraz „Występuję jako" — rola w TEJ sprawie
     ├── ARCHIWUM/                  oryginały dowodów — append-only
     ├── ROBOCZE/
     └── 2026_08_18-WEZWANIE-FIRMA-DO_WYSYLKI/
@@ -116,7 +122,14 @@ zacytować ani znaleźć za pół roku.
 
 **Fakt to nie hipoteza.** Zbieżność adresu czy branży trafia do sekcji `⚠ HIPOTEZY` z wyraźnie
 wskazanym brakującym ogniwem. Hipoteza napisana w piśmie w trybie oznajmującym to najgorszy błąd
-w całym procesie — druga strona obala jedno twierdzenie i podważa resztę.
+w całym procesie — druga strona obala jedno twierdzenie i podważa resztę. Ustalenia techniczne
+opisujemy tym, co zmierzone („nagłówek zawiera X"), nie tym, co z tego wynika o czyimś zamiarze.
+
+**Własna kopia jest fundamentem, archiwum zewnętrzne dodatkiem.** Każdy URL najpierw trafia na
+dysk jako własny zrzut (treść, nagłówki, kod HTTP, adres końcowy po przekierowaniach, SHA-256,
+data odczytu), a dopiero potem do Wayback Machine po niezależne poświadczenie strony trzeciej.
+Cudza usługa bywa niedostępna, odmawia zapisu albo usuwa snapshot na żądanie właściciela domeny
+— dowód nie może od niej zależeć.
 
 **Przepisy pochodzą ze źródeł urzędowych, nie z pamięci modelu.** API ELI Sejmu dla prawa polskiego,
 EUR-Lex dla unijnego. Przed każdym cytatem sprawdzane jest, czy przepis nadal obowiązuje —
@@ -152,7 +165,8 @@ gdzie jesteśmy słabi.
 
 ## Źródła, z których plugin korzysta
 
-Wszystkie otwarte, bez kluczy API.
+Wszystkie publicznie dostępne. Klucza wymaga wyłącznie CEIDG (darmowy token, jednorazowa
+rejestracja przez Profil Zaufany) — reszta działa bez rejestracji.
 
 | Źródło | Co daje | Dostęp |
 |---|---|---|
