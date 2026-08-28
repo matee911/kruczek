@@ -32,6 +32,20 @@ class TestFindPlaceholders(unittest.TestCase):
     def test_ignoruje_liczbe(self):
         self.assertEqual(find_placeholders("Kwota: [123.45]"), [])
 
+    def test_ignoruje_kwote_z_waluta(self):
+        # Kwota w nawiasie to dana, nie polecenie "wpisz tu coś" — fałszywy alarm
+        # o niewypełnionym polu blokuje wysyłkę gotowego pisma.
+        self.assertEqual(find_placeholders("Kwota: [123.45 zł]"), [])
+
+    def test_ignoruje_liczbe_z_jednostka(self):
+        self.assertEqual(find_placeholders("Termin: [14 dni]"), [])
+
+    def test_wykrywa_pole_zaczynajace_sie_od_slowa(self):
+        # Sufiks jednostki nie może wyłączyć wykrywania pól, które ZACZYNAJĄ się słowem.
+        self.assertEqual(
+            find_placeholders("Termin: [wpisz liczbę dni]"), ["[wpisz liczbę dni]"]
+        )
+
     def test_wiele_pol(self):
         t = "[data doręczenia] oraz [numer sprawy]"
         self.assertEqual(find_placeholders(t), ["[data doręczenia]", "[numer sprawy]"])
@@ -66,6 +80,11 @@ class TestFindAttachmentPageHeaders(unittest.TestCase):
 
     def test_brak(self):
         self.assertEqual(find_attachment_page_headers("Brak załączników."), [])
+
+    def test_skrot_nie_jest_naglowkiem(self):
+        # "zał. nr 2" to odesłanie w treści (find_cross_references), nie nagłówek strony
+        # załącznika. Liczenie go jako strony dawałoby fałszywy rozjazd lista↔strony.
+        self.assertEqual(find_attachment_page_headers("Zal. nr 2 - Faktura VAT"), [])
 
     def test_wiele(self):
         t = "Załącznik nr 1 — Umowa\nZałącznik nr 2 — Faktura"
