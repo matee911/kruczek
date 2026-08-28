@@ -75,14 +75,14 @@ a jeśli z rozmowy wynika konkretna potrzeba — wskaż jedną, właściwą pozy
 | `init-projekt.sh` | struktura repozytorium |
 | `gen-claude-md.sh` | generuje CLAUDE.md z danych nadawcy (wołany też przez init-projekt.sh) |
 | `nowa-sprawa.sh` | katalog sprawy + `index.md` |
-| `eml-forensics.py` | pełna analiza `.eml` → raport markdown |
+| `eml_forensics.py` | pełna analiza `.eml` → raport markdown |
 | `manifest.py` | sumy kontrolne, manifest, weryfikacja spójności |
 | `eli.sh` | API ELI Sejmu: teksty ujednolicone, status aktu, nowelizacje |
 | `orzecznictwo.sh` | SAOS, UODO, CBOSA, SN, Dziennik Urzędowy UKE |
 | `podmiot.sh` | biała lista VAT, KRS, RDAP, przekierowania |
 | `dns.sh` | rekordy DNS, SPF/DKIM/DMARC, porównanie infrastruktury domen |
-| `build-pismo.py` | HTML → PDF z wdrukowanymi załącznikami, marginesy pod Envelo i e-Doręczenia |
-| `kontrola-pisma.py` | mechaniczna kontrola spójności gotowego pisma |
+| `build_pismo.py` | HTML → PDF z wdrukowanymi załącznikami, marginesy pod Envelo i e-Doręczenia |
+| `kontrola_pisma.py` | mechaniczna kontrola spójności gotowego pisma |
 | `archiwa.sh` | Wayback Machine CDX, Save Page Now, diff snapshotów |
 | `metadane.sh` | zbiorcza tabela metadanych PDF/DOCX/XLSX/obrazów z flagami rozbieżności |
 

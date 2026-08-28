@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# Hook pre-commit kruczka — odpala wszystkie testy przed zapisaniem commita.
+#
+# Celowo BEZ narzędzia `pre-commit` z PyPI: kruczek nie ma zależności runtime i nie
+# zamierza ich mieć, a jeden hak nie jest wart wprowadzania menedżera haków.
+#
+# Włączenie (raz, po sklonowaniu repo):
+#     git config core.hooksPath .githooks
+#
+# Pominięcie w wyjątkowej sytuacji:
+#     git commit --no-verify
+set -euo pipefail
+
+REPO="$(git rev-parse --show-toplevel)"
+
+echo "pre-commit: testy (unittest + doctesty)…"
+if ! python3 "${REPO}/scripts/run_tests.py" >/tmp/kruczek-pre-commit.log 2>&1; then
+  echo
+  echo "✗ Testy nie przechodzą — commit wstrzymany."
+  echo
+  tail -30 /tmp/kruczek-pre-commit.log
+  echo
+  echo "Pełny log: /tmp/kruczek-pre-commit.log"
+  echo "Świadome pominięcie: git commit --no-verify"
+  exit 1
+fi
+echo "✓ testy OK"

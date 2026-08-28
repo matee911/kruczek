@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Unit testy logiki regex z kontrola-pisma.py. Tylko stdlib."""
+"""Unit testy logiki regex z kontrola_pisma.py. Tylko stdlib."""
 
 import unittest
 from kontrola_logika import (

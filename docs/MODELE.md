@@ -14,7 +14,7 @@ Wartości dopuszczalne w Claude Code: `haiku`, `sonnet`, `opus`, `inherit`.
 | `dowod` | skill | `haiku` | low | kopiowanie, sumy, wywołanie skryptu — ustalona sekwencja |
 | `chronologia` | skill | `haiku` | low | jeden wiersz w tabeli, znany format |
 | `status` | skill | `haiku` | low | zebranie pól z plików i posortowanie |
-| `analiza-eml` | skill | `haiku` | low | całą pracę wykonuje `eml-forensics.py` |
+| `analiza-eml` | skill | `haiku` | low | całą pracę wykonuje `eml_forensics.py` |
 | `zrodla-dns-poczta` | skill | `haiku` | low | odpytanie DoH i przepisanie rekordów |
 | `kontrola` | skill | `haiku` | low | porównywanie łańcuchów, zero uznaniowości |
 | `analizuj-eml` | agent | `haiku` | — | uruchamia skrypt i zestawia wyniki |
@@ -51,7 +51,7 @@ Wartości dopuszczalne w Claude Code: `haiku`, `sonnet`, `opus`, `inherit`.
 ## Dlaczego akurat tak
 
 **Praca mechaniczna → `haiku`.** Wszędzie tam, gdzie właściwą robotę wykonuje skrypt
-(`eml-forensics.py`, `manifest.py`, `podmiot.sh`), model tylko uruchamia go i formatuje wynik.
+(`eml_forensics.py`, `manifest.py`, `podmiot.sh`), model tylko uruchamia go i formatuje wynik.
 Wynik jest deterministyczny, więc mocniejszy model niczego nie poprawi — a analiza jednej
 wiadomości `.eml` z pięcioma technikami obfuskacji kosztuje wtedy ułamek tego, co kosztowałaby
 na opusie.

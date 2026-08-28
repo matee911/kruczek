@@ -230,3 +230,19 @@ MIT. Zob. [LICENSE](LICENSE).
 
 Zgłoszenia i PR-y mile widziane — zwłaszcza nowe źródła urzędowe i wzory pism do `BAZA_WIEDZY/wzory/`.
 Przed PR-em uruchom `claude plugin validate .`.
+
+### Testy
+
+```bash
+python3 scripts/run_tests.py     # unittest + doctesty ze wszystkich modułów
+bash scripts/smoketest.sh scripts # czy skrypty w ogóle się uruchamiają
+```
+
+`run_tests.py` **odkrywa** testy, zamiast wymieniać je z nazwy — nowy plik `scripts/test_*.py`
+albo doctest w nowym module uruchomi się bez dopisywania czegokolwiek do CI.
+
+Hak uruchamiający testy przed każdym commitem (włączasz raz po sklonowaniu):
+
+```bash
+git config core.hooksPath .githooks
+```

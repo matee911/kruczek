@@ -162,7 +162,7 @@ skip_sh() {
 
 skip_py() {
   case "$(basename "$1")" in
-    utils.py|kontrola_logika.py|test_kontrola_logika.py) return 0 ;;  # moduły/testy, nie CLI
+    utils.py|kontrola_logika.py|test_kontrola_logika.py|run_tests.py) return 0 ;;  # moduły/testy — run_tests.py jest CLI, ale odpala go osobny krok CI
     *) return 1 ;;
   esac
 }
@@ -225,7 +225,7 @@ echo
 echo "=== uruchomienie bez argumentów (python3) ==="
 for f in "$SCRIPTS_DIR"/*.py; do
   case "$(basename "$f")" in
-    utils.py|kontrola_logika.py|test_kontrola_logika.py) continue ;;  # moduły/testy, nie CLI
+    utils.py|kontrola_logika.py|test_kontrola_logika.py|run_tests.py) continue ;;  # moduły/testy — run_tests.py jest CLI, ale odpala go osobny krok CI
   esac
   run_isolated "$f" python3
 done
@@ -318,8 +318,8 @@ setup_metadane() { echo "tresc" > 2026-01-01_dowod.eml; }
 smoke_cmd_fixture "metadane.sh na .eml" bash "$ME" setup_metadane 2026-01-01_dowod.eml
 
 echo
-echo "=== realne podkomendy (eml-forensics.py) ==="
-EF="$SCRIPTS_DIR/eml-forensics.py"
+echo "=== realne podkomendy (eml_forensics.py) ==="
+EF="$SCRIPTS_DIR/eml_forensics.py"
 setup_eml() {
   cat > sample.eml <<'EOM'
 From: nadawca@example.com
@@ -331,25 +331,25 @@ Content-Type: text/plain; charset=utf-8
 Tresc testowej wiadomosci.
 EOM
 }
-smoke_cmd_fixture "eml-forensics.py" python3 "$EF" setup_eml sample.eml
+smoke_cmd_fixture "eml_forensics.py" python3 "$EF" setup_eml sample.eml
 
 echo
-echo "=== realne podkomendy (build-pismo.py) — bez silnika PDF w CI: oczekiwany kontrolowany błąd ==="
-BP="$SCRIPTS_DIR/build-pismo.py"
+echo "=== realne podkomendy (build_pismo.py) — bez silnika PDF w CI: oczekiwany kontrolowany błąd ==="
+BP="$SCRIPTS_DIR/build_pismo.py"
 setup_pismo() { printf '<html><body><!--KRUCZEK:ZALACZNIKI--><!--KRUCZEK:LISTA_ZALACZNIKOW--></body></html>' > pismo.html; }
-smoke_cmd_fixture "build-pismo.py" python3 "$BP" setup_pismo pismo.html -o pismo.pdf
+smoke_cmd_fixture "build_pismo.py" python3 "$BP" setup_pismo pismo.html -o pismo.pdf
 
 echo
-echo "=== realne podkomendy (kontrola-pisma.py) — bez pdftotext w CI: oczekiwany kontrolowany błąd ==="
-KP="$SCRIPTS_DIR/kontrola-pisma.py"
+echo "=== realne podkomendy (kontrola_pisma.py) — bez pdftotext w CI: oczekiwany kontrolowany błąd ==="
+KP="$SCRIPTS_DIR/kontrola_pisma.py"
 setup_kontrola() { mkdir -p ARCHIWUM; echo "%PDF-1.4 fake" > fake.pdf; }
-smoke_cmd_fixture "kontrola-pisma.py" python3 "$KP" setup_kontrola fake.pdf --sprawa .
+smoke_cmd_fixture "kontrola_pisma.py" python3 "$KP" setup_kontrola fake.pdf --sprawa .
 
 echo
-echo "=== realne podkomendy (dane-nadawcy-status.py) ==="
-DS="$SCRIPTS_DIR/dane-nadawcy-status.py"
+echo "=== realne podkomendy (dane_nadawcy_status.py) ==="
+DS="$SCRIPTS_DIR/dane_nadawcy_status.py"
 setup_dane() { cp "$SCRIPTS_DIR/../templates/dane-nadawcy.md" dane-nadawcy.md 2>/dev/null || echo "| Imię i nazwisko | |" > dane-nadawcy.md; }
-smoke_cmd_fixture "dane-nadawcy-status.py" python3 "$DS" setup_dane dane-nadawcy.md
+smoke_cmd_fixture "dane_nadawcy_status.py" python3 "$DS" setup_dane dane-nadawcy.md
 
 echo
 echo "=== realne podkomendy (nowa-sprawa.sh, gen-claude-md.sh, init-projekt.sh) ==="

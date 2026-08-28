@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""dane-nadawcy-status.py — sprawdza, które krytyczne pola w dane-nadawcy.md są wypełnione.
+"""dane_nadawcy_status.py — sprawdza, które krytyczne pola w dane-nadawcy.md są wypełnione.
 
 Nie wypisuje wartości pól (tylko status) — żeby dane osobowe nie przeciekały do
 CLAUDE.md, który bywa commitowany. Używane przez gen-claude-md.sh.
 
 Użycie:
-    dane-nadawcy-status.py <sciezka-do-dane-nadawcy.md>
+    dane_nadawcy_status.py <sciezka-do-dane-nadawcy.md>
 Wyjście: jedna linia na pole krytyczne — "OK <pole>" albo "BRAK <pole>".
 Jeśli plik nie istnieje: "BRAK <pole>" dla każdego krytycznego pola + "BRAK-PLIK".
 """
@@ -65,7 +65,7 @@ def znajdz(wartosci, pole):
 
 def main():
     if len(sys.argv) != 2:
-        sys.exit("Użycie: dane-nadawcy-status.py <plik>")
+        sys.exit("Użycie: dane_nadawcy_status.py <plik>")
 
     try:
         text = open(sys.argv[1], encoding="utf-8").read()

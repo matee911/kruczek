@@ -11,7 +11,7 @@ raportujesz rozbieżności. Nie oceniasz treści, prawa ani języka.
 ## Uruchom
 
 ```
-${CLAUDE_PLUGIN_ROOT}/scripts/kontrola-pisma.py <pismo.pdf> --sprawa <sprawa> --zip <dowody.zip>
+${CLAUDE_PLUGIN_ROOT}/scripts/kontrola_pisma.py <pismo.pdf> --sprawa <sprawa> --zip <dowody.zip>
 ${CLAUDE_PLUGIN_ROOT}/scripts/manifest.py sprawdz <sprawa>
 ```
 

@@ -1,10 +1,10 @@
 ---
 name: kontrola
-description: "Mechaniczna kontrola gotowego pisma przed przekazaniem użytkownikowi — niewypełnione pola, ciągłość numeracji, zgodność nazw i numerów załączników w treści i na stronach załączników, sumy kontrolne, wymogi druku. Uruchamiaj po każdym build-pismo.py, zanim pokażesz pismo."
+description: "Mechaniczna kontrola gotowego pisma przed przekazaniem użytkownikowi — niewypełnione pola, ciągłość numeracji, zgodność nazw i numerów załączników w treści i na stronach załączników, sumy kontrolne, wymogi druku. Uruchamiaj po każdym build_pismo.py, zanim pokażesz pismo."
 argument-hint: "[pismo.pdf] [katalog sprawy]"
 model: haiku
 effort: low
-allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/kontrola-pisma.py *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/manifest.py *) Bash(pdftotext *) Bash(unzip -l *) Read
+allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/kontrola_pisma.py *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/manifest.py *) Bash(pdftotext *) Bash(unzip -l *) Read
 ---
 
 # Kontrola mechaniczna pisma
@@ -20,7 +20,7 @@ zanim jej nie uruchomisz.
 ## Uruchom
 
 ```
-${CLAUDE_PLUGIN_ROOT}/scripts/kontrola-pisma.py <pismo.pdf> --sprawa <katalog-sprawy> --zip <dowody.zip>
+${CLAUDE_PLUGIN_ROOT}/scripts/kontrola_pisma.py <pismo.pdf> --sprawa <katalog-sprawy> --zip <dowody.zip>
 ${CLAUDE_PLUGIN_ROOT}/scripts/manifest.py sprawdz <katalog-sprawy>
 ```
 

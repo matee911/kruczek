@@ -1,4 +1,4 @@
-"""kontrola_logika.py — czyste funkcje logiki kontrola-pisma.py.
+"""kontrola_logika.py — czyste funkcje logiki kontrola_pisma.py.
 
 Bez I/O, bez subprocesów — wejście: tekst, wyjście: wynik. Testowalność bez PDF.
 """
@@ -18,7 +18,7 @@ def find_placeholders(t: str) -> list:
 
     >>> find_placeholders("Wzywa Pan [imię i nazwisko] do zapłaty.")
     ['[imię i nazwisko]']
-    >>> find_placeholders("Temat: „Re: [Zamówienie 2027]" — brak reakcji.")
+    >>> find_placeholders('Temat: „Re: [Zamówienie 2027]" — brak reakcji.')
     []
     >>> find_placeholders("Kwota: [123.45 zł]")
     []
