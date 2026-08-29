@@ -24,8 +24,16 @@ też te same wartości jako flagi CLI (MARGINS niżej) — trzymaj je zsynchroni
 z @page w szablonie, jeśli zmieniasz jedno albo drugie.
 """
 
-import argparse, os, html as H, re, subprocess, shutil, sys
-from utils import sha256_file as sha, human_size as human
+import argparse
+import html as H
+import os
+import re
+import shutil
+import subprocess
+import sys
+
+from utils import human_size as human
+from utils import sha256_file as sha
 
 PRE_EXT = {".txt", ".eml", ".log", ".csv", ".json", ".msg", ".ini", ".xml"}
 IMG_EXT = {".png", ".jpg", ".jpeg", ".gif", ".webp"}
@@ -63,7 +71,7 @@ def render_md(path):
         text=True,
         check=True,
     ).stdout
-    out = re.sub(r"^\s*<h1[^>]*>.*?</h1>", "", out, flags=re.S)
+    out = re.sub(r"^\s*<h1[^>]*>.*?</h1>", "", out, flags=re.DOTALL)
     for a, b in (
         ("<h1", "<h4"),
         ("</h1>", "</h4>"),
@@ -81,7 +89,8 @@ def render_attachment(path):
     if ext == ".md":
         return render_md(path)
     if ext in IMG_EXT:
-        import base64, mimetypes
+        import base64
+        import mimetypes
 
         mt = mimetypes.guess_type(path)[0] or "image/png"
         b64 = base64.b64encode(open(path, "rb").read()).decode()
