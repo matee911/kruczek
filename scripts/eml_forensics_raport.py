@@ -108,6 +108,62 @@ def write_no_findings(W: WriteLine, message: str) -> None:
     W(f"**Ustalenie negatywne:** {message}\n")
 
 
+def write_table_or_finding(
+    W: WriteLine,
+    headers: list[str],
+    rows: Iterable[list[str]],
+    empty_message: str,
+) -> int:
+    """Tabela, a gdy nie ma czego pokazać — ustalenie negatywne. Nigdy cisza.
+
+    Zdejmuje najczęstszy kształt w tym module: 42 wywołania `write_table`
+    i 63 `write_no_findings` to w większości ta sama para „są dane / nie ma
+    danych”, rozpisywana ręcznie przy każdej sekcji. Rozpisywana ręcznie
+    bywała też **niekompletna** — gałąź pusta gdzieniegdzie nie pisała nic,
+    więc czytelnik nie odróżniał „sprawdzone, brak” od „niesprawdzone”.
+
+    >>> lines = []
+    >>> write_table_or_finding(lines.append, ["A"], [["1"]], "Brak A.")
+    1
+    >>> lines[0]
+    '| A |'
+    >>> lines = []
+    >>> write_table_or_finding(lines.append, ["A"], [], "Brak A.")
+    0
+    >>> lines
+    ['**Ustalenie negatywne:** Brak A.\\n']
+    """
+    written = write_table(W, headers, rows)
+    if not written:
+        write_no_findings(W, empty_message)
+    return written
+
+
+def row(*cells: object) -> list[str]:
+    """Wiersz tabeli z `code()` nałożonym na każdą komórkę.
+
+    `code(...)` występuje w tym module **148 razy**, prawie zawsze w komórce
+    wiersza. Mapowanie po wierszu zamiast po komórce skraca wywołania i usuwa
+    klasę literówek, w której jedna komórka z pięciu zostawała bez `code()`.
+
+    >>> row("a", None, 7)
+    ['`a`', '—', '`7`']
+    """
+    return [code(c) for c in cells]
+
+
+def labelled_rows(pairs: Iterable[tuple[str, object]]) -> list[list[str]]:
+    """Wiersze „etykieta → wartość” z pominięciem pozycji bez wartości.
+
+    Kształt `[[etykieta, code(wartosc)] ...]` z filtrem `!= "—"` powtarza się
+    w tabelach tagów podpisów, pól skoku i cech pliku.
+
+    >>> labelled_rows([("`d=`", "a.pl"), ("`l=`", None)])
+    [['`d=`', '`a.pl`']]
+    """
+    return [[label, code(value)] for label, value in pairs if code(value) != "—"]
+
+
 def write_table(W: WriteLine, headers: list[str], rows: Iterable[list[str]]) -> int:
     """Tabela markdown bez pustych linii w środku — te łamały render w §2.5 i §6.5.
 
@@ -273,36 +329,36 @@ def write_identification(
     # od wyniku parsera. Wcześniej wchodził tu także `Date` z identycznymi
     # kolumnami, a pod spodem stało zdanie „wartości różnią się” — czytelnik
     # dostawał ustalenie o rozbieżności tam, gdzie rozbieżności nie ma.
-    porownania = [
-        (nazwa, doslownie, str(sparsowane))
-        for nazwa, doslownie, sparsowane in (literal_vs_parsed or ())
-        if doslownie and sparsowane and doslownie != str(sparsowane)
+    comparisons = [
+        (name, literal, str(sparsowane))
+        for name, literal, sparsowane in (literal_vs_parsed or ())
+        if literal and sparsowane and literal != str(sparsowane)
     ]
-    identyczne = [
-        nazwa
-        for nazwa, doslownie, sparsowane in (literal_vs_parsed or ())
-        if doslownie and sparsowane and doslownie == str(sparsowane)
+    identical_rows = [
+        name
+        for name, literal, sparsowane in (literal_vs_parsed or ())
+        if literal and sparsowane and literal == str(sparsowane)
     ]
-    if porownania:
+    if comparisons:
         write_table(
             W,
             ["Nagłówek", "Wartość dosłowna (bajty z pliku)", "Wartość po sparsowaniu"],
             [
-                [code(nazwa), code(doslownie), code(sparsowane)]
-                for nazwa, doslownie, sparsowane in porownania
+                row(name, literal, sparsowane)
+                for name, literal, sparsowane in comparisons
             ],
         )
         W(
             f"Nagłówków, w których bajty z pliku różnią się od wyniku parsera: "
-            f"**{len(porownania)}**. Przyczyną bywa kodowanie RFC 2047, zwinięcie "
+            f"**{len(comparisons)}**. Przyczyną bywa kodowanie RFC 2047, zwinięcie "
             f"na kilka linii albo normalizacja parsera (np. dopełnienie dnia zerem); "
             f"kolumna druga to bajty z pliku, trzecia to wynik parsera.\n"
         )
-    if identyczne:
+    if identical_rows:
         write_no_findings(
             W,
             "Bajty z pliku są identyczne z wynikiem parsera w nagłówkach: "
-            + ", ".join(code(n) for n in identyczne)
+            + ", ".join(code(n) for n in identical_rows)
             + " — nie ma tam kodowania ani zwinięcia.",
         )
 
@@ -476,7 +532,17 @@ def write_received_section(
     """
     W("## 3. Droga wiadomości (Received, od najstarszego)\n")
     if not hops:
+        # Wyjście z całej sekcji zabierało ze sobą inwentarz adresów, więc
+        # wiadomość bez `Received`, ale z `X-Originating-IP` albo `client-ip=`
+        # w `Received-SPF`, gubiła jedyny zapisany w pliku adres nadawcy.
         write_no_findings(W, "Brak nagłówków Received.")
+        if addresses:
+            W("\n**Adresy sieciowe występujące w wiadomości** (poza `Received`):\n")
+            write_table(
+                W,
+                ["Adres", "Rola", "Kategoria"],
+                [[code(a.value), escape_pipe(a.role), a.category] for a in addresses],
+            )
         W("")
         return
 
@@ -519,26 +585,26 @@ def write_received_section(
         # Wiersze puste są odfiltrowane, więc czytelnik nie odróżnia „pola nie
         # ma w nagłówku” od „parser go nie odczytał”. Dla pól, które niosą
         # dowód o pochodzeniu, mówimy to wprost.
-        brakujace = [
-            etykieta
-            for etykieta, wartosc in (
+        missing = [
+            label
+            for label, value in (
                 ("rDNS (nazwa odwrotna klienta)", hop.rdns),
                 ("HELO (nazwa zadeklarowana przez klienta)", hop.helo),
                 ("Znacznik czasu", hop.timestamp),
             )
-            if not wartosc
+            if not value
         ]
-        if brakujace:
+        if missing:
             write_no_findings(
                 W,
                 f"Skok {hop.index} nie zawiera pól: "
-                + ", ".join(f"**{e}**" for e in brakujace)
+                + ", ".join(f"**{e}**" for e in missing)
                 + ". Brak rDNS znaczy, że serwer przyjmujący nie ustalił nazwy "
                 "odwrotnej klienta albo jej nie zapisał.",
             )
 
-    ciaglosc = received_chain_continuity(hops)
-    if ciaglosc:
+    continuity = received_chain_continuity(hops)
+    if continuity:
         # Test ciągłości: host, który przyjął wiadomość (`by`), powinien być
         # tym, który ją dalej nadaje (`from`). Raport liczył skoki i orzekał
         # o poprawności składniowej nazw, ale tego zestawienia nie robił —
@@ -549,18 +615,18 @@ def write_received_section(
             ["Przejście", "`by` skoku N", "`from` skoku N+1", "Zgodne?"],
             [
                 [
-                    f"{numer} → {numer + 1}",
-                    code(odbiorca),
-                    code(nadawca),
-                    "tak" if zgodne else "**nie**",
+                    f"{number} → {number + 1}",
+                    code(receiver),
+                    code(sender),
+                    "tak" if matches else "**nie**",
                 ]
-                for numer, odbiorca, nadawca, zgodne in ciaglosc
+                for number, receiver, sender, matches in continuity
             ],
         )
-        przerwy = [c for c in ciaglosc if not c[3]]
-        if przerwy:
+        gaps = [c for c in continuity if not c[3]]
+        if gaps:
             W(
-                f"Przejść, w których nazwy się nie zgadzają: **{len(przerwy)}**. "
+                f"Przejść, w których nazwy się nie zgadzają: **{len(gaps)}**. "
                 f"Dla takiego odcinka plik nie zawiera nagłówka dokumentującego, "
                 f"jak wiadomość trafiła z jednego hosta na drugi.\n"
             )
@@ -598,25 +664,40 @@ def write_received_section(
     else:
         write_no_findings(W, "Nie znaleziono adresów IP w nagłówkach.")
 
-    conflicting = [
+    # Literał adresowy w HELO/EHLO ma być wg RFC 5321 §4.1.3 własnym adresem
+    # klienta. Sprawdzanie tego WYŁĄCZNIE w parze z ustalonym publicznym IP
+    # sprawiało, że skok deklarujący `helo=[127.0.0.1]` bez zapisanego adresu
+    # źródłowego nie dawał żadnego ustalenia — a deklaracja jest w pliku.
+    nonroutable_helo = [
         h
         for h in hops
         if h.helo
-        and h.ip
         and NetAddress.classify(h.helo.strip("[]"))
         not in {"nie jest adresem IP", "publiczny"}
-        and NetAddress.classify(h.ip) == "publiczny"
     ]
-    if conflicting:
-        W("\n**Skoki, w których klient zadeklarował w HELO adres nieroutowalny:**\n")
+    if nonroutable_helo:
+        W(
+            "\n**Skoki, w których klient zadeklarował w HELO adres nieroutowalny** "
+            "(RFC 5321 §4.1.3 wymaga, by literał w EHLO był własnym adresem "
+            "klienta):\n"
+        )
         write_table(
             W,
             [
                 "Skok",
                 "HELO (deklaracja klienta)",
+                "Kategoria adresu z HELO",
                 "Adres źródłowy ustalony przez serwer",
             ],
-            [[str(h.index), code(h.helo), code(h.ip)] for h in conflicting],
+            [
+                [
+                    str(h.index),
+                    code(h.helo),
+                    NetAddress.classify((h.helo or "").strip("[]")),
+                    code(h.ip) if h.ip else "brak w nagłówku",
+                ]
+                for h in nonroutable_helo
+            ],
         )
 
     invalid = invalid_hostnames(hops)
@@ -709,24 +790,22 @@ def write_timeline_section(
         # nie punkt doręczenia. Wciągnięte do rozpiętości dawało „12 h 30 min”
         # tam, gdzie wszystkie znaczniki doręczenia mieszczą się w 8 sekundach,
         # a tej ostatniej liczby raport nie podawał nigdzie.
-        zaszle = [(etykieta, dt) for etykieta, dt in ordered if "x=" not in etykieta]
-        if len(zaszle) > 1 and len(zaszle) != len(ordered):
-            faktyczna = (zaszle[-1][1] - zaszle[0][1]).total_seconds()
+        elapsed = [(label, dt) for label, dt in ordered if "x=" not in label]
+        if len(elapsed) > 1 and len(elapsed) != len(ordered):
+            actual = (elapsed[-1][1] - elapsed[0][1]).total_seconds()
             W(
                 f"Rozpiętość **po pominięciu znaczników wygaśnięcia `x=`** "
                 f"(to daty przyszłe wobec wysyłki, nie punkty doręczenia): "
-                f"**{format_duration(faktyczna)}**.\n"
+                f"**{format_duration(actual)}**.\n"
             )
         # Czas tranzytu liczony wyłącznie po `Received` — to jedyny odcinek,
         # który mówi o drodze wiadomości, a nie o momentach jej podpisania.
-        received = [
-            (etykieta, dt) for etykieta, dt in ordered if "Received" in etykieta
-        ]
+        received = [(label, dt) for label, dt in ordered if "Received" in label]
         if len(received) > 1:
-            tranzyt = (received[-1][1] - received[0][1]).total_seconds()
+            transit = (received[-1][1] - received[0][1]).total_seconds()
             W(
                 f"Czas tranzytu (od najstarszego do najnowszego `Received`): "
-                f"**{format_duration(tranzyt)}**, skoków ze znacznikiem: "
+                f"**{format_duration(transit)}**, skoków ze znacznikiem: "
                 f"**{len(received)}**.\n"
             )
 
@@ -871,28 +950,28 @@ def write_dkim_section(
             rows.append([f"`x=` ({sig.expires})", code(format_local(moment))])
         # Tagi spoza stałej listy (`v=`, `q=`, `b=`) są w pliku, a tabela ich
         # nie pokazywała — mimo że sekcja deklaruje wypisanie tagów podpisu.
-        rows += [[f"`{klucz}=`", code(wartosc)] for klucz, wartosc in sig.other_tags]
+        rows += [[f"`{klucz}=`", code(value)] for klucz, value in sig.other_tags]
         write_table(W, ["Tag", "Wartość"], [r for r in rows if r[1] != "—"])
         # Brak tagu to ustalenie tej samej klasy co jego obecność. Raport
         # odnotowywał wyłącznie brak `l=`, choć brak `t=` (podpis bez znacznika
         # czasu) i `x=` (bez daty wygaśnięcia) jest równie odczytywalny z pliku.
-        brakujace = [
-            etykieta
-            for etykieta, obecny in (
+        missing = [
+            label
+            for label, present in (
                 ("`t=` (znacznik czasu podpisu)", sig.timestamp),
                 ("`x=` (wygaśnięcie podpisu)", sig.expires),
                 ("`l=` (limit bajtów ciała)", sig.body_length),
             )
-            if not obecny
+            if not present
         ]
-        if brakujace:
+        if missing:
             write_no_findings(
                 W,
                 f"Sygnatura {i} nie zawiera tagów: "
-                + ", ".join(brakujace)
+                + ", ".join(missing)
                 + (
                     " — brak `l=` znaczy, że podpisem objęte jest całe ciało."
-                    if "`l=` (limit bajtów ciała)" in brakujace
+                    if "`l=` (limit bajtów ciała)" in missing
                     else ""
                 ),
             )
@@ -944,8 +1023,8 @@ def write_dkim_section(
             W,
             ["Powód odjęcia", "Nagłówki", "Liczba"],
             [
-                [powod, ", ".join(code(h) for h in nazwy), str(len(nazwy))]
-                for powod, nazwy in transit.items()
+                [reason, ", ".join(code(h) for h in names), str(len(names))]
+                for reason, names in transit.items()
             ],
         )
     W(
@@ -1003,21 +1082,19 @@ def write_arc_section(
             W,
             ["`i=`", "`d=`", "`s=`", "`cv=`", "`t=`"],
             [
-                [
-                    code(seal.index),
-                    code(seal.domain),
-                    code(seal.selector),
-                    code(seal.chain_validation),
-                    code(
-                        format_local(
-                            datetime.datetime.fromtimestamp(
-                                seal.timestamp, tz=datetime.timezone.utc
-                            )
+                row(
+                    seal.index,
+                    seal.domain,
+                    seal.selector,
+                    seal.chain_validation,
+                    format_local(
+                        datetime.datetime.fromtimestamp(
+                            seal.timestamp, tz=datetime.timezone.utc
                         )
-                        if seal.timestamp
-                        else None
-                    ),
-                ]
+                    )
+                    if seal.timestamp
+                    else None,
+                )
                 for seal in seals
             ],
         )
@@ -1057,7 +1134,7 @@ def write_arc_section(
                 ]
                 # Tagi spoza stałej listy — `fh=`, `dara=`, `b=`, `v=`, `q=` —
                 # są w pliku, a tabela ich nie pokazywała.
-                + [[f"`{klucz}=`", code(wartosc)] for klucz, wartosc in sig.other_tags],
+                + [[f"`{klucz}=`", code(value)] for klucz, value in sig.other_tags],
             )
             W(
                 f"Lista `h=` podpisu ARC nr {i} zapisuje, które nagłówki zostały "
@@ -1077,7 +1154,7 @@ def write_arc_section(
             # „to przez kanonizację” byłoby hipotezą podaną jako ustalenie —
             # w sekcji, której nagłówek deklaruje brak hipotez. Podajemy oba
             # `c=`, bo to fakty z pliku, i zostawiamy różnicę nierozstrzygniętą.
-            kanonizacje = sorted(
+            canonicalizations = sorted(
                 {
                     s.canonicalization
                     for s in list(signatures) + list(dkim)
@@ -1089,7 +1166,7 @@ def write_arc_section(
                 "DKIM. Raport **nie ustala przyczyny** — sprawdzenie wymagałoby "
                 "policzenia obu skrótów, czego raport nie robi (patrz zastrzeżenie "
                 "w sekcji o DKIM). Zadeklarowane kanonizacje `c=`: "
-                + (", ".join(code(k) for k in kanonizacje) or "brak")
+                + (", ".join(code(k) for k in canonicalizations) or "brak")
                 + ".\n"
             )
     else:
@@ -1159,7 +1236,7 @@ def write_dmarc_section(
             f"`{alignment.mailfrom_domain}` ≠ `{alignment.from_domain}`."
         )
     else:
-        brak = [
+        absent = [
             e
             for e, w in (
                 ("`From`", alignment.from_domain),
@@ -1169,7 +1246,7 @@ def write_dmarc_section(
         ]
         # Alternatywa „brak A albo B” czytała się jak stwierdzenie o pliku,
         # w którym `From` jest obecny — nazywamy więc konkretnie brakujące pole.
-        W(f"- Wyrównania SPF nie da się policzyć — w pliku brak: {', '.join(brak)}.")
+        W(f"- Wyrównania SPF nie da się policzyć — w pliku brak: {', '.join(absent)}.")
 
     if alignment.dkim_aligned is True:
         W(
@@ -1182,7 +1259,7 @@ def write_dmarc_section(
             "- **DKIM nie jest wyrównany** z `From` — żadna domena `d=` nie odpowiada domenie `From`."
         )
     else:
-        brak = [
+        absent = [
             e
             for e, w in (
                 ("`From`", alignment.from_domain),
@@ -1190,7 +1267,7 @@ def write_dmarc_section(
             )
             if not w
         ]
-        W(f"- Wyrównania DKIM nie da się policzyć — w pliku brak: {', '.join(brak)}.")
+        W(f"- Wyrównania DKIM nie da się policzyć — w pliku brak: {', '.join(absent)}.")
     W(
         "\nDomena organizacyjna liczona jako dwie ostatnie etykiety. Bez listy publicznych "
         "sufiksów (poza stdlib) to przybliżenie — obie domeny podano wyżej dosłownie.\n"
@@ -1388,12 +1465,12 @@ def write_list_headers_section(
     # sprawdzała jeden nagłówek z trzynastu, więc „brak kanału skargowego”,
     # „brak oznaczenia wiadomości jako automatycznej” i „brak identyfikatora
     # kampanii” nie padały nigdzie — mimo że są odczytywalne z pliku.
-    nieobecne = [n for n in LIST_HEADER_NAMES if n not in headers]
-    if nieobecne:
+    absent_headers = [n for n in LIST_HEADER_NAMES if n not in headers]
+    if absent_headers:
         write_no_findings(
             W,
             "Nagłówki nieobecne w wiadomości: "
-            + ", ".join(code(n) for n in nieobecne)
+            + ", ".join(code(n) for n in absent_headers)
             + ".",
         )
     if "List-Unsubscribe-Post" in headers:
@@ -1630,8 +1707,8 @@ def _token_result(token: Token) -> str:
     if token.byte_length == 0:
         # Brak wyniku opisujemy powodem, nie liczbą 0 — „0 B” czytało się jak
         # pusty ładunek, czyli jak ustalenie o zawartości tokenu.
-        powod = token.note or "nie zdekodowano"
-        return f"{powod} (skrót z ciągu: `{token.sha256_prefix}…`)"
+        reason = token.note or "nie zdekodowano"
+        return f"{reason} (skrót z ciągu: `{token.sha256_prefix}…`)"
     if token.note and token.note != "dane binarne":
         return token.note
     return f"dane binarne, {token.byte_length} B, sha256 `{token.sha256_prefix}…`"
@@ -1924,7 +2001,7 @@ def write_resources_section(resources: list[HtmlResource], W: WriteLine) -> None
         write_table(
             W,
             ["URL", "Atrybuty ze znacznika"],
-            [[code(p.url), code(p.attrs)] for p in pixels],
+            [row(p.url, p.attrs) for p in pixels],
         )
     else:
         write_no_findings(W, "Brak obrazów o zadeklarowanych wymiarach 1×1.")
@@ -1941,20 +2018,20 @@ def write_resources_section(resources: list[HtmlResource], W: WriteLine) -> None
     remote = [r for r in resources if r.scheme in {"http", "https"} and r.kind != "a"]
     relative = [r for r in resources if r.scheme == "względny"]
     if remote:
-        zapisow = sum(1 + len(r.also_as) for r in remote)
-        krotnosc = (
+        occurrence_count = sum(1 + len(r.also_as) for r in remote)
+        multiplicity = (
             ""
-            if zapisow == len(remote)
+            if occurrence_count == len(remote)
             else (
                 f" Ten sam URL bywa zapisany na kilka sposobów — zapisów w treści "
-                f"jest **{zapisow}**, pobieranych zasobów **{len(remote)}**."
+                f"jest **{occurrence_count}**, pobieranych zasobów **{len(remote)}**."
             )
         )
         W(
             f"Zasobów pobieranych z sieci po `http`/`https` (unikalnych URL-i): "
             f"**{len(remote)}** "
             f"(hosty: {', '.join(code(h) for h in sorted({r.host for r in remote if r.host}))})."
-            f"{krotnosc}\n"
+            f"{multiplicity}\n"
         )
     else:
         write_no_findings(
@@ -2115,18 +2192,18 @@ def write_html_constructs_section(
     # w `text/plain` to nie niespójność kodowania, tylko normalna konsekwencja
     # `multipart/alternative` — w części tekstowej encje HTML nie mają znaczenia.
     # Ustalenie ma dotyczyć jednego dokumentu, bo tylko tam jest obserwacją.
-    zakres = "część `text/html`"
+    scope = "część `text/html`"
     mixed = mixed_character_encodings(src)
     if text_body:
         mixed_plain = mixed_character_encodings(text_body)
         if mixed_plain and not mixed:
-            zakres = "część `text/plain`"
+            scope = "część `text/plain`"
             mixed = mixed_plain
         elif mixed_plain:
-            zakres = "każda część osobno"
+            scope = "każda część osobno"
             mixed = mixed + mixed_plain
     if mixed:
-        W(f"\nZnaki zapisane **dwoma sposobami naraz** (zakres: {zakres}):\n")
+        W(f"\nZnaki zapisane **dwoma sposobami naraz** (zakres: {scope}):\n")
         write_table(
             W,
             ["Znak", "Jako encja", "Wystąpień jako encja", "Wystąpień wprost"],
@@ -2139,7 +2216,7 @@ def write_html_constructs_section(
         write_no_findings(
             W,
             "Żaden znak nie występuje jednocześnie jako encja i wprost — sprawdzone: "
-            f"{zakres}.",
+            f"{scope}.",
         )
 
     W("\n### 18.5. Sklejenia na granicy znaczników liniowych\n")
@@ -2307,7 +2384,7 @@ def write_hidden_section(
             f"pominięte, tylko nie spełniają kryterium tej sekcji.",
         )
 
-    numer = itertools.count(1)
+    number = itertools.count(1)
     for label, group, note in (
         (
             "Deklaracje ukrywające (działają niezależnie od tła)",
@@ -2333,16 +2410,16 @@ def write_hidden_section(
         # Numer nadajemy dopiero przy druku — wcześniej pominięcie pustej grupy
         # zostawiało dziurę (19.1 → 19.3), która w dokumencie dowodowym sama
         # generuje pytanie „co wycięto”.
-        W(f"### 19.{next(numer)}. {label}\n")
+        W(f"### 19.{next(number)}. {label}\n")
         # Elementy BEZ treści (spacery układu) idą do jednej tabeli zbiorczej.
         # Rozpisane po jednej tabeli na sztukę zajmowały 22% raportu i przykryły
         # sobą błąd w regule `@media` leżący kilka linii niżej.
-        puste = [e for e in group if not e.text]
-        z_trescia = [e for e in group if e.text]
-        if puste:
+        empty = [e for e in group if not e.text]
+        with_text = [e for e in group if e.text]
+        if empty:
             W(
                 f"Elementów **bez treści tekstowej** (deklaracje obecne, nic nie "
-                f"ukrywają): **{len(puste)}** — zestawione zbiorczo:\n"
+                f"ukrywają): **{len(empty)}** — zestawione zbiorczo:\n"
             )
             write_table(
                 W,
@@ -2353,13 +2430,13 @@ def write_hidden_section(
                         ", ".join(code(r) for r in e.rules),
                         code(e.background),
                     ]
-                    for e in puste
+                    for e in empty
                 ],
             )
-        if not z_trescia:
+        if not with_text:
             W(f"{note}\n")
             continue
-        for i, element in enumerate(z_trescia, 1):
+        for i, element in enumerate(with_text, 1):
             W(f"**Element {i} — `<{element.tag}>`**\n")
             write_table(
                 W,
@@ -2445,12 +2522,12 @@ def write_content_section(
         # Procent liczony z sumy PODANYCH składników — wcześniej mianownikiem
         # była długość sprzed podziału, więc czytelnik nie odtwarzał liczby
         # z dwóch liczb wydrukowanych obok niej.
-        razem = len(own) + len(quoted)
+        combined = len(own) + len(quoted)
         W(
             f"Treść własna nadawcy: **{len(own)}** znaków "
             f"(**{len(re.sub(r'\s', '', own))}** niebędących białymi). "
             f"Cytat wcześniejszej korespondencji: **{len(quoted)}** znaków "
-            f"(**{100 * len(quoted) // max(1, razem)}%** sumy obu części).\n"
+            f"(**{100 * len(quoted) // max(1, combined)}%** sumy obu części).\n"
         )
         W("### Treść własna nadawcy\n")
         W("```")
@@ -2466,10 +2543,10 @@ def write_content_section(
         # liczba nie odtwarzała się z bloku stojącego pod nią. Zakończenia linii
         # są osobno raportowane w sekcji o sumach kontrolnych, więc normalizacja
         # tutaj nie kasuje dowodu.
-        drukowane = plain.replace("\r\n", "\n").replace("\r", "\n")
-        bez_bialych = len(re.sub(r"\s", "", drukowane))
+        printed = plain.replace("\r\n", "\n").replace("\r", "\n")
+        non_whitespace = len(re.sub(r"\s", "", printed))
         W(
-            f"Treść liczy **{len(drukowane)}** znaków, w tym **{bez_bialych}** "
+            f"Treść liczy **{len(printed)}** znaków, w tym **{non_whitespace}** "
             "niebędących białymi — obie liczby policzone na bloku poniżej, więc "
             "odtwarzają się z niego. Różnica to białe znaki: odstępy i złamania "
             "wierszy pozostałe po usunięciu znaczników. Zakończenia linii "
@@ -2477,7 +2554,7 @@ def write_content_section(
             "Nie wykryto granicy cytatu.\n"
         )
         W("```")
-        W(drukowane)
+        W(printed)
         W("```\n")
 
     W("### Porównanie części `text/plain` i `text/html`\n")
@@ -2498,9 +2575,9 @@ def write_content_section(
         f"zbiory słów, 0.0 = rozłączne). Porównywane są słowa, nie kolejność "
         f"ani formatowanie.\n"
     )
-    tylko_html = comparison.get("words_only_in_html") or []
-    tylko_text = comparison.get("words_only_in_text") or []
-    if tylko_html or tylko_text:
+    html_only = comparison.get("words_only_in_html") or []
+    text_only = comparison.get("words_only_in_text") or []
+    if html_only or text_only:
         W("Słowa występujące wyłącznie w jednej części:\n")
         write_table(
             W,
@@ -2510,13 +2587,13 @@ def write_content_section(
                 for w in (
                     [
                         "`text/html`",
-                        str(len(tylko_html)),
-                        ", ".join(code(x) for x in tylko_html[:40]) or "—",
+                        str(len(html_only)),
+                        ", ".join(code(x) for x in html_only[:40]) or "—",
                     ],
                     [
                         "`text/plain`",
-                        str(len(tylko_text)),
-                        ", ".join(code(x) for x in tylko_text[:40]) or "—",
+                        str(len(text_only)),
+                        ", ".join(code(x) for x in text_only[:40]) or "—",
                     ],
                 )
                 if w[1] != "0"
@@ -2626,17 +2703,17 @@ def write_artifacts_section(
     # Odstęp `Date` → `mtime`. Obie wartości były w raporcie (§4 i tu), różnicy
     # nie liczył nikt — mimo że sekcja o osi czasu liczy odstępy między każdą
     # parą znaczników. To jedyna liczba wiążąca wiadomość z kopią roboczą.
-    naglowek_daty = parse_date_header(str(date_header)) if date_header else None
-    if naglowek_daty:
+    date_value = parse_date_header(str(date_header)) if date_header else None
+    if date_value:
         try:
-            zapis = datetime.datetime.fromisoformat(file_mtime_iso)
+            written_at = datetime.datetime.fromisoformat(file_mtime_iso)
         except ValueError:
-            zapis = None
-        if zapis is not None and zapis.tzinfo is not None:
-            odstep = (zapis - naglowek_daty).total_seconds()
+            written_at = None
+        if written_at is not None and written_at.tzinfo is not None:
+            gap = (written_at - date_value).total_seconds()
             W(
-                f"\nOdstęp od `Date` wiadomości ({code(format_local(naglowek_daty))}) "
-                f"do `mtime` kopii roboczej: **{format_duration(odstep)}**. "
+                f"\nOdstęp od `Date` wiadomości ({code(format_local(date_value))}) "
+                f"do `mtime` kopii roboczej: **{format_duration(gap)}**. "
                 f"To odstęp do zapisu pliku w tym katalogu, nie do doręczenia.\n"
             )
     W(
@@ -2693,16 +2770,16 @@ def write_identity_layers_section(
         write_table(
             W,
             ["Warstwa", "Wartość zadeklarowana"],
-            [[etykieta, code(wartosc)] for etykieta, wartosc in layers],
+            [[label, code(value)] for label, value in layers],
         )
-        domeny = {w for e, w in layers if e.startswith("Domena") and "," not in w}
-        if len(domeny) > 1:
+        domains = {w for e, w in layers if e.startswith("Domena") and "," not in w}
+        if len(domains) > 1:
             # „Rejestrowalna” wymagałaby listy publicznych sufiksów, której nie
             # mamy w stdlib — `eu-west-1.amazonses.com` i `amazonses.com` to
             # jedna domena organizacyjna. Piszemy więc to, co faktycznie liczymy.
             W(
-                f"Różnych nazw w warstwach adresowych: **{len(domeny)}** "
-                f"({', '.join(code(d) for d in sorted(domeny))}). Liczone są "
+                f"Różnych nazw w warstwach adresowych: **{len(domains)}** "
+                f"({', '.join(code(d) for d in sorted(domains))}). Liczone są "
                 f"pełne nazwy hostów — bez listy publicznych sufiksów raport nie "
                 f"sprowadza ich do domeny organizacyjnej.\n"
             )
@@ -2714,7 +2791,7 @@ def write_identity_layers_section(
         write_table(
             W,
             ["Rodzaj", "Wartość z treści", "Suma kontrolna"],
-            [[rodzaj, code(wartosc), status] for rodzaj, wartosc, status in registry],
+            [[kind, code(value), status] for kind, value, status in registry],
         )
         W(
             "Suma kontrolna jest **policzona z wartości zapisanej w pliku** "
