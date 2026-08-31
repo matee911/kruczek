@@ -2,9 +2,10 @@
 """utils.py — wspólne narzędzia dla skryptów kruczka."""
 
 import hashlib
+import os
 
 
-def sha256_file(path) -> str:
+def sha256_file(path: str | os.PathLike[str]) -> str:
     """SHA-256 pliku — czyta w blokach 64 KB, nie wczytuje całości do pamięci."""
     h = hashlib.sha256()
     with open(path, "rb") as f:
@@ -13,7 +14,7 @@ def sha256_file(path) -> str:
     return h.hexdigest()
 
 
-def human_size(n) -> str:
+def human_size(n: float) -> str:
     """Rozmiar w bajtach → czytelny string.
 
     >>> human_size(0)

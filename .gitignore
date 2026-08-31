@@ -13,3 +13,6 @@ docs/superpowers/
 .coverage.*
 coverage.xml
 htmlcov/
+
+# Materiał dowodowy (.eml + raporty) — nigdy do repo.
+do_not_commit/
