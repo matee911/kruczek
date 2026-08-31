@@ -30,6 +30,7 @@ jobs:
             case "$(basename "$f")" in
               # celowo bez +x: nie do bezpośredniego uruchamiania (source/import, nie CLI)
               lib.sh|utils.py|kontrola_logika.py|test_kontrola_logika.py) continue ;;
+              eml_forensics_logika.py|eml_forensics_raport.py|test_eml_forensics.py) continue ;;
             esac
             mode=$(git ls-files -s "$f" | awk '{print $1}')
             if [ "$mode" != "100755" ]; then
