@@ -410,10 +410,10 @@ class DkimSignature:
             body_length=as_int("l"),
             identity=tags.get("i", "").strip() or None,
             other_tags=tuple(
-                (klucz, wartosc.strip())
-                for klucz, wartosc in tags.items()
+                (klucz, value.strip())
+                for klucz, value in tags.items()
                 if klucz not in {"d", "s", "a", "c", "bh", "h", "t", "x", "l", "i"}
-                and wartosc.strip()
+                and value.strip()
             ),
         )
 
@@ -1352,17 +1352,17 @@ def received_chain_continuity(
     []
     """
     out: list[tuple[int, str, str, bool]] = []
-    for wczesniejszy, pozniejszy in itertools.pairwise(hops):
-        odbiorca = (wczesniejszy.by or "").rstrip(".").lower()
-        nadawca = (pozniejszy.helo or pozniejszy.rdns or "").rstrip(".").lower()
-        if not odbiorca or not nadawca:
+    for earlier, later in itertools.pairwise(hops):
+        receiver = (earlier.by or "").rstrip(".").lower()
+        sender = (later.helo or later.rdns or "").rstrip(".").lower()
+        if not receiver or not sender:
             continue
         out.append(
             (
-                wczesniejszy.index,
-                wczesniejszy.by or "",
-                pozniejszy.helo or pozniejszy.rdns or "",
-                odbiorca == nadawca,
+                earlier.index,
+                earlier.by or "",
+                later.helo or later.rdns or "",
+                receiver == sender,
             )
         )
     return out
@@ -1550,7 +1550,7 @@ def extract_timestamps(
     # Ta sama zasada dotyczy `In-Reply-To` i `References` niosących ten sam
     # identyfikator: to jedno źródło, nie dwa niezależne potwierdzenia.
     unikalne: list[tuple[str, datetime.datetime]] = []
-    widziane: set[tuple[str, float]] = set()
+    seen: set[tuple[str, float]] = set()
     for label, moment in result:
         # Adnotację w nawiasach kwadratowych (np. o nieustalonej strefie) zdejmujemy
         # przed wyliczeniem rodziny — inaczej `In-Reply-To` i `References` niosące
@@ -1563,9 +1563,9 @@ def extract_timestamps(
             else rodzina
         )
         klucz = (rodzina, moment.timestamp())
-        if klucz in widziane:
+        if klucz in seen:
             continue
-        widziane.add(klucz)
+        seen.add(klucz)
         unikalne.append((label, moment))
     return unikalne
 
@@ -1714,10 +1714,10 @@ def oversigned_headers(
     >>> oversigned_headers(msg, ("From", "Subject"))
     []
     """
-    obecne = {name.lower() for name in header_names(msg)}
+    present = {name.lower() for name in header_names(msg)}
     out: list[str] = []
     for name in signed:
-        if name.lower() not in obecne and name not in out:
+        if name.lower() not in present and name not in out:
             out.append(name)
     return out
 
@@ -2281,20 +2281,20 @@ def _element_inner(src: str, match: "re.Match[str]") -> str:
     return rest[: closing.start()] if closing else rest[:2000]
 
 
-def _kolor(deklaracja: str) -> str | None:
+def _colour(declaration: str) -> str | None:
     """Znormalizowany kolor z deklaracji CSS — do porównań tekst ↔ tło.
 
-    >>> _kolor("color:#FFFFFF")
+    >>> _colour("color:#FFFFFF")
     '#ffffff'
-    >>> _kolor("background-color: white")
+    >>> _colour("background-color: white")
     '#ffffff'
-    >>> _kolor("background:#000")
+    >>> _colour("background:#000")
     '#000000'
-    >>> _kolor("color:red") is None
+    >>> _colour("color:red") is None
     True
     """
     match = re.search(
-        r"#([0-9a-fA-F]{3,8})\b|\b(white|black)\b", deklaracja, re.IGNORECASE
+        r"#([0-9a-fA-F]{3,8})\b|\b(white|black)\b", declaration, re.IGNORECASE
     )
     if not match:
         return None
@@ -2306,25 +2306,25 @@ def _kolor(deklaracja: str) -> str | None:
     return "#" + hex_[:6]
 
 
-def tekst_zlewa_sie_z_tlem(style: str, background: str | None) -> bool:
+def text_blends_into_background(style: str, background: str | None) -> bool:
     """Czy zadeklarowany kolor tekstu jest identyczny z zadeklarowanym tłem.
 
     Samo istnienie tła nie wyklucza ukrycia — biały tekst na białym `body`
     to klasyczny przypadek, który przy regule „jest tło, więc pomijamy”
     wypadłby z raportu.
 
-    >>> tekst_zlewa_sie_z_tlem("color:#ffffff", "background-color:#ffffff (z <style>, body)")
+    >>> text_blends_into_background("color:#ffffff", "background-color:#ffffff (z <style>, body)")
     True
-    >>> tekst_zlewa_sie_z_tlem("color:#FFFFFF", "background-color:#1965F7")
+    >>> text_blends_into_background("color:#FFFFFF", "background-color:#1965F7")
     False
-    >>> tekst_zlewa_sie_z_tlem("color:#fff", None)
+    >>> text_blends_into_background("color:#fff", None)
     False
     """
     if not background:
         return False
-    tekst = _kolor(re.sub(r"background[^;]*", "", style, flags=re.IGNORECASE))
-    tlo = _kolor(background)
-    return bool(tekst and tlo and tekst == tlo)
+    text = _colour(re.sub(r"background[^;]*", "", style, flags=re.IGNORECASE))
+    background = _colour(background)
+    return bool(text and background and text == background)
 
 
 def find_hidden_elements(src: str) -> list[HiddenElement]:
@@ -2399,7 +2399,7 @@ def find_hidden_elements(src: str) -> list[HiddenElement]:
         r"<(?P<tag>div|span|p|td|tr|table|a|font)\b(?P<attrs>[^>]*)>",
         re.IGNORECASE,
     )
-    arkusz = stylesheet_declarations(src)
+    stylesheet = stylesheet_declarations(src)
     for match in pattern.finditer(src):
         style = _attr(match.group("attrs"), "style")
         if not style:
@@ -2409,20 +2409,22 @@ def find_hidden_elements(src: str) -> list[HiddenElement]:
         # biały tekst na czarnej stopce trafiał do sekcji o widoczności
         # z adnotacją „tło nieustalone”, choć plik zawierał odpowiedź.
         background = declared_background(style) or background_for_element(
-            match.group("attrs"), arkusz
+            match.group("attrs"), stylesheet
         )
         hiding = _hidden_rules(style)
         # Tło wyklucza regułę kontrastu tylko wtedy, gdy RÓŻNI SIĘ od koloru
         # tekstu. Zgodność (biały na białym) jest odwrotnie — najmocniejszym
         # przypadkiem w tej klasie, więc trafia do reguł ukrywających.
-        zlewa = tekst_zlewa_sie_z_tlem(style, background)
-        if zlewa:
-            hiding = hiding + [f"kolor tekstu identyczny z tłem ({_kolor(background)})"]
-        kolor = [] if (background and not zlewa) else _color_contrast_rules(style)
+        blends = text_blends_into_background(style, background)
+        if blends:
+            hiding = hiding + [
+                f"kolor tekstu identyczny z tłem ({_colour(background)})"
+            ]
+        colour = [] if (background and not blends) else _color_contrast_rules(style)
         # Krycie i rozmiar czcionki NIE zależą od tła, więc zadeklarowane tło
         # ich nie wyklucza. Wspólne wykluczanie z kolorem tekstu kasowało cały
         # element `opacity:0.96; background-color:#1965F7` — razem z jego treścią.
-        low_contrast = kolor + _dimming_rules(style)
+        low_contrast = colour + _dimming_rules(style)
         if not hiding and not low_contrast:
             continue
         inner = html.unescape(re.sub(r"<[^>]+>", " ", _element_inner(src, match)))
@@ -2460,26 +2462,28 @@ def stylesheet_declarations(src: str) -> dict[str, dict[str, str]]:
     {}
     """
     out: dict[str, dict[str, str]] = {}
-    for blok in re.findall(
+    for block in re.findall(
         r"<style\b[^>]*>(.*?)</style>", src, re.DOTALL | re.IGNORECASE
     ):
-        for selektor, cialo, warunek in _rules_with_conditions(blok):
-            if warunek is not None:
+        for selector, body, condition in _rules_with_conditions(block):
+            if condition is not None:
                 continue
-            deklaracje = {
+            declarations = {
                 k.strip().lower(): v.strip()
-                for k, v in re.findall(r"([a-zA-Z-]+)\s*:\s*([^;]+)", cialo)
+                for k, v in re.findall(r"([a-zA-Z-]+)\s*:\s*([^;]+)", body)
             }
-            if not deklaracje:
+            if not declarations:
                 continue
-            for pojedynczy in selektor.split(","):
-                nazwa = re.sub(r"\s+", " ", pojedynczy).strip()
-                if nazwa:
-                    out.setdefault(nazwa, {}).update(deklaracje)
+            for single in selector.split(","):
+                name = re.sub(r"\s+", " ", single).strip()
+                if name:
+                    out.setdefault(name, {}).update(declarations)
     return out
 
 
-def background_for_element(attrs: str, arkusz: dict[str, dict[str, str]]) -> str | None:
+def background_for_element(
+    attrs: str, stylesheet: dict[str, dict[str, str]]
+) -> str | None:
     """Tło elementu ustalone z jego `id`/`class` wobec reguł z bloków `<style>`.
 
     >>> arkusz = {"#stopka": {"background-color": "#000000"}}
@@ -2494,18 +2498,20 @@ def background_for_element(attrs: str, arkusz: dict[str, dict[str, str]]) -> str
     'background-color:#ffffff (z <style>, selektor body)'
     """
     element_id = _attr(attrs, "id")
-    klasy = (_attr(attrs, "class") or "").split()
+    classes = (_attr(attrs, "class") or "").split()
     # `body` na końcu: gdy element nie deklaruje własnego tła ani nie pasuje do
     # żadnego selektora, tło dziedziczy z dokumentu. Bez tego kroku biały tekst
     # przy `body{background-color:#ffffff}` zostawał jako „tło nieustalone”.
-    selektory = (
-        ([f"#{element_id}"] if element_id else []) + [f".{k}" for k in klasy] + ["body"]
+    selectors = (
+        ([f"#{element_id}"] if element_id else [])
+        + [f".{k}" for k in classes]
+        + ["body"]
     )
-    for selektor in selektory:
-        deklaracje = arkusz.get(selektor, {})
-        for wlasciwosc in ("background-color", "background"):
-            if wlasciwosc in deklaracje:
-                return f"{wlasciwosc}:{deklaracje[wlasciwosc]} (z <style>, selektor {selektor})"
+    for selector in selectors:
+        declarations = stylesheet.get(selector, {})
+        for prop in ("background-color", "background"):
+            if prop in declarations:
+                return f"{prop}:{declarations[prop]} (z <style>, selektor {selector})"
     return None
 
 
@@ -2830,16 +2836,22 @@ def extract_html_resources(src: str) -> list[HtmlResource]:
         )
 
     for match in re.finditer(
-        r"<a\b(?P<attrs>[^>]*)href=[\"'](?P<url>[^\"']+)[\"'][^>]*>(?P<text>.*?)</a>",
+        # `attrs` musi objąć CAŁY znacznik, nie tylko część przed `href`.
+        # Wcześniej atrybuty stojące za `href` — w tym `title` i `style` —
+        # były dla ekstraktora niewidoczne, więc kotwica z pustym tekstem
+        # i opisem wyłącznie w `title` trafiała do raportu jako „—”.
+        r"<a\b(?P<attrs>[^>]*?)href=[\"'](?P<url>[^\"']+)[\"'](?P<rest>[^>]*)>"
+        r"(?P<text>.*?)</a>",
         src,
         flags=re.DOTALL | re.IGNORECASE,
     ):
         text = html.unescape(re.sub(r"<[^>]+>", " ", match.group("text")))
         label = re.sub(r"\s+", " ", text).strip()
-        title = _attr(match.group("attrs"), "title")
+        attrs_all = match.group("attrs") + match.group("rest")
+        title = _attr(attrs_all, "title")
         if title:
             label = f"{label} (title: {title})" if label else f"(title: {title})"
-        add("a", match.group("url"), label, match.group("attrs"))
+        add("a", match.group("url"), label, attrs_all)
 
     for match in re.finditer(r"<img\b(?P<attrs>[^>]*)>", src, flags=re.IGNORECASE):
         attrs = match.group("attrs")
@@ -2878,9 +2890,9 @@ def extract_html_resources(src: str) -> list[HtmlResource]:
             continue
         if not re.search(r"(?<![-a-z])height:[01](?:px|pt)", normalized):
             continue
-        tlo = re.search(r"url\(\s*[\"']?([^\"')]+)", style, re.IGNORECASE)
-        if tlo:
-            add("beacon-css", tlo.group(1), None, match.group(1))
+        background = re.search(r"url\(\s*[\"']?([^\"')]+)", style, re.IGNORECASE)
+        if background:
+            add("beacon-css", background.group(1), None, match.group(1))
 
     # Outlook VML: <v:fill src="..."> to ten sam zasób co tło CSS, innym zapisem.
     for match in re.finditer(r"<v:fill\b([^>]*)>", src, flags=re.IGNORECASE):
@@ -3095,8 +3107,8 @@ def document_metadata(src: str) -> list[tuple[str, str]]:
             r"<(?!html)[a-z]+\b[^>]*\blang\s*=\s*[\"']([^\"']+)", src, re.IGNORECASE
         )
     )
-    for jezyk, ile in pozostale.most_common():
-        out.append(("lang w elementach", f"{jezyk} ({ile}×)"))
+    for jezyk, count in pozostale.most_common():
+        out.append(("lang w elementach", f"{jezyk} ({count}×)"))
     return out
 
 
@@ -3258,12 +3270,12 @@ def describe_uuid(value: str) -> str | None:
         version_ok = value[14].lower() in "12345678"
         variant_ok = value[19].lower() in "89ab"
         if version_ok and not variant_ok:
-            powod = "pole wariantu spoza RFC 4122"
+            reason = "pole wariantu spoza RFC 4122"
         elif variant_ok and not version_ok:
-            powod = f"pole wersji `{value[14]}` spoza zakresu 1–8"
+            reason = f"pole wersji `{value[14]}` spoza zakresu 1–8"
         else:
-            powod = "pola wersji i wariantu spoza RFC 4122"
-        return f"hex w formacie 8-4-4-4-12 ({powod} — nie UUID)"
+            reason = "pola wersji i wariantu spoza RFC 4122"
+        return f"hex w formacie 8-4-4-4-12 ({reason} — nie UUID)"
     version = int(match.group(3))
     if version != 1:
         return f"UUID wersja {version}"
@@ -3334,9 +3346,9 @@ def falszywy_ksztalt(value: str) -> str | None:
     >>> falszywy_ksztalt("YTo1OntzOjY6InNvdXJjZSI7") is None
     True
     """
-    for wzorzec, opis in NIE_TOKENY:
-        if re.fullmatch(wzorzec, value):
-            return opis
+    for pattern, description in NIE_TOKENY:
+        if re.fullmatch(pattern, value):
+            return description
     return None
 
 
@@ -3841,11 +3853,11 @@ def repeated_identifiers(
             # UUID najpierw i w całości. Skaner `[A-Za-z0-9]{8,}` rozcinał go na
             # myślnikach i wpisywał do tabeli cztery „niezależne identyfikatory”
             # zamiast jednego — a każdy fragment z osobna nie jest identyfikatorem.
-            reszta = haystack
+            rest = haystack
             for uuid_match in re.finditer(UUID_PATTERN, haystack, re.IGNORECASE):
                 note(uuid_match.group(0), label)
-                reszta = reszta.replace(uuid_match.group(0), " ")
-            for found in set(re.findall(rf"[A-Za-z0-9]{{{min_length},}}", reszta)):
+                rest = rest.replace(uuid_match.group(0), " ")
+            for found in set(re.findall(rf"[A-Za-z0-9]{{{min_length},}}", rest)):
                 # Etykieta domeny (`newsletter`, `marketing`, `powiadomienia`)
                 # to nie identyfikator odbiorcy ani kampanii — powiązania między
                 # nazwami opisuje inwentarz domen. Skaner wpisywał je do tabeli
@@ -4211,13 +4223,13 @@ def software_fingerprints(
     # i `User-Agent`, więc dla wiadomości z czterema nagłówkami `X-sare*`
     # nazywającymi system wprost drukowała „brak śladów oprogramowania” —
     # ustalenie sprzeczne z zawartością pliku.
-    for nazwa in msg:
+    for name in msg:
         if re.match(
-            r"(?i)^x-(sare|sg|ses|campaign|mailer-|esp|sendgrid|mailgun)", nazwa
+            r"(?i)^x-(sare|sg|ses|campaign|mailer-|esp|sendgrid|mailgun)", name
         ):
-            wartosc = str(msg.get(nazwa) or "").strip()
-            if wartosc and (nazwa, wartosc) not in out:
-                out.append((nazwa, wartosc[:200]))
+            value = str(msg.get(name) or "").strip()
+            if value and (name, value) not in out:
+                out.append((name, value[:200]))
 
     # Format części lokalnej `Message-ID` bywa sygnaturą oprogramowania: `E`
     # + długi identyfikator to kolejka Exima, `----=_Part_N_M.epoch` w boundary
@@ -4240,9 +4252,9 @@ def software_fingerprints(
             r"\((Exim|Postfix|Sendmail|qmail|OpenSMTPD|MailEnable)\b[^)]*\)", str(raw)
         )
         if mta:
-            wartosc = mta.group(0).strip("()")
-            if ("MTA z nagłówka Received", wartosc) not in out:
-                out.append(("MTA z nagłówka Received", wartosc))
+            value = mta.group(0).strip("()")
+            if ("MTA z nagłówka Received", value) not in out:
+                out.append(("MTA z nagłówka Received", value))
 
     for name in ("X-Mailer", "User-Agent"):
         if msg.get(name) is None:
@@ -4265,7 +4277,7 @@ def software_fingerprints(
         # Pozostałe znaczniki `<meta>` i przestrzenie nazw. Raport wyłapywał
         # `Cocoa HTML Writer`, a gubił `CocoaVersion`, `MSHTML` i deklaracje
         # `xmlns:v`/`xmlns:o` — czyli resztę odcisku tego samego środowiska.
-        for wzorzec, etykieta in (
+        for pattern, label in (
             (
                 r'<meta[^>]+name=["\']?CocoaVersion["\']?[^>]+content=["\']?([^"\'>]+)',
                 "meta CocoaVersion",
@@ -4274,9 +4286,9 @@ def software_fingerprints(
             (r'xmlns:(?:v|o|w|x)\s*=\s*["\']?([^"\'\s>]+)', "Przestrzeń nazw XML"),
             (r'(font-family\s*:\s*Aptos[^;"\']*)', "Deklaracja kroju"),
         ):
-            found = list(dict.fromkeys(re.findall(wzorzec, html_body, re.IGNORECASE)))
+            found = list(dict.fromkeys(re.findall(pattern, html_body, re.IGNORECASE)))
             if found:
-                out.append((etykieta, ", ".join(found[:6])))
+                out.append((label, ", ".join(found[:6])))
 
         # Dark Reader wstrzykuje swoje atrybuty w przeglądarce, po stronie
         # odbiorcy strony. Ich obecność w WYSŁANYM HTML-u to ślad autorski,
@@ -4312,28 +4324,31 @@ def software_fingerprints(
         # Ucinanie do 4 znaków i lowercase robiło z jednej rodziny `mcn*` trzy
         # nieistniejące (`mcni`, `mcnd`, `mcnt`), a z sześciu różnych klas
         # Gmaila — jedną `gmai`. Wielkość liter jest częścią dowodu.
-        klasy = collections.Counter(
-            nazwa
+        classes = collections.Counter(
+            name
             for atrybut in re.findall(r"""class\s*=\s*["']([^"']+)""", html_body)
-            for nazwa in atrybut.split()
+            for name in atrybut.split()
         )
-        czolowe = [(n, c) for n, c in klasy.most_common(8) if c >= 2]
-        if czolowe:
+        most_common = [(n, c) for n, c in classes.most_common(8) if c >= 2]
+        if most_common:
             out.append(
-                ("Najczęstsze klasy CSS", ", ".join(f"{n} ({c}×)" for n, c in czolowe))
+                (
+                    "Najczęstsze klasy CSS",
+                    ", ".join(f"{n} ({c}×)" for n, c in most_common),
+                )
             )
         # Artefakty rozszerzeń przeglądarki i edytorów WYSIWYG obecne w wysłanym
         # źródle to ustalenie o pochodzeniu HTML-a; 64 takie atrybuty w jednym
         # pliku nie zostały odnotowane ani razu.
-        for wzorzec, etykieta in (
+        for pattern, label in (
             (r"data-darkreader-[a-z-]+", "Atrybuty DarkReader"),
             (r"--darkreader-[a-z-]+", "Zmienne CSS DarkReader"),
             (r"contenteditable\s*=", "Atrybut contenteditable (edytor WYSIWYG)"),
             (r"data-template-container", "Atrybut data-template-container"),
         ):
-            ile = len(re.findall(wzorzec, html_body, re.IGNORECASE))
-            if ile:
-                out.append((etykieta, f"{ile} wystąpień"))
+            count = len(re.findall(pattern, html_body, re.IGNORECASE))
+            if count:
+                out.append((label, f"{count} wystąpień"))
     return out
 
 
@@ -4428,12 +4443,12 @@ def _iban_valid(iban: str) -> bool:
     >>> _iban_valid("PL17109028510000000130176425")
     False
     """
-    znaki = re.sub(r"\s", "", iban).upper()
-    if not re.fullmatch(r"[A-Z]{2}\d{2}[A-Z0-9]{10,30}", znaki):
+    chars = re.sub(r"\s", "", iban).upper()
+    if not re.fullmatch(r"[A-Z]{2}\d{2}[A-Z0-9]{10,30}", chars):
         return False
-    przestawione = znaki[4:] + znaki[:4]
-    cyfry = "".join(str(ord(z) - 55) if z.isalpha() else z for z in przestawione)
-    return int(cyfry) % 97 == 1
+    rotated = chars[4:] + chars[:4]
+    digits = "".join(str(ord(z) - 55) if z.isalpha() else z for z in rotated)
+    return int(digits) % 97 == 1
 
 
 def _nip_valid(nip: str) -> bool:
@@ -4446,12 +4461,12 @@ def _nip_valid(nip: str) -> bool:
     >>> _nip_valid("123")
     False
     """
-    cyfry = re.sub(r"\D", "", nip)
-    if len(cyfry) != 10:
+    digits = re.sub(r"\D", "", nip)
+    if len(digits) != 10:
         return False
-    wagi = (6, 5, 7, 2, 3, 4, 5, 6, 7)
-    suma = sum(w * int(c) for w, c in zip(wagi, cyfry))
-    return suma % 11 == int(cyfry[9])
+    weights = (6, 5, 7, 2, 3, 4, 5, 6, 7)
+    total = sum(w * int(c) for w, c in zip(weights, digits))
+    return total % 11 == int(digits[9])
 
 
 def _regon_valid(regon: str) -> bool:
@@ -4462,12 +4477,12 @@ def _regon_valid(regon: str) -> bool:
     >>> _regon_valid("123456789")
     False
     """
-    cyfry = re.sub(r"\D", "", regon)
-    wagi = {9: (8, 9, 2, 3, 4, 5, 6, 7), 14: (2, 4, 8, 5, 0, 9, 7, 3, 6, 1, 2, 4, 8)}
-    if len(cyfry) not in wagi:
+    digits = re.sub(r"\D", "", regon)
+    weights = {9: (8, 9, 2, 3, 4, 5, 6, 7), 14: (2, 4, 8, 5, 0, 9, 7, 3, 6, 1, 2, 4, 8)}
+    if len(digits) not in weights:
         return False
-    suma = sum(w * int(c) for w, c in zip(wagi[len(cyfry)], cyfry))
-    return suma % 11 % 10 == int(cyfry[-1])
+    total = sum(w * int(c) for w, c in zip(weights[len(digits)], digits))
+    return total % 11 % 10 == int(digits[-1])
 
 
 def _nrb_valid(nrb: str) -> bool:
@@ -4478,8 +4493,8 @@ def _nrb_valid(nrb: str) -> bool:
     >>> _nrb_valid("17 1090 2851 0000 0001 3017 6425")
     False
     """
-    cyfry = re.sub(r"\s", "", nrb)
-    return len(cyfry) == 26 and cyfry.isdigit() and _iban_valid("PL" + cyfry)
+    digits = re.sub(r"\s", "", nrb)
+    return len(digits) == 26 and digits.isdigit() and _iban_valid("PL" + digits)
 
 
 #: Wzorce identyfikatorów rejestrowych i finansowych spotykanych w treści.
@@ -4522,23 +4537,23 @@ def registry_identifiers(text: str) -> list[tuple[str, str, str]]:
     [('NIP', '836-167-65-11', 'suma kontrolna **niepoprawna**')]
     """
     out: list[tuple[str, str, str]] = []
-    for etykieta, wzorzec, walidator in REGISTRY_PATTERNS:
-        for dopasowanie in dict.fromkeys(re.findall(wzorzec, text)):
-            if walidator is None:
+    for label, pattern, validator in REGISTRY_PATTERNS:
+        for matched in dict.fromkeys(re.findall(pattern, text)):
+            if validator is None:
                 status = "brak sumy kontrolnej w standardzie"
-            elif walidator(dopasowanie):
+            elif validator(matched):
                 status = (
                     "suma kontrolna poprawna (mod-97)"
-                    if "IBAN" in etykieta or "NRB" in etykieta
+                    if "IBAN" in label or "NRB" in label
                     else "suma kontrolna poprawna"
                 )
-            elif "IBAN" in etykieta or "NRB" in etykieta:
+            elif "IBAN" in label or "NRB" in label:
                 # Ciąg w kształcie IBAN-u z błędną sumą to inne ustalenie niż
                 # brak numeru — pomijanie go po cichu kasowałoby dowód.
                 status = "suma kontrolna **niepoprawna** (mod-97)"
             else:
                 status = "suma kontrolna **niepoprawna**"
-            out.append((etykieta, dopasowanie, status))
+            out.append((label, matched, status))
     return out
 
 
@@ -4567,36 +4582,34 @@ def identity_layers(
     """
     out: list[tuple[str, str]] = []
 
-    def dodaj(etykieta: str, wartosc: str | None) -> None:
-        if wartosc and (etykieta, wartosc) not in out:
-            out.append((etykieta, wartosc))
+    def add(label: str, value: str | None) -> None:
+        if value and (label, value) not in out:
+            out.append((label, value))
 
-    for naglowek, etykieta in (
+    for naglowek, label in (
         ("From", "Domena `From`"),
         ("Reply-To", "Domena `Reply-To`"),
         ("Return-Path", "Domena koperty (`Return-Path`)"),
         ("Sender", "Domena `Sender`"),
     ):
-        wartosc = msg.get(naglowek)
-        if not wartosc:
+        value = msg.get(naglowek)
+        if not value:
             continue
-        nazwa, adres = email.utils.parseaddr(str(wartosc))
+        name, adres = email.utils.parseaddr(str(value))
         if naglowek == "From":
-            dodaj("Nazwa wyświetlana `From`", nazwa.strip())
+            add("Nazwa wyświetlana `From`", name.strip())
         if adres and "@" in adres:
-            dodaj(etykieta, adres.rsplit("@", 1)[1].strip("> ").lower())
+            add(label, adres.rsplit("@", 1)[1].strip("> ").lower())
 
     for podpis in dkim:
-        dodaj("Domena podpisująca (DKIM `d=`)", podpis.domain)
+        add("Domena podpisująca (DKIM `d=`)", podpis.domain)
 
-    hosty_linkow = sorted(
-        {r.host.lower() for r in resources if r.kind == "a" and r.host}
-    )
-    if hosty_linkow:
-        dodaj("Hosty odnośników w treści", ", ".join(hosty_linkow))
-    hosty_zasobow = sorted(
+    link_hosts = sorted({r.host.lower() for r in resources if r.kind == "a" and r.host})
+    if link_hosts:
+        add("Hosty odnośników w treści", ", ".join(link_hosts))
+    resource_hosts = sorted(
         {r.host.lower() for r in resources if r.kind != "a" and r.host}
     )
-    if hosty_zasobow:
-        dodaj("Hosty zasobów pobieranych w treści", ", ".join(hosty_zasobow))
+    if resource_hosts:
+        add("Hosty zasobów pobieranych w treści", ", ".join(resource_hosts))
     return out

@@ -361,13 +361,13 @@ def collect_declared_identifiers(msg: email.message.Message) -> tuple[str, ...]:
             found.append(value)
 
     for raw in msg.get_all("List-Id") or []:
-        etykieta = re.sub(r"[<>]", "", str(raw)).strip().split(".")[0]
-        if re.fullmatch(r"[0-9]+", etykieta):
-            add(etykieta)
+        label = re.sub(r"[<>]", "", str(raw)).strip().split(".")[0]
+        if re.fullmatch(r"[0-9]+", label):
+            add(label)
     for raw in msg.get_all("Feedback-ID") or []:
-        for pole in str(raw).split(":"):
-            if re.fullmatch(r"[0-9]{4,}", pole.strip()):
-                add(pole.strip())
+        for field in str(raw).split(":"):
+            if re.fullmatch(r"[0-9]{4,}", field.strip()):
+                add(field.strip())
     return tuple(found)
 
 
@@ -462,8 +462,8 @@ def build_report(eml_path: Path, outdir: Path) -> tuple[str, Path]:
         msg.get("Subject"),
         msg.get("Date"),
         tuple(
-            (nazwa, raw_header_value(raw_headers, nazwa), msg.get(nazwa))
-            for nazwa in ("Subject", "Date", "From", "Reply-To", "To")
+            (name, raw_header_value(raw_headers, name), msg.get(name))
+            for name in ("Subject", "Date", "From", "Reply-To", "To")
         ),
         header_names(msg),
         W,
@@ -537,7 +537,7 @@ def build_report(eml_path: Path, outdir: Path) -> tuple[str, Path]:
     stat = eml_path.stat()
     # Identyfikatory szukane w treści WIDOCZNEJ (obie części), nie w nagłówkach —
     # numer rachunku i dane rejestrowe stoją w stopce wiadomości.
-    tresc_do_skanu = " ".join(
+    scannable_text = " ".join(
         filter(None, [deobfuscate(html_body) if html_body else None, text_body])
     )
     mtime = datetime.datetime.fromtimestamp(stat.st_mtime).astimezone().isoformat()
@@ -553,7 +553,7 @@ def build_report(eml_path: Path, outdir: Path) -> tuple[str, Path]:
     )
     write_identity_layers_section(
         identity_layers(msg, dkim, resources),
-        registry_identifiers(tresc_do_skanu),
+        registry_identifiers(scannable_text),
         W,
     )
 
