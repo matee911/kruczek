@@ -163,6 +163,11 @@ skip_sh() {
 skip_py() {
   case "$(basename "$1")" in
     utils.py|kontrola_logika.py|test_kontrola_logika.py|run_tests.py) return 0 ;;  # moduły/testy — run_tests.py jest CLI, ale odpala go osobny krok CI
+    # Warstwy eml_forensics: importowane przez eml_forensics.py, nie CLI.
+    # Wykluczenie było dopisane tylko w workflow (kontrola trybu pliku),
+    # a smoketest.sh próbuje URUCHOMIĆ każdy skrypt bezpośrednio — więc
+    # moduły bez +x wywracały build z „Permission denied”.
+    eml_forensics_logika.py|eml_forensics_raport.py|test_eml_forensics.py) return 0 ;;
     *) return 1 ;;
   esac
 }
