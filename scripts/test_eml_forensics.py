@@ -12,6 +12,7 @@ kodowania i strukturę nagłówków — bo to one wyzwalały błędy.
 
 import datetime
 import re
+import sys
 import tempfile
 import unittest
 from email import message_from_string, policy
@@ -866,7 +867,7 @@ class TestRundaTrzecia(unittest.TestCase):
         html = '<img src="https://t.example/x" alt="" style="width:1px;height:1px;"/>'
         self.assertTrue(logika.extract_html_resources(html)[0].is_pixel)
 
-    def test_border_color_nie_jest_kolorem_tekstu(self):
+    def test_border_color_nie_jest_colourem_tekstu(self):
         """„Parser łapie po podciągu `color:` — w pliku są 2 takie border-top-color."""
         html = (
             '<table style="min-width:100%;border-top-width:2px;'
@@ -1224,7 +1225,7 @@ class TestRundaPiata(unittest.TestCase):
             1,
         )
 
-    def test_kanal_alfa_w_kolorze_jest_wykryty(self):
+    def test_kanal_alfa_w_colourze_jest_wykryty(self):
         """„#00000050 = czerń z kryciem 31% → renderuje się jako jasna szarość."""
         self.assertEqual(
             logika._low_contrast_rules("font-size:10px;color:#00000050"),
@@ -1561,6 +1562,247 @@ class TestRundaSzosta(unittest.TestCase):
         self.assertIn("indeks Jaccarda", report)
         self.assertIn("wyłącznie w jednej części", report)
         self.assertIn("delta", report)
+
+
+class TestPokrycieSciezekDowodowych(unittest.TestCase):
+    """Ścieżki niosące dowód, które nie miały ani jednego testu (pomiar coverage)."""
+
+    def test_rozne_bh_nie_dostaje_wyjasnienia_przyczyny(self):
+        """Raport nie policzył żadnego `bh=`, więc nie może podać, skąd różnica."""
+        raw = build(
+            "From: a@przyklad.pl\n"
+            "DKIM-Signature: v=1; d=przyklad.pl; s=s; h=From; c=relaxed/simple; bh=AAA=\n"
+            "ARC-Seal: i=1; d=posrednik.example; cv=none; t=1786107962\n"
+            "ARC-Message-Signature: i=1; d=posrednik.example; s=t; h=From;"
+            " c=relaxed/relaxed; bh=BBB="
+        )
+        report = analyze(raw)
+        self.assertIn("**różni się**", report)
+        self.assertIn("nie ustala przyczyny", report)
+        self.assertIn("relaxed/simple", report)
+        self.assertNotIn("to przez kanonizację", report)
+
+    def test_tekst_kotwicy_wygladajacy_na_adres_jest_zestawiony_z_celem(self):
+        """Tekst deklaruje jedną domenę, `href` prowadzi gdzie indziej."""
+        raw = build(
+            "Content-Type: text/html",
+            '<a href="https://cel.example/x?t=1">www.przyklad.pl</a>',
+        )
+        report = analyze(raw)
+        self.assertIn("Kotwice, w których tekst wyświetlany wygląda na adres", report)
+        self.assertIn("**nie**", report)
+
+    def test_sklejenia_na_granicy_znacznikow_sa_wypisane(self):
+        """Wyraz powstaje ze sklejenia dwóch elementów liniowych bez separatora."""
+        raw = build(
+            "Content-Type: text/html",
+            "<p><span>beda</span><strong>zawieszone</strong></p>",
+        )
+        report = analyze(raw)
+        self.assertIn("ze sklejenia dwóch sąsiednich", report)
+        self.assertIn("zawieszone", report)
+
+    def test_odwolania_po_http_sa_wypisane_z_osobna(self):
+        """Brak TLS przy pobieraniu zasobu to ustalenie o samym odwołaniu."""
+        raw = build("Content-Type: text/html", '<img src="http://cel.example/p.gif">')
+        report = analyze(raw)
+        self.assertIn("Odwołania po `http://` (bez TLS)", report)
+        self.assertIn("http://cel.example/p.gif", report)
+
+    def test_url_obecny_tylko_w_jednej_czesci_jest_nazwany(self):
+        """Rozjazd zbiorów URL-i między częściami to odrębne ustalenie."""
+        raw = (
+            'Content-Type: multipart/alternative; boundary="b"\n\n'
+            "--b\nContent-Type: text/plain\n\nbez linku\n"
+            "--b\nContent-Type: text/html\n\n"
+            '<a href="https://cel.example/tylko-html">x</a>\n--b--\n'
+        )
+        report = analyze(raw)
+        self.assertIn("URL-e obecne wyłącznie w `text/html`", report)
+        self.assertIn("https://cel.example/tylko-html", report)
+
+    def test_mieszany_zapis_wykryty_w_samej_czesci_tekstowej(self):
+        """Gdy niespójność jest tylko w `text/plain`, zakres ma to nazwać."""
+        raw = (
+            'Content-Type: multipart/alternative; boundary="b"\n\n'
+            "--b\nContent-Type: text/plain\n\nkt&oacute;ry i który\n"
+            "--b\nContent-Type: text/html\n\n<p>bez encji</p>\n--b--\n"
+        )
+        report = analyze(raw)
+        self.assertIn("część `text/plain`", report)
+
+    def test_helo_z_adresem_nieroutowalnym_jest_ustaleniem(self):
+        """`helo=[127.0.0.1]` — literał w EHLO ma być własnym adresem klienta."""
+        raw = build(
+            "Received: from klient.example (helo=[127.0.0.1]) by mx.example"
+            " with ESMTPSA; Tue, 11 Aug 2026 10:00:00 +0000"
+        )
+        report = analyze(raw)
+        self.assertIn("nieroutowalny", report)
+
+    def test_brak_in_reply_to_i_references_to_dwa_ustalenia(self):
+        """Wiadomość niepowiązana z wątkiem — obie nieobecności zapisane."""
+        report = analyze(build("From: a@przyklad.pl\nSubject: Bez watku"))
+        self.assertIn("Brak nagłówków `In-Reply-To` i `References`", report)
+
+    def test_uuid_spoza_rfc4122_jest_opisany(self):
+        """Nibble wersji poza 1–8 to inny fakt niż UUID nieznanej wersji."""
+        opis = logika.describe_uuid("3454bd31-1a2b-dc3d-ee4f-56789abcdef0")
+        self.assertIsNotNone(opis)
+        self.assertIn("spoza RFC 4122", opis)
+
+    def test_adres_z_klauzuli_by_trafia_do_inwentarza(self):
+        """Adres hosta przyjmującego jest daną o trasie, nie ozdobą."""
+        raw = build(
+            "Received: from a.example by mx.example ([203.0.113.9])"
+            " with ESMTP; Tue, 11 Aug 2026 10:00:00 +0000"
+        )
+        report = analyze(raw)
+        self.assertIn("203.0.113.9", report)
+
+    def test_client_ip_z_received_spf_trafia_do_inwentarza(self):
+        """`client-ip=` bywa jedynym zapisem adresu nadawcy w pliku."""
+        raw = build("Received-SPF: pass (przyklad.pl) client-ip=198.51.100.7;")
+        report = analyze(raw)
+        self.assertIn("198.51.100.7", report)
+
+    def test_epoka_ms_z_x_received_jest_punktem_osi(self):
+        """13-cyfrowa epoka w `X-Received` to niezależny znacznik czasu."""
+        raw = build("X-Received: by 2002:a05:1 with SMTP id x.1786107962148;")
+        report = analyze(raw)
+        self.assertIn("X-Received (epoka ms)", report)
+        self.assertIn("2026-08-07", report)
+
+    def test_vfill_odwoluje_sie_do_tego_samego_zasobu(self):
+        """VML `<v:fill src>` to ten sam zasób co tło CSS, innym zapisem."""
+        zasoby = logika.extract_html_resources(
+            '<v:fill src="https://cel.example/tlo.png" type="frame"/>'
+        )
+        self.assertEqual(zasoby[0].url, "https://cel.example/tlo.png")
+
+    def test_title_uzupelnia_tekst_kotwicy_i_obrazu(self):
+        """`title` bywa jedynym opisem, gdy tekst i `alt` są puste."""
+        a = logika.extract_html_resources(
+            '<a href="https://cel.example/x" title="Zobacz ofertę"></a>'
+        )[0]
+        self.assertIn("Zobacz ofertę", a.text)
+        img = logika.extract_html_resources(
+            '<img src="https://cel.example/i.png" alt="" title="Logo">'
+        )[0]
+        self.assertIn("Logo", img.text)
+
+    def test_mta_z_received_jest_sladem_oprogramowania(self):
+        """Nazwa MTA bywa jedyną identyfikacją oprogramowania w pliku."""
+        raw = build(
+            "Received: from a.example by mx.example (Postfix) with ESMTPA;"
+            " Tue, 11 Aug 2026 10:00:00 +0000"
+        )
+        report = analyze(raw)
+        self.assertIn("Postfix", report)
+
+    def test_komentarz_generatora_jest_sladem(self):
+        """`<!-- Created with ... -->` identyfikuje narzędzie wprost."""
+        raw = build("Content-Type: text/html", "<!-- Created with Edytor 2.0 -->x")
+        report = analyze(raw)
+        self.assertIn("Edytor 2.0", report)
+
+    def test_bledna_suma_kontrolna_iban_jest_ustaleniem(self):
+        """Ciąg w kształcie IBAN-u z błędną sumą to inne ustalenie niż brak numeru."""
+        wynik = logika.registry_identifiers("Konto: PL17109028510000000130176425")
+        self.assertEqual(len(wynik), 1)
+        self.assertIn("niepoprawna", wynik[0][2])
+
+    def test_hosty_zasobow_wchodza_do_warstw_tozsamosci(self):
+        """Host piksela bywa jedyną warstwą spoza domeny nadawcy."""
+        zasob = logika.HtmlResource(
+            "img", "https://cel.example/p.gif", None, "https", "cel.example"
+        )
+        warstwy = dict(
+            logika.identity_layers(
+                message_from_string("From: a@przyklad.pl\n\nx", policy=policy.default),
+                [],
+                [zasob],
+            )
+        )
+        self.assertEqual(warstwy["Hosty zasobów pobieranych w treści"], "cel.example")
+
+    def test_cli_konczy_sie_bledem_gdy_brak_pliku(self):
+        """Ścieżka CLI też jest kodem — brak pliku ma dawać kontrolowany błąd."""
+        import subprocess
+
+        wynik = subprocess.run(
+            [sys.executable, "scripts/eml_forensics.py", "/nie/ma/takiego.eml"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertNotEqual(wynik.returncode, 0)
+
+
+class TestPokrycieUzupelniajace(unittest.TestCase):
+    """Reszta ścieżek bez pokrycia — każda niesie ustalenie o pliku."""
+
+    def test_wiadomosc_bez_czesci_mime(self):
+        """Plik bez ciała to też stan do zapisania, nie pusty raport."""
+        report = analyze("From: a@przyklad.pl\nSubject: Puste\n\n")
+        self.assertIn("## 2.", report)
+
+    def test_kilka_zalacznikow_z_identyczna_trescia(self):
+        """Bajtowo identyczne załączniki to fakt o sposobie złożenia wiadomości."""
+        czesc = (
+            "--b\nContent-Type: image/png\nContent-Transfer-Encoding: base64\n"
+            'Content-Disposition: attachment; filename="{}"\n\naGVsbG8=\n'
+        )
+        raw = (
+            'Content-Type: multipart/mixed; boundary="b"\n\n'
+            "--b\nContent-Type: text/html\n\n<p>x</p>\n"
+            + czesc.format("a.png")
+            + czesc.format("b.png")
+            + "--b--\n"
+        )
+        report = analyze(raw)
+        self.assertIn("a.png", report)
+        self.assertIn("b.png", report)
+
+    def test_wersja_uuid_jest_rozwinieta_w_sekcji_message_id(self):
+        """Nibble wersji i wariantu to dane, nie ozdoba identyfikatora."""
+        raw = build(
+            "Message-ID: <3454bd31-1a2b-4c3d-8e4f-56789abcdef0@przyklad.pl>"
+        )
+        report = analyze(raw)
+        self.assertIn("UUID", report)
+        self.assertIn("wersja 4", report)
+
+    def test_url_wylacznie_w_czesci_tekstowej(self):
+        """Rozjazd w drugą stronę: adres jest w `text/plain`, nie ma go w HTML."""
+        raw = (
+            'Content-Type: multipart/alternative; boundary="b"\n\n'
+            "--b\nContent-Type: text/plain\n\nhttps://cel.example/tylko-plain\n"
+            "--b\nContent-Type: text/html\n\n<p>bez linku</p>\n--b--\n"
+        )
+        report = analyze(raw)
+        self.assertIn("URL-e obecne wyłącznie w `text/plain`", report)
+
+    def test_brak_samego_in_reply_to_przy_obecnym_references(self):
+        """Dwa nagłówki wątku są niezależne — nieobecność każdego to osobny fakt."""
+        raw = build("References: <a@przyklad.pl>\nSubject: Re: Temat")
+        report = analyze(raw)
+        self.assertIn("Brak nagłówka `In-Reply-To`", report)
+
+    def test_parametr_sendgrid_jest_odescapowany(self):
+        """`-2B`/`-2F`/`-3D` w URL-u to kodowanie dostawcy, nie treść tokenu."""
+        tokeny = logika.decode_tokens(
+            "https://cel.example/wf/open?upn=YWJjZGVmZ2hpams-3D"
+        )
+        self.assertTrue(
+            any("odescapowaniu" in t.source for t in tokeny),
+            [t.source for t in tokeny],
+        )
+
+    def test_adres_ipv4_z_dowolnego_naglowka_x(self):
+        """`X-CLIENT-IP` bywa jedynym zapisem adresu klienta."""
+        report = analyze(build("X-Originating-IP: [198.51.100.7]"))
+        self.assertIn("198.51.100.7", report)
 
 
 if __name__ == "__main__":
