@@ -28,6 +28,7 @@ import re
 import unicodedata
 import urllib.parse
 from dataclasses import dataclass, field, replace
+from html.parser import HTMLParser
 from pathlib import Path
 
 ZERO_WIDTH_CHARS = {
@@ -2324,6 +2325,179 @@ def text_blends_into_background(style: str, background: str | None) -> bool:
     return bool(text and background and text == background)
 
 
+#: Znaczniki blokowe — przy spłaszczaniu do tekstu wprowadzają odstęp.
+#: Znaczniki liniowe (`span`, `strong`, `a`) go NIE wprowadzają, bo render
+#: ich nie pokazuje. Bez tego rozróżnienia `RAM</STRONG><BR>Dysk` sklejało się
+#: w `RAMDysk`, a przy separatorze wszędzie — rozrywało wyrazy dzielone `<span>`.
+BLOCK_LEVEL_TAGS = frozenset(
+    [
+        "p",
+        "div",
+        "td",
+        "tr",
+        "table",
+        "br",
+        "li",
+        "ul",
+        "ol",
+        "h1",
+        "h2",
+        "h3",
+        "h4",
+        "h5",
+        "h6",
+        "blockquote",
+        "section",
+        "article",
+        "header",
+        "footer",
+        "hr",
+        "dd",
+        "dt",
+        "dl",
+        "pre",
+        "center",
+        "form",
+    ]
+)
+
+
+@dataclass(frozen=True, slots=True)
+class DomComment:
+    """Komentarz HTML jako węzeł drzewa — dowód, ale nie element.
+
+    Osobny typ od `HtmlComment`, który niesie klasyfikację dla sekcji o
+    konstrukcjach; ten jest surowym węzłem z pozycją w drzewie.
+    """
+
+    data: str
+
+
+@dataclass
+class HtmlNode:
+    """Węzeł drzewa HTML: znacznik, atrybuty i uporządkowana zawartość.
+
+    `content` trzyma tekst, komentarze i dzieci **w kolejności dokumentu** —
+    bez tego nie da się stwierdzić, czy komentarz stoi między wyrazami, czy
+    rozbija wyraz w środku.
+    """
+
+    tag: str
+    attrs: dict[str, str] = field(default_factory=dict)
+    content: list = field(default_factory=list)
+
+    @property
+    def children(self) -> list["HtmlNode"]:
+        return [c for c in self.content if isinstance(c, HtmlNode)]
+
+    def text(self) -> str:
+        """Tekst elementu wraz z potomkami, z odstępem tylko na granicy bloku.
+
+        >>> parse_html('<div>ukryte <div>zagniezdzone</div> i dalej</div>').text()
+        'ukryte zagniezdzone i dalej'
+
+        Znaczniki liniowe nie tworzą odstępu, którego render nie pokazuje —
+        wyraz rozbity `<span>`-em składa się z powrotem:
+
+        >>> parse_html('<p>P<span>ańst</span>wo</p>').text()
+        'Państwo'
+
+        Znacznik blokowy odstęp tworzy:
+
+        >>> parse_html('<p>Pami\u0119\u0107 RAM<br>Dysk Twardy</p>').text()
+        'Pamięć RAM Dysk Twardy'
+
+        Komentarz nie jest treścią i nie tworzy odstępu:
+
+        >>> parse_html('<p>Ka<!--x-->lenda<!--x-->rzowy</p>').text()
+        'Kalendarzowy'
+        """
+        parts: list[str] = []
+        for item in self.content:
+            if isinstance(item, str):
+                parts.append(item)
+            elif isinstance(item, DomComment):
+                continue
+            else:
+                if item.tag in BLOCK_LEVEL_TAGS:
+                    parts.append(" ")
+                parts.append(item.text())
+                if item.tag in BLOCK_LEVEL_TAGS:
+                    parts.append(" ")
+        return re.sub(r"\s+", " ", "".join(parts)).strip()
+
+    def walk(self):
+        """Wszystkie węzły poddrzewa, w kolejności dokumentu."""
+        for child in self.children:
+            yield child
+            yield from child.walk()
+
+
+class _HtmlTreeParser(HTMLParser):
+    """Buduje drzewo `HtmlNode`. Komentarze nie stają się elementami."""
+
+    VOID = frozenset(
+        ["br", "img", "meta", "link", "hr", "input", "source", "area", "base", "col"]
+    )
+
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.root = HtmlNode("#root")
+        self.stack = [self.root]
+
+    def handle_starttag(self, tag, attrs):
+        node = HtmlNode(tag.lower(), {k.lower(): (v or "") for k, v in attrs})
+        self.stack[-1].content.append(node)
+        if tag.lower() not in self.VOID:
+            self.stack.append(node)
+
+    def handle_startendtag(self, tag, attrs):
+        self.stack[-1].content.append(
+            HtmlNode(tag.lower(), {k.lower(): (v or "") for k, v in attrs})
+        )
+
+    def handle_endtag(self, tag):
+        tag = tag.lower()
+        for i in range(len(self.stack) - 1, 0, -1):
+            if self.stack[i].tag == tag:
+                del self.stack[i:]
+                return
+
+    def handle_data(self, data):
+        # BEZ strip(): białe znaki niosą dowód o tym, czy wyraz jest rozbity.
+        if data:
+            self.stack[-1].content.append(data)
+
+    def handle_comment(self, data):
+        self.stack[-1].content.append(DomComment(data))
+
+
+def parse_html(src: str) -> HtmlNode:
+    """Drzewo HTML zbudowane parserem, nie wyrażeniem regularnym.
+
+    Rozstrzyga trzy rzeczy, których skan regexem nie umie: granicę znacznika
+    przy `>` w wartości atrybutu, zasięg elementu przy zagnieżdżeniu tego
+    samego znacznika, i to, że komentarz nie jest elementem.
+
+    >>> parse_html('<div title="a > b">tresc</div>').children[0].text()
+    'tresc'
+    >>> parse_html('<div title="a > b">x</div>').children[0].attrs["title"]
+    'a > b'
+    >>> [n.tag for n in parse_html('<p>a<span>b</span></p>').walk()]
+    ['p', 'span']
+
+    `close()` jest obowiązkowe — bez niego parser zostawia ogon w buforze
+    i cicho gubi końcówkę dokumentu.
+
+    >>> parse_html('<p>tresc bez domkniecia').text()
+    'tresc bez domkniecia'
+    """
+    parser = _HtmlTreeParser()
+    parser.feed(src)
+    parser.close()
+    return parser.root
+
+
 def find_hidden_elements(src: str) -> list[HiddenElement]:
     """Elementy z deklaracjami CSS wpływającymi na widoczność, wraz z treścią.
 
@@ -2391,53 +2565,37 @@ def find_hidden_elements(src: str) -> list[HiddenElement]:
     []
     """
     out: list[HiddenElement] = []
-    # Komentarz HTML nie jest treścią dokumentu. Element z regułą ukrywającą
-    # zapisany WEWNĄTRZ komentarza był liczony jako ukryta treść — czyli dowód
-    # na coś, czego odbiorca nie dostał. Wygaszamy komentarze zachowując
-    # długość, żeby pozycje w `src` pozostały zgodne.
-    src = re.sub(r"<!--.*?-->", lambda m: " " * len(m.group(0)), src, flags=re.DOTALL)
-    # Skanujemy znaczniki OTWIERAJĄCE. Wzorzec wymagający pary `<tag>…</tag>`
-    # konsumował zagnieżdżone elementy i przy 27 komórkach `<TD>` z regułą
-    # ukrywającą raportował 9 — `finditer` nie zwraca dopasowań nakładających się.
-    pattern = re.compile(
-        r"<(?P<tag>div|span|p|td|tr|table|a|font)\b(?P<attrs>[^>]*)>",
-        re.IGNORECASE,
-    )
+    # Drzewo, nie skan regexem: rozstrzyga granicę znacznika przy `>` w wartości
+    # atrybutu, zasięg elementu przy zagnieżdżeniu tego samego znacznika,
+    # i to, że komentarz nie jest elementem. Wszystkie trzy dawały wcześniej
+    # albo urwany tekst dowodowy, albo element, którego w dokumencie nie ma.
     stylesheet = stylesheet_declarations(src)
-    for match in pattern.finditer(src):
-        style = _attr(match.group("attrs"), "style")
+    scanned = frozenset(["div", "span", "p", "td", "tr", "table", "a", "font"])
+    for node in parse_html(src).walk():
+        if node.tag not in scanned:
+            continue
+        style = node.attrs.get("style")
         if not style:
             continue
-        # Tło bierzemy najpierw z atrybutu elementu, a gdy go tam nie ma —
-        # z reguł `<style>` dopasowanych po `id`/`class`. Bez drugiego kroku
-        # biały tekst na czarnej stopce trafiał do sekcji o widoczności
-        # z adnotacją „tło nieustalone”, choć plik zawierał odpowiedź.
+        attrs = " ".join(f'{k}="{v}"' for k, v in node.attrs.items())
         background = declared_background(style) or background_for_element(
-            match.group("attrs"), stylesheet
+            attrs, stylesheet
         )
         hiding = _hidden_rules(style)
-        # Tło wyklucza regułę kontrastu tylko wtedy, gdy RÓŻNI SIĘ od koloru
-        # tekstu. Zgodność (biały na białym) jest odwrotnie — najmocniejszym
-        # przypadkiem w tej klasie, więc trafia do reguł ukrywających.
         blends = text_blends_into_background(style, background)
         if blends:
             hiding = hiding + [
                 f"kolor tekstu identyczny z tłem ({_colour(background)})"
             ]
         colour = [] if (background and not blends) else _color_contrast_rules(style)
-        # Krycie i rozmiar czcionki NIE zależą od tła, więc zadeklarowane tło
-        # ich nie wyklucza. Wspólne wykluczanie z kolorem tekstu kasowało cały
-        # element `opacity:0.96; background-color:#1965F7` — razem z jego treścią.
         low_contrast = colour + _dimming_rules(style)
         if not hiding and not low_contrast:
             continue
-        inner = html.unescape(re.sub(r"<[^>]+>", " ", _element_inner(src, match)))
-        inner = re.sub(r"\s+", " ", inner).strip()
         out.append(
             HiddenElement(
-                tag=match.group("tag").lower(),
+                tag=node.tag,
                 rules=tuple(hiding or low_contrast),
-                text=inner,
+                text=node.text(),
                 style=re.sub(r"\s+", " ", style).strip(),
                 kind="ukrywające" if hiding else "kontrast/rozmiar",
                 background=background,
@@ -3950,7 +4108,13 @@ def repeated_identifiers(
             for uuid_match in re.finditer(UUID_PATTERN, haystack, re.IGNORECASE):
                 note(uuid_match.group(0), label)
                 rest = rest.replace(uuid_match.group(0), " ")
-            for found in set(re.findall(rf"[A-Za-z0-9]{{{min_length},}}", rest)):
+            # `dict.fromkeys`, nie `set`: iteracja po zbiorze łańcuchów idzie
+            # w kolejności zależnej od losowania hashy, więc ten sam plik dawał
+            # raporty o różnej sumie kontrolnej między uruchomieniami. Dokument
+            # dowodowy musi być odtwarzalny co do bajtu.
+            for found in dict.fromkeys(
+                re.findall(rf"[A-Za-z0-9]{{{min_length},}}", rest)
+            ):
                 # Etykieta domeny (`newsletter`, `marketing`, `powiadomienia`)
                 # to nie identyfikator odbiorcy ani kampanii — powiązania między
                 # nazwami opisuje inwentarz domen. Skaner wpisywał je do tabeli
