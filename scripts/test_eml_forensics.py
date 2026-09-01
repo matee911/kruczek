@@ -11,6 +11,7 @@ kodowania i strukturę nagłówków — bo to one wyzwalały błędy.
 """
 
 import datetime
+import os
 import re
 import sys
 import tempfile
@@ -1766,9 +1767,7 @@ class TestPokrycieUzupelniajace(unittest.TestCase):
 
     def test_wersja_uuid_jest_rozwinieta_w_sekcji_message_id(self):
         """Nibble wersji i wariantu to dane, nie ozdoba identyfikatora."""
-        raw = build(
-            "Message-ID: <3454bd31-1a2b-4c3d-8e4f-56789abcdef0@przyklad.pl>"
-        )
+        raw = build("Message-ID: <3454bd31-1a2b-4c3d-8e4f-56789abcdef0@przyklad.pl>")
         report = analyze(raw)
         self.assertIn("UUID", report)
         self.assertIn("wersja 4", report)
@@ -1803,6 +1802,47 @@ class TestPokrycieUzupelniajace(unittest.TestCase):
         """`X-CLIENT-IP` bywa jedynym zapisem adresu klienta."""
         report = analyze(build("X-Originating-IP: [198.51.100.7]"))
         self.assertIn("198.51.100.7", report)
+
+
+class TestOdtwarzalnosc(unittest.TestCase):
+    """Raport dowodowy musi być odtwarzalny co do bajtu."""
+
+    def test_raport_nie_zalezy_od_losowania_hashy(self):
+        """„Ten sam plik daje raporty o różnej sumie kontrolnej."
+
+        Iteracja po `set` łańcuchów idzie w kolejności zależnej od
+        `PYTHONHASHSEED`, więc kolejność wierszy w tabeli identyfikatorów
+        zmieniała się między uruchomieniami. Dwie osoby analizujące ten sam
+        plik dostawały dokumenty o różnych sumach kontrolnych.
+        """
+        import subprocess
+
+        raw = build(
+            "From: a@przyklad.pl\nReturn-Path: <bounce7f3a91c4@przyklad.pl>\n"
+            "List-Unsubscribe: <https://przyklad.pl/u/7f3a91c4/abcdef123456>\n"
+            "Message-ID: <abcdef123456@przyklad.pl>\n"
+            "Content-Type: text/html",
+            '<a href="https://przyklad.pl/r/7f3a91c4/x">t</a>',
+        )
+        checksums = set()
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "w.eml"
+            path.write_bytes(raw.encode("utf-8"))
+            for seed in ("0", "1", "12345", "99991"):
+                subprocess.run(
+                    [
+                        sys.executable,
+                        "scripts/eml_forensics.py",
+                        str(path),
+                        "--outdir",
+                        tmp,
+                    ],
+                    capture_output=True,
+                    env={**os.environ, "PYTHONHASHSEED": seed},
+                    check=True,
+                )
+                checksums.add((Path(tmp) / "w_analiza.md").read_bytes())
+        self.assertEqual(len(checksums), 1, "raport różni się między uruchomieniami")
 
 
 if __name__ == "__main__":
