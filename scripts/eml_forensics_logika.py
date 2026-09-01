@@ -2382,8 +2382,20 @@ def find_hidden_elements(src: str) -> list[HiddenElement]:
     >>> el = find_hidden_elements('<span style="display:none;opacity:0"></span>')[0]
     >>> el.text, el.kind
     ('', 'ukrywające')
+
+    Element zapisany wewnątrz komentarza HTML **nie jest** treścią dokumentu —
+    liczenie go jako ukrytego dawało dowód na coś, czego odbiorca nie dostał:
+
+    >>> find_hidden_elements(
+    ...     '<!-- <div style="display:none">w komentarzu</div> --><p>widoczne</p>')
+    []
     """
     out: list[HiddenElement] = []
+    # Komentarz HTML nie jest treścią dokumentu. Element z regułą ukrywającą
+    # zapisany WEWNĄTRZ komentarza był liczony jako ukryta treść — czyli dowód
+    # na coś, czego odbiorca nie dostał. Wygaszamy komentarze zachowując
+    # długość, żeby pozycje w `src` pozostały zgodne.
+    src = re.sub(r"<!--.*?-->", lambda m: " " * len(m.group(0)), src, flags=re.DOTALL)
     # Skanujemy znaczniki OTWIERAJĄCE. Wzorzec wymagający pary `<tag>…</tag>`
     # konsumował zagnieżdżone elementy i przy 27 komórkach `<TD>` z regułą
     # ukrywającą raportował 9 — `finditer` nie zwraca dopasowań nakładających się.
@@ -2507,13 +2519,72 @@ def background_for_element(
     return None
 
 
+#: Reguły warunkowe: ich ciało obowiązuje tylko przy spełnionym warunku.
+CONDITIONAL_AT_RULES = ("media", "supports", "container")
+
+#: Reguły, których ciało NIE jest treścią strony. `@keyframes fade{from{opacity:0}}`
+#: to klatka animacji, nie ukryta treść — liczone jako reguła ukrywająca dawało
+#: dowód na ukrywanie, którego plik nie zawiera.
+NON_CONTENT_AT_RULES = ("keyframes", "font-face", "counter-style", "page", "property")
+
+
+def _blank_css_noise(css: str, strings: bool = True) -> str:
+    """Wygasza komentarze (i opcjonalnie stringi/`url()`), zachowując DŁUGOŚĆ.
+
+    Klamra w komentarzu albo w wartości tekstowej nie jest klamrą struktury.
+    Ręczne liczenie klamer brało ją za prawdziwą i wypisywało w raporcie
+    selektor sklejony ze śmieciem.
+
+    Długość wyniku jest identyczna z wejściem, bo indeksy z wygaszonej wersji
+    tną wersję oryginalną — rozjazd o jeden znak gubi całą regułę.
+
+    >>> len(_blank_css_noise('/* } */ .a{display:none}')) == len('/* } */ .a{display:none}')
+    True
+    >>> _blank_css_noise('/* } */ .a{display:none}').strip()
+    '.a{display:none}'
+    >>> _blank_css_noise('.a::before{content:"}"}')
+    '.a::before{content:   }'
+
+    Wersja bez wygaszania stringów zachowuje selektor atrybutowy:
+
+    >>> _blank_css_noise('[title="a}b"]{display:none}', strings=False)
+    '[title="a}b"]{display:none}'
+    """
+    out: list[str] = []
+    i, n = 0, len(css)
+    while i < n:
+        if css[i : i + 2] == "/*":
+            end = css.find("*/", i + 2)
+            end = n if end < 0 else end + 2
+            out.append(" " * (end - i))
+            i = end
+            continue
+        ch = css[i]
+        if strings and ch in "\"'":
+            j = i + 1
+            while j < n and css[j] != ch:
+                j += 2 if css[j] == "\\" else 1
+            j = min(j, n - 1)
+            out.append(" " * (j - i + 1))
+            i = j + 1
+            continue
+        if strings and css[i : i + 4].lower() == "url(":
+            end = css.find(")", i)
+            end = n - 1 if end < 0 else end
+            out.append(" " * (end - i + 1))
+            i = end + 1
+            continue
+        out.append(ch)
+        i += 1
+    return "".join(out)
+
+
 def _rules_with_conditions(block: str) -> list[tuple[str, str, str | None]]:
     """Reguły z bloku CSS jako `(selektor, deklaracje, warunek)`.
 
     Reguły zagnieżdżone w `@media`/`@supports` niosą swój warunek; pozostałe
-    mają `None`. Wcześniejszy parser dopasowywał `([^{}]+)\\{([^{}]*)\\}`, więc
-    nagłówek `@media …` traktował jak zwykły selektor, a jego zawartość jako
-    reguły bezwarunkowe.
+    mają `None`. Skanowanie klamer idzie po wersji z wygaszonymi komentarzami
+    i stringami, a treść czytana jest z wersji zachowującej stringi.
 
     >>> _rules_with_conditions('.a{display:none}')
     [('.a', 'display:none', None)]
@@ -2523,40 +2594,82 @@ def _rules_with_conditions(block: str) -> list[tuple[str, str, str | None]]:
     [('.a', 'color:red', None), ('.b', 'display:none', '@media print'), ('.c', 'margin:0', None)]
     >>> _rules_with_conditions('')
     []
+
+    Komentarz z klamrą nie jest strukturą — wcześniej wciekał do selektora:
+
+    >>> _rules_with_conditions('/* } */ .a{display:none}')
+    [('.a', 'display:none', None)]
+
+    Klamra w wartości tekstowej też nie:
+
+    >>> _rules_with_conditions('.x::before{content:"}"} .a{display:none}')[-1]
+    ('.a', 'display:none', None)
+
+    Selektor atrybutowy zachowuje swoją wartość:
+
+    >>> _rules_with_conditions('[title="a}b"]{display:none}')
+    [('[title="a}b"]', 'display:none', None)]
+
+    Warunki się **kumulują** — reguła w `@media` wewnątrz `@supports` obowiązuje
+    tylko wtedy, gdy spełnione są oba:
+
+    >>> _rules_with_conditions(
+    ...     '@supports (display:grid){@media (max-width:600px){.a{display:none}}}')
+    [('.a', 'display:none', '@supports (display:grid) i @media (max-width:600px)')]
+
+    `@keyframes` to klatki animacji, nie treść strony. Liczone jako reguła
+    ukrywająca dawały dowód na ukrywanie, którego plik nie zawiera:
+
+    >>> _rules_with_conditions('@keyframes fade{from{opacity:0}to{opacity:1}}')
+    []
+
+    Lista selektorów rozbija się na osobne reguły:
+
+    >>> [sel for sel, _, _ in _rules_with_conditions('.a, .b{display:none}')]
+    ['.a', '.b']
     """
+    return _rules_in(block, ())
+
+
+def _rules_in(
+    block: str, conditions: tuple[str, ...]
+) -> list[tuple[str, str, str | None]]:
+    """Rekurencyjny krok `_rules_with_conditions`, ze stosem warunków."""
+    scan = _blank_css_noise(block)
+    readable = _blank_css_noise(block, strings=False)
     out: list[tuple[str, str, str | None]] = []
-    pos = 0
-    while pos < len(block):
-        opening = block.find("{", pos)
-        if opening < 0:
+    i, n = 0, len(scan)
+    while i < n:
+        brace = scan.find("{", i)
+        if brace < 0:
             break
-        prelude = block[pos:opening].strip()
-        if prelude.startswith("@") and re.match(
-            r"@(media|supports|container)\b", prelude
-        ):
-            # Reguła warunkowa: jej ciało zawiera kolejne reguły. Szukamy
-            # domykającej klamry pary, żeby nie uciąć bloku na pierwszym `}`.
-            depth, index = 1, opening + 1
-            while index < len(block) and depth:
-                if block[index] == "{":
-                    depth += 1
-                elif block[index] == "}":
-                    depth -= 1
-                index += 1
-            condition = re.sub(r"\s+", " ", prelude)
-            for selector, body, nested in _rules_with_conditions(
-                block[opening + 1 : index - 1]
-            ):
-                out.append((selector, body, nested or condition))
-            pos = index
-            continue
-        closing = block.find("}", opening)
-        if closing < 0:
-            break
-        selector = prelude
-        if selector:
-            out.append((selector, block[opening + 1 : closing].strip(), None))
-        pos = closing + 1
+        prelude = readable[i:brace].strip()
+        depth, j = 1, brace + 1
+        while j < n and depth:
+            if scan[j] == "{":
+                depth += 1
+            elif scan[j] == "}":
+                depth -= 1
+            j += 1
+        body_raw = block[brace + 1 : j - 1]
+        if prelude.startswith("@"):
+            named = re.match(r"@([a-zA-Z-]+)", prelude)
+            kind = named.group(1).lower() if named else ""
+            if kind in CONDITIONAL_AT_RULES:
+                out += _rules_in(body_raw, conditions + (re.sub(r"\s+", " ", prelude),))
+            # NON_CONTENT_AT_RULES pomijamy świadomie — to nie jest treść strony.
+        elif prelude:
+            body = re.sub(r"\s+", " ", readable[brace + 1 : j - 1].strip())
+            for selector in prelude.split(","):
+                if selector.strip():
+                    out.append(
+                        (
+                            selector.strip(),
+                            body,
+                            " i ".join(conditions) if conditions else None,
+                        )
+                    )
+        i = j
     return out
 
 
