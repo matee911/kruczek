@@ -2917,11 +2917,11 @@ def classify_comments(src: str) -> list[HtmlComment]:
     []
     """
     out: list[HtmlComment] = []
-    for match in re.finditer(r"<!--.*?-->|<!\[endif\]-->", src, flags=re.DOTALL):
-        text = match.group(0)
-        before = src[max(0, match.start() - 1) : match.start()]
-        after = src[match.end() : match.end() + 1]
-        splits = bool(before and after and before[-1].isalnum() and after[0].isalnum())
+    # Pozycja w drzewie, nie w płaskim ciągu bajtów: sąsiedztwo komentarza
+    # czytamy z węzłów tekstowych obok niego, więc znacznik stojący pomiędzy
+    # nie udaje sąsiedniej litery. Treść komentarza bierzemy w całości —
+    # skan regexem obcinał ją do 120 znaków, gubiąc końcówkę dowodu.
+    for text, splits in _dom_comments(src):
         if re.search(r"\[if\b|\[endif\]", text, re.IGNORECASE):
             kind = "warunkowy MSO/Outlook"
         elif splits:
@@ -2935,11 +2935,44 @@ def classify_comments(src: str) -> list[HtmlComment]:
         else:
             kind = "zwykły"
         out.append(
-            HtmlComment(
-                text=re.sub(r"\s+", " ", text)[:120], kind=kind, splits_word=splits
-            )
+            HtmlComment(text=re.sub(r"\s+", " ", text), kind=kind, splits_word=splits)
         )
     return out
+
+
+def _dom_comments(src: str) -> list[tuple[str, bool]]:
+    """Komentarze z drzewa wraz z informacją, czy stoją wewnątrz wyrazu.
+
+    >>> _dom_comments('<p>Ka<!--x-->lenda</p>')
+    [('<!--x-->', True)]
+    >>> _dom_comments('<p>slowo <!--x--> drugie</p>')
+    [('<!--x-->', False)]
+    >>> _dom_comments('bez komentarzy')
+    []
+    """
+    found: list[tuple[str, bool]] = []
+
+    def visit(node: HtmlNode) -> None:
+        for index, item in enumerate(node.content):
+            if isinstance(item, DomComment):
+                previous = node.content[index - 1] if index else ""
+                following = (
+                    node.content[index + 1] if index + 1 < len(node.content) else ""
+                )
+                splits = bool(
+                    isinstance(previous, str)
+                    and isinstance(following, str)
+                    and previous
+                    and following
+                    and previous[-1].isalnum()
+                    and following[0].isalnum()
+                )
+                found.append((f"<!--{item.data}-->", splits))
+            elif isinstance(item, HtmlNode):
+                visit(item)
+
+    visit(parse_html(src))
+    return found
 
 
 def find_word_splitting_spans(src: str) -> list[str]:
@@ -2961,16 +2994,62 @@ def find_word_splitting_spans(src: str) -> list[str]:
     []
     """
     out: list[str] = []
-    for match in re.finditer(
-        r"<span[^>]*>.*?</span>", src, flags=re.DOTALL | re.IGNORECASE
-    ):
-        before = re.search(r"\w{0,12}$", src[: match.start()])
-        after = re.match(r"\w{0,12}", src[match.end() :])
-        left = before.group(0) if before else ""
-        right = after.group(0) if after else ""
-        if left and right:
-            out.append(left + match.group(0) + right)
+    # Sąsiedztwo czytane z drzewa, nie z płaskiego ciągu bajtów. Skan regexem
+    # brał za sąsiada dowolne znaki wokół dopasowania, także należące do innego
+    # znacznika, i nie umiał odróżnić `<span>` zamykającego się gdzie indziej.
+    for node, previous, following in _dom_inline_neighbours(src):
+        inner = "".join(c for c in node.content if isinstance(c, str))
+        # Odrzucamy WYŁĄCZNIE zawartość z odstępem na brzegu (także `&nbsp;`):
+        # `systemami<strong>&nbsp;CAM&nbsp;</strong>i` renderuje się z odstępami,
+        # więc wyrazu nie rozbija. Element PUSTY zostaje — `sło<span></span>wo`
+        # renderuje się jako `słowo`, a dla skanera jest dwoma fragmentami.
+        if inner and (inner[0].isspace() or inner[-1].isspace()):
+            continue
+        left = re.search(r"\w{0,12}$", previous)
+        right = re.match(r"\w{0,12}", following)
+        left_text = left.group(0) if left else ""
+        right_text = right.group(0) if right else ""
+        if left_text and right_text:
+            out.append(f"{left_text}<{node.tag}>{node.text()}</{node.tag}>{right_text}")
     return out
+
+
+#: Znaczniki liniowe: nie tworzą odstępu w renderze, więc stojąc w środku wyrazu
+#: rozbijają go dla filtru, a nie dla odbiorcy.
+INLINE_TAGS = frozenset(
+    ["span", "font", "strong", "b", "i", "em", "u", "small", "sub", "sup", "mark"]
+)
+
+
+def _dom_inline_neighbours(src: str) -> list[tuple[HtmlNode, str, str]]:
+    """Elementy liniowe wraz z tekstem bezpośrednio przed i po nich.
+
+    >>> [(n.tag, b, a) for n, b, a in _dom_inline_neighbours('<p>P<span>a</span>wo</p>')]
+    [('span', 'P', 'wo')]
+    >>> _dom_inline_neighbours('<p>bez elementow</p>')
+    []
+    """
+    found: list[tuple[HtmlNode, str, str]] = []
+
+    def visit(node: HtmlNode) -> None:
+        for index, item in enumerate(node.content):
+            if isinstance(item, HtmlNode):
+                if item.tag in INLINE_TAGS:
+                    previous = node.content[index - 1] if index else ""
+                    following = (
+                        node.content[index + 1] if index + 1 < len(node.content) else ""
+                    )
+                    found.append(
+                        (
+                            item,
+                            previous if isinstance(previous, str) else "",
+                            following if isinstance(following, str) else "",
+                        )
+                    )
+                visit(item)
+
+    visit(parse_html(src))
+    return found
 
 
 def _attr(attrs: str, name: str) -> str | None:
