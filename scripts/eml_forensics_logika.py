@@ -1919,10 +1919,7 @@ def extract_attachments(tree: list[MimePart]) -> list[MimePart]:
     >>> extract_attachments(parts[:2])
     []
 
-    Exchange nadaje `Content-ID` samej części `text/html`, czyli ciału
-    wiadomości. Liczone jako część osadzona, ciało trafiało do tabeli pod
-    nagłówkiem „załączniki” i czytało się jak załącznik — a zdanie „brak
-    załączników” nie padało nigdzie, mimo że wiadomość ich nie ma:
+    `Content-ID` na części `text/html` to ciało wiadomości, nie załącznik:
 
     >>> body = MimePart(1, "text/html", "utf-8", "base64", None,
     ...                 "<AD821DA8@eurprd04.prod.outlook.com>", None, 10, "ab")
@@ -2345,8 +2342,7 @@ def find_hidden_elements(src: str) -> list[HiddenElement]:
     >>> find_hidden_elements('<div style="color:#000">jawne</div>')
     []
 
-    Biały tekst na zadeklarowanym kolorowym tle to element widoczny — oznaczanie
-    go jako ukrytego było fałszywym dowodem wytworzonym przez samo narzędzie:
+    Biały tekst na zadeklarowanym kolorowym tle to element widoczny:
 
     >>> find_hidden_elements(
     ...     '<div style="background-color:#1965F7;color:#FFFFFF">Zobacz cennik</div>')
@@ -2359,8 +2355,7 @@ def find_hidden_elements(src: str) -> list[HiddenElement]:
     ...     '<td id="stopka" style="color:#FFFFFF">Firma sp. z o.o.</td>')
     []
 
-    Ale tło zgodne z kolorem tekstu to nie brak ustalenia, tylko ustalenie
-    najmocniejsze — biały tekst na białym `body`:
+    Tło zgodne z kolorem tekstu to ustalenie najmocniejsze w tej klasie:
 
     >>> el = find_hidden_elements(
     ...     '<style>body{background-color:#ffffff}</style>'
@@ -2368,24 +2363,21 @@ def find_hidden_elements(src: str) -> list[HiddenElement]:
     >>> el.kind, "kolor tekstu identyczny z tłem (#ffffff)" in el.rules
     ('ukrywające', True)
 
-    Bez zadeklarowanego tła sam fakt białego tekstu zostaje odnotowany, ale
-    w klasie, która nie przesądza o widoczności:
+    Bez zadeklarowanego tła fakt zostaje odnotowany w klasie, która
+    o widoczności nie przesądza:
 
     >>> el = find_hidden_elements('<span style="color: white; font-size: 4px">x</span>')[0]
     >>> el.kind, el.rules, el.background is None
     ('kontrast/rozmiar', ('color:white', 'font-size:4px'), True)
 
-    Krycie nie zależy od tła, więc zadeklarowane tło go nie wyklucza — element
-    z `opacity:0.96` i własnym `background-color` znikał wcześniej z sekcji
-    w całości, razem z tekstem, który niósł:
+    Krycie nie zależy od tła, więc zadeklarowane tło go nie wyklucza:
 
     >>> el = find_hidden_elements(
     ...     '<div style="opacity:0.96;background-color:#1965F7;color:#FFFFFF">Zobacz</div>')[0]
     >>> el.kind, el.rules, el.text
     ('kontrast/rozmiar', ('opacity:0.96',), 'Zobacz')
 
-    Element pusty też jest ustaleniem — „nie znaleziono elementów z deklaracjami”
-    było nieprawdą przy pustym `<span>` z siedmioma takimi deklaracjami:
+    Element bez treści też jest ustaleniem:
 
     >>> el = find_hidden_elements('<span style="display:none;opacity:0"></span>')[0]
     >>> el.text, el.kind
@@ -2575,10 +2567,8 @@ def stylesheet_hiding_rules(src: str) -> list[StylesheetRule]:
     `<style>` były wcześniej usuwane z treści. Ustalenie „0 elementów” było więc
     prawdziwe tylko dla stylów inline — i nie mówiło o tym zakresie.
 
-    Reguła w `@media` obowiązuje **tylko** przy spełnionym warunku. Pominięcie
-    tego warunku zamieniało standardowy blok responsywny w „regułę usuwającą
-    element z widoku bez względu na kontekst renderowania” — czyli w dowód
-    ukrywania treści, którego plik nie zawiera:
+    Reguła w `@media` obowiązuje **tylko** przy spełnionym warunku — bez niego
+    blok responsywny czytałby się jak dowód ukrywania treści:
 
     >>> r = stylesheet_hiding_rules(
     ...     '<style>@media only screen and (max-width:714px){.hiddentds{display:none}}</style>'
@@ -2586,16 +2576,15 @@ def stylesheet_hiding_rules(src: str) -> list[StylesheetRule]:
     >>> r.selector, r.declarations, r.usage, r.condition
     ('.hiddentds', 'display:none', 1, '@media only screen and (max-width:714px)')
 
-    Reguła bezwarunkowa ma `condition` równe `None` — i tylko ona jest
-    samodzielnym ustaleniem o ukryciu:
+    Reguła bezwarunkowa ma `condition` równe `None` — tylko ona jest
+    samodzielnym ustaleniem:
 
     >>> r = stylesheet_hiding_rules(
     ...     '<style>.ukryte{display:none}</style><td class="ukryte">x</td>')[0]
     >>> r.condition is None, r.unconditional
     (True, True)
 
-    Atrybut bez cudzysłowów liczy się tak samo — wymaganie cudzysłowów dawało
-    licznik 0 przy siedemnastu elementach faktycznie noszących klasę:
+    Atrybut bez cudzysłowów liczy się tak samo:
 
     >>> r = stylesheet_hiding_rules(
     ...     '<STYLE>.hiddentds{display:none}</STYLE><TR class=hiddentds><TR class=hiddentds>')[0]
@@ -2790,16 +2779,13 @@ def extract_html_resources(src: str) -> list[HtmlResource]:
     >>> extract_html_resources('<html xmlns="http://www.w3.org/1999/xhtml">tresc</html>')
     []
 
-    Powtórzone odwołanie do tego samego URL-a jest jedną pozycją, ale z licznikiem
-    wystąpień — inaczej deduplikacja po cichu zaniżałaby liczbę znaczników:
+    Powtórzone odwołanie to jedna pozycja, ale z licznikiem wystąpień:
 
     >>> dwa = extract_html_resources('<a href="https://a.pl/x">raz</a><a href="https://a.pl/x">dwa</a>')
     >>> len(dwa), dwa[0].occurrences
     (1, 2)
 
-    Ten sam URL zapisany na dwa sposoby to **jeden** pobierany zasób. Liczenie
-    per zapis dawało „zasobów: 5” tam, gdzie pobierane są 3, i przeczyło
-    zdaniu „żadne odwołanie się nie powtarza” z tej samej sekcji:
+    Ten sam URL zapisany na dwa sposoby to **jeden** pobierany zasób:
 
     >>> jeden = extract_html_resources(
     ...     '<div style="width:1px;height:1px;background:url(https://t.pl/p.gif)"></div>')
@@ -3010,10 +2996,7 @@ def mixed_character_encodings(src: str) -> list[tuple[str, str, int, int]]:
     >>> mixed_character_encodings('<div dir="ltr">&quot;cytat&quot;</div>')
     []
 
-    Encje **numeryczne** liczą się tak samo jak nazwane. Pomijanie ich dawało
-    ustalenie negatywne „żaden znak nie występuje jednocześnie jako encja
-    i wprost” w wiadomości, w której zachodziło to dla każdego z sześciu
-    kodowanych znaków — i odwracało wymowę sekcji:
+    Encje **numeryczne** liczą się tak samo jak nazwane:
 
     >>> mixed_character_encodings("Maj&#99;hrowicz i c")
     [('c', '&#99;', 1, 2)]
@@ -3812,23 +3795,20 @@ def repeated_identifiers(
     ...     seeds=("aa/bb+cc=",), seed_only=frozenset({"DKIM", "ARC"}))
     [('aa/bb+cc=', ['DKIM', 'ARC'])]
 
-    UUID liczy się jako **jeden** identyfikator. Rozcinany na myślnikach dawał
-    cztery pozycje w tabeli, z których żadna nie jest identyfikatorem:
+    UUID liczy się jako **jeden** identyfikator, nie cztery fragmenty:
 
     >>> u = "9d1821a1-bdae-4c7b-9196-e7f1bf4deebd"
     >>> repeated_identifiers({"Message-ID": u, "link": f"https://a.pl/?c={u}"})
     [('9d1821a1-bdae-4c7b-9196-e7f1bf4deebd', ['Message-ID', 'link'])]
 
-    Etykieta domeny to nie identyfikator — powiązania nazw opisuje inwentarz
-    domen, a tabela korelatorów zapełniała się nimi w większości wierszy:
+    Etykieta domeny to nie identyfikator — nazwy opisuje inwentarz domen:
 
     >>> repeated_identifiers({"From": "a@newsletter.przyklad.pl",
     ...                       "Return-Path": "b@newsletter.przyklad.pl"})
     []
 
-    Identyfikator zadeklarowany w `List-Id` bywa wtopiony w adres zwrotny VERP
-    i w nazwę pliku piksela. Szukany jako całe słowo nie znajdował się nigdzie,
-    więc najsilniejszy korelator w wiadomości nie trafiał do tabeli:
+    Identyfikator z `List-Id` bywa wtopiony w VERP i w nazwę pliku piksela,
+    więc szukamy go jako podciągu:
 
     >>> repeated_identifiers(
     ...     {"List-Id": "<41634.z.przyklad.pl>",
