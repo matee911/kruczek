@@ -310,20 +310,12 @@ def write_identification(
                     code(address.tag),
                 ]
             )
-    if rows:
-        write_table(
-            W,
-            [
-                "Nagłówek",
-                "Nazwa wyświetlana",
-                "Adres",
-                "Domena",
-                "Tag w części lokalnej",
-            ],
-            rows,
-        )
-    else:
-        write_no_findings(W, "Brak nagłówków adresowych.")
+    write_table_or_finding(
+        W,
+        ["Nagłówek", "Nazwa wyświetlana", "Adres", "Domena", "Tag w części lokalnej"],
+        rows,
+        "Brak nagłówków adresowych.",
+    )
 
     # Do tabeli trafiają WYŁĄCZNIE nagłówki, w których bajty z pliku różnią się
     # od wyniku parsera. Wcześniej wchodził tu także `Date` z identycznymi
@@ -2158,17 +2150,14 @@ def write_html_constructs_section(
         for part, body in parts
         for cp, count, name, note in unusual_characters(body)
     ]
-    if rows:
-        write_table(
-            W, ["Część", "Code point", "Liczba", "Nazwa Unicode", "Uwaga"], rows
-        )
-    else:
-        write_no_findings(
-            W,
-            "Brak znaków zerowej szerokości i homoglifów ASCII w "
-            + " i ".join(f"`{name}`" for name, _ in parts)
-            + ".",
-        )
+    write_table_or_finding(
+        W,
+        ["Część", "Code point", "Liczba", "Nazwa Unicode", "Uwaga"],
+        rows,
+        "Brak znaków zerowej szerokości i homoglifów ASCII w "
+        + " i ".join(f"`{name}`" for name, _ in parts)
+        + ".",
+    )
 
     W("\n### 18.4. Encje HTML\n")
     entities = numeric_entities(src)
