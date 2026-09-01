@@ -20,6 +20,11 @@ from email import message_from_string, policy
 from pathlib import Path
 
 import eml_forensics
+
+#: Ścieżka do CLI liczona od tego pliku, nie od katalogu roboczego —
+#: test uruchamiany spoza repo szedł na nieistniejącą ścieżkę i „przechodził”
+#: dlatego, że skryptu nie było, a nie dlatego, że zachowanie jest poprawne.
+CLI = Path(__file__).resolve().parent / "eml_forensics.py"
 import eml_forensics_logika as logika
 import eml_forensics_raport as raport
 
@@ -1732,7 +1737,7 @@ class TestPokrycieSciezekDowodowych(unittest.TestCase):
         import subprocess
 
         wynik = subprocess.run(
-            [sys.executable, "scripts/eml_forensics.py", "/nie/ma/takiego.eml"],
+            [sys.executable, str(CLI), "/nie/ma/takiego.eml"],
             capture_output=True,
             text=True,
             check=False,
@@ -1830,13 +1835,7 @@ class TestOdtwarzalnosc(unittest.TestCase):
             path.write_bytes(raw.encode("utf-8"))
             for seed in ("0", "1", "12345", "99991"):
                 subprocess.run(
-                    [
-                        sys.executable,
-                        "scripts/eml_forensics.py",
-                        str(path),
-                        "--outdir",
-                        tmp,
-                    ],
+                    [sys.executable, str(CLI), str(path), "--outdir", tmp],
                     capture_output=True,
                     env={**os.environ, "PYTHONHASHSEED": seed},
                     check=True,
