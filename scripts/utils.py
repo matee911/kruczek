@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """utils.py — wspólne narzędzia dla skryptów kruczka."""
 
 import hashlib

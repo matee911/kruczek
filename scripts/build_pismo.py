@@ -64,7 +64,8 @@ def find_chrome():
 
 def render_md(path):
     if not shutil.which("pandoc"):
-        return "<pre>" + H.escape(open(path, encoding="utf-8").read()) + "</pre>"
+        with open(path, encoding="utf-8") as f:
+            return "<pre>" + H.escape(f.read()) + "</pre>"
     out = subprocess.run(
         ["pandoc", "-f", "markdown", "-t", "html5", path],
         capture_output=True,
@@ -93,14 +94,12 @@ def render_attachment(path):
         import mimetypes
 
         mt = mimetypes.guess_type(path)[0] or "image/png"
-        b64 = base64.b64encode(open(path, "rb").read()).decode()
+        with open(path, "rb") as f:
+            b64 = base64.b64encode(f.read()).decode()
         return f'<img src="data:{mt};base64,{b64}" style="max-width:100%">'
     if ext in PRE_EXT or ext == ".html":
-        return (
-            "<pre>"
-            + H.escape(open(path, encoding="utf-8", errors="replace").read())
-            + "</pre>"
-        )
+        with open(path, encoding="utf-8", errors="replace") as f:
+            return "<pre>" + H.escape(f.read()) + "</pre>"
     return (
         f"<p><i>Załącznik w postaci pliku binarnego <code>{H.escape(os.path.basename(path))}</code> "
         f"({human(os.path.getsize(path))}) — dołączony osobno w <code>dowody.zip</code>. "
@@ -123,7 +122,8 @@ def main():
     ap.add_argument("--keep-html", action="store_true")
     a = ap.parse_args()
 
-    tpl = open(a.szablon, encoding="utf-8").read()
+    with open(a.szablon, encoding="utf-8") as f:
+        tpl = f.read()
 
     blocks, lista, zal_info = [], [], []
     for i, spec in enumerate(a.zalacznik, 1):
@@ -151,7 +151,8 @@ def main():
     )
 
     tmp = a.out + ".build.html"
-    open(tmp, "w", encoding="utf-8").write(tpl)
+    with open(tmp, "w", encoding="utf-8") as f:
+        f.write(tpl)
 
     chrome = find_chrome()
     if shutil.which("weasyprint"):
@@ -171,7 +172,7 @@ def main():
             "--virtual-time-budget=20000",
             f"file://{os.path.abspath(tmp)}",
         ]
-        r = subprocess.run(cmd, capture_output=True, text=True)
+        r = subprocess.run(cmd, capture_output=True, text=True, check=False)
         if r.returncode != 0 or not os.path.exists(a.out):
             sys.exit("Chrome/Chromium headless: " + (r.stderr or "")[-800:])
     elif shutil.which("wkhtmltopdf"):
@@ -207,7 +208,7 @@ def main():
             tmp,
             a.out,
         ]
-        r = subprocess.run(cmd, capture_output=True, text=True)
+        r = subprocess.run(cmd, capture_output=True, text=True, check=False)
         if r.returncode != 0:
             sys.exit("wkhtmltopdf: " + (r.stderr or "")[-800:])
     else:
@@ -229,7 +230,9 @@ def main():
     if shutil.which("pdfinfo"):
         m = re.search(
             r"Pages:\s+(\d+)",
-            subprocess.run(["pdfinfo", a.out], capture_output=True, text=True).stdout,
+            subprocess.run(
+                ["pdfinfo", a.out], capture_output=True, text=True, check=False
+            ).stdout,
         )
         if m:
             pages = m.group(1)
@@ -263,7 +266,9 @@ def main():
         )
         ok &= kartek <= 98
     if shutil.which("pdffonts"):
-        out = subprocess.run(["pdffonts", a.out], capture_output=True, text=True).stdout
+        out = subprocess.run(
+            ["pdffonts", a.out], capture_output=True, text=True, check=False
+        ).stdout
         lines = out.splitlines()
         # kolumny mają stałą szerokość; "type" bywa dwuwyrazowe ("CID TrueType"),
         # więc pozycję kolumny emb bierzemy z nagłówka, nie ze split()
