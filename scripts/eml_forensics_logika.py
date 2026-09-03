@@ -2145,7 +2145,13 @@ LOW_CONTRAST_DECLARATIONS = COLOR_CONTRAST_DECLARATIONS + DIMMING_DECLARATIONS
 
 
 def _match_declarations(style: str, patterns: tuple[str, ...]) -> list[str]:
-    """Dopasowane deklaracje CSS, zwrócone dosłownie w kolejności wzorców."""
+    """Dopasowane deklaracje CSS, zwrócone dosłownie w kolejności wzorców.
+
+    >>> _match_declarations("color: RED; opacity:0.5", (r"color:\\w+", r"opacity:0\\.\\d+"))
+    ['color:red', 'opacity:0.5']
+    >>> _match_declarations("display:block", (r"display:none",))
+    []
+    """
     normalized = re.sub(r"\s*:\s*", ":", style.lower())
     found = []
     for pattern in patterns:
@@ -2792,7 +2798,13 @@ def _rules_with_conditions(block: str) -> list[tuple[str, str, str | None]]:
 def _rules_in(
     block: str, conditions: tuple[str, ...]
 ) -> list[tuple[str, str, str | None]]:
-    """Rekurencyjny krok `_rules_with_conditions`, ze stosem warunków."""
+    """Rekurencyjny krok `_rules_with_conditions`, ze stosem warunków.
+
+    >>> _rules_in(".a{display:none}", ())
+    [('.a', 'display:none', None)]
+    >>> _rules_in("@media (max-width:600px){.b{color:red}}", ())
+    [('.b', 'color:red', '@media (max-width:600px)')]
+    """
     scan = _blank_css_noise(block)
     readable = _blank_css_noise(block, strings=False)
     out: list[tuple[str, str, str | None]] = []

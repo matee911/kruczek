@@ -1,16 +1,16 @@
-#!/usr/bin/env python3
 """Unit testy logiki regex z kontrola_pisma.py. Tylko stdlib."""
 
 import unittest
+
 from kontrola_logika import (
-    find_placeholders,
-    find_attachment_page_headers,
     find_attachment_list_items,
+    find_attachment_page_headers,
     find_cross_references,
     find_numbering_gaps_and_duplicates,
-    titles_match,
     find_paragraph_numbering_issues,
+    find_placeholders,
     find_sha256_hashes,
+    titles_match,
 )
 
 SHA = "4f3548f05b0e47d9fa6ddd1e658fb7dee0c2a3c96a479f3c8770e18aeb8bb7e7"
@@ -223,7 +223,7 @@ class TestFindParagraphNumberingIssues(unittest.TestCase):
     def test_jeden_odstep_nie_liczy(self):
         # "2. tekst" (jeden spacja) nie jest ustępem wg formatu
         t = "1.  Pierwszy\n2. NieUstep\n3.  Trzeci"
-        dups, skoki = find_paragraph_numbering_issues(t)
+        _dups, skoki = find_paragraph_numbering_issues(t)
         self.assertIn((1, 3), skoki)
 
 

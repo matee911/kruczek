@@ -108,7 +108,7 @@ def znajdz(wartosci: dict[str, str], pole: str) -> str:
     if pole in wartosci:
         return wartosci[pole]
     for k, v in wartosci.items():
-        if k == pole or k.startswith(pole + " ") or k.startswith(pole + "("):
+        if k == pole or k.startswith((pole + " ", pole + "(")):
             return v
     return ""
 
@@ -118,7 +118,8 @@ def main():
         sys.exit("Użycie: dane_nadawcy_status.py <plik>")
 
     try:
-        text = open(sys.argv[1], encoding="utf-8").read()
+        with open(sys.argv[1], encoding="utf-8") as f:
+            text = f.read()
     except FileNotFoundError:
         for pole in KRYTYCZNE:
             print(f"BRAK {pole}")

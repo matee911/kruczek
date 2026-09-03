@@ -19,18 +19,25 @@ Użycie:
 Kod wyjścia: 0 = brak błędów blokujących, 1 = są błędy.
 """
 
-import argparse, os, re, subprocess, sys, shutil, zipfile
-from utils import sha256_file as sha
+import argparse
+import os
+import re
+import shutil
+import subprocess
+import sys
+import zipfile
+
 from kontrola_logika import (
-    find_placeholders,
-    find_attachment_page_headers,
     find_attachment_list_items,
+    find_attachment_page_headers,
     find_cross_references,
     find_numbering_gaps_and_duplicates,
-    titles_match,
     find_paragraph_numbering_issues,
+    find_placeholders,
     find_sha256_hashes,
+    titles_match,
 )
+from utils import sha256_file as sha
 
 
 def tekst_pdf(p):
@@ -39,7 +46,7 @@ def tekst_pdf(p):
             "BŁĄD: brak pdftotext (pakiet poppler-utils) — nie da się skontrolować pisma."
         )
     return subprocess.run(
-        ["pdftotext", "-layout", p, "-"], capture_output=True, text=True
+        ["pdftotext", "-layout", p, "-"], capture_output=True, text=True, check=False
     ).stdout
 
 
@@ -72,7 +79,8 @@ def main():
 
     # ---- 1. niewypełnione pola --------------------------------------------
     if a.html and os.path.exists(a.html):
-        h = re.sub(r"<!--.*?-->", "", open(a.html, encoding="utf-8").read(), flags=re.S)
+        with open(a.html, encoding="utf-8") as f:
+            h = re.sub(r"<!--.*?-->", "", f.read(), flags=re.DOTALL)
         fill = [
             x.strip()
             for x in re.findall(r'class="fill[^"]*"[^>]*>([^<]{0,120})', h)
@@ -163,7 +171,7 @@ def main():
                 nazwy = [n for n in z.namelist() if not n.endswith("/")]
             if not nazwy:
                 b("dowody.zip jest pusty")
-            zle = z_test = None
+            z_test = None
             with zipfile.ZipFile(a.zip) as z:
                 z_test = z.testzip()
             if z_test:
@@ -191,14 +199,18 @@ def main():
     if shutil.which("pdfinfo"):
         m = re.search(
             r"Pages:\s+(\d+)",
-            subprocess.run(["pdfinfo", a.pdf], capture_output=True, text=True).stdout,
+            subprocess.run(
+                ["pdfinfo", a.pdf], capture_output=True, text=True, check=False
+            ).stdout,
         )
         if m and (int(m.group(1)) + 1) // 2 > 98:
             b(
                 f"{m.group(1)} stron = {(int(m.group(1)) + 1) // 2} kartek — limit to 98 kartek"
             )
     if shutil.which("pdffonts"):
-        out = subprocess.run(["pdffonts", a.pdf], capture_output=True, text=True).stdout
+        out = subprocess.run(
+            ["pdffonts", a.pdf], capture_output=True, text=True, check=False
+        ).stdout
         lines = out.splitlines()
         if lines and "emb" in lines[0]:
             col = lines[0].index("emb")
@@ -213,7 +225,7 @@ def main():
                 )
 
     # ---- 7. podpis ----------------------------------------------------------
-    if not re.search(r"(Z powa[żz]aniem|podpis|_{5,}|…{3,})", t, re.I):
+    if not re.search(r"(Z powa[żz]aniem|podpis|_{5,}|…{3,})", t, re.IGNORECASE):
         o("W piśmie nie widać bloku podpisu — sprawdź, czy jest miejsce na podpis")
 
     # ---- raport -------------------------------------------------------------

@@ -13,8 +13,14 @@ Znaczniki w index.md:
   <!-- KRUCZEK:MANIFEST:END -->
 """
 
-import sys, os, datetime, re, argparse
-from utils import sha256_file as sha256, human_size as human
+import argparse
+import datetime
+import os
+import re
+import sys
+
+from utils import human_size as human
+from utils import sha256_file as sha256
 
 SKIP_DIRS = {".git", "__pycache__", ".DS_Store", "node_modules", ".obsidian"}
 # index.md nie wchodzi do manifestu: manifest jest w nim zapisywany, więc jego suma
@@ -44,7 +50,11 @@ def rows(root):
         out.append(
             {
                 "rel": rel,
-                "mtime": datetime.date.fromtimestamp(st.st_mtime).isoformat(),
+                "mtime": datetime.datetime.fromtimestamp(
+                    st.st_mtime, tz=datetime.timezone.utc
+                )
+                .date()
+                .isoformat(),
                 "size": human(st.st_size),
                 "sha": sha256(p),
             }
@@ -59,7 +69,9 @@ def table(root):
         L.append(f"| `{r['rel']}` | {r['mtime']} | {r['size']} | `{r['sha']}` |")
     L.append("")
     L.append(
-        f"_Manifest wygenerowany {datetime.date.today().isoformat()} skryptem `manifest.py`. "
+        f"_Manifest wygenerowany "
+        f"{datetime.datetime.now(tz=datetime.timezone.utc).date().isoformat()} "
+        f"skryptem `manifest.py`. "
         f"Plików: {len(data)}. Pominięto `index.md` i `SHA256SUMS.txt` (pliki robocze teczki, "
         f"nie dowody). Opisy plików prowadź w tabeli powyżej manifestu._"
     )
@@ -80,7 +92,8 @@ def main():
         root = a.arg1
         lines = [f"{r['sha']}  {r['rel']}" for r in rows(root)]
         p = os.path.join(root, "SHA256SUMS.txt")
-        open(p, "w", encoding="utf-8").write("\n".join(lines) + "\n")
+        with open(p, "w", encoding="utf-8") as f:
+            f.write("\n".join(lines) + "\n")
         print(f"Zapisano {p} ({len(lines)} plików)")
 
     elif a.cmd == "sprawdz":
@@ -90,12 +103,13 @@ def main():
         p = os.path.join(root, "SHA256SUMS.txt")
         if os.path.exists(p):
             recorded = {}
-            for line in open(p, encoding="utf-8"):
-                line = line.rstrip("\n")
-                if not line.strip():
-                    continue
-                sha, rel = line.split(None, 1)
-                recorded[rel] = sha
+            with open(p, encoding="utf-8") as f:
+                for line in f:
+                    line = line.rstrip("\n")
+                    if not line.strip():
+                        continue
+                    sha, rel = line.split(None, 1)
+                    recorded[rel] = sha
             for rel, sha in recorded.items():
                 if rel not in actual:
                     print(f"BRAK PLIKU: {rel}")
@@ -115,7 +129,8 @@ def main():
             print(f"(brak {p} — pomijam porównanie z plikiem sum)")
         idx = os.path.join(root, "index.md")
         if os.path.exists(idx):
-            txt = open(idx, encoding="utf-8").read()
+            with open(idx, encoding="utf-8") as f:
+                txt = f.read()
             declared = set(re.findall(r"\b([0-9a-f]{64})\b", txt))
             real = set(actual.values())
             for d in sorted(declared - real):
@@ -138,18 +153,20 @@ def main():
         idx, root = a.arg1, a.arg2
         if not root:
             sys.exit("wstaw wymaga dwóch argumentów: <index.md> <katalog-sprawy>")
-        txt = open(idx, encoding="utf-8").read()
+        with open(idx, encoding="utf-8") as f:
+            txt = f.read()
         block = f"{START}\n{table(root)}\n{END}"
         if START in txt and END in txt:
             txt = re.sub(
                 re.escape(START) + r".*?" + re.escape(END),
                 lambda _: block,
                 txt,
-                flags=re.S,
+                flags=re.DOTALL,
             )
         else:
             txt = txt.rstrip() + "\n\n## Manifest plików\n\n" + block + "\n"
-        open(idx, "w", encoding="utf-8").write(txt)
+        with open(idx, "w", encoding="utf-8") as f:
+            f.write(txt)
         print(f"Zaktualizowano manifest w {idx}")
 
 
