@@ -31,11 +31,27 @@ set -uo pipefail
 EML_DIR="do_not_commit"
 FORENSICS_SCRIPT="scripts/eml_forensics.py"
 
-#: Komunikaty oznaczające wyczerpany limit — po nich każde kolejne wywołanie
-#: padnie tak samo, więc przebieg się PRZERYWA, a nie pomija pojedynczy plik.
-LIMIT_PATTERN='spend limit|credit balance|rate limit|usage limit|quota|insufficient|too many requests|overloaded|429'
-#: Błędy łączności — też przerywają, ale sugerowany czas oczekiwania jest inny.
-NETWORK_PATTERN='api error|enotfound|econnrefused|etimedout|network error|connection (refused|reset)|unable to connect'
+# ROZPOZNAWANIE BŁĘDU — najpierw KSZTAŁT odpowiedzi, dopiero potem treść.
+#
+# Poprzednia wersja szukała słów w całym pliku i wzorzec zawierał gołe `429`.
+# Raport oceniany w trzecim pliku zawierał liczbę `1429`; recenzja ją zacytowała
+# i cały przebieg został przerwany komunikatem o wyczerpanym limicie przy 4%
+# zużycia. Szukanie słów-kluczy w MATERIALE DOWODOWYM jest z zasady zawodne:
+# recenzja może cytować dowolną liczbę i dowolny komunikat błędu z badanej
+# wiadomości. Rozstrzyga więc to, czym odpowiedź JEST:
+#
+#   - ocena ma strukturę markdown (nagłówek `#` albo wiersz tabeli `|`)
+#     i sensowną objętość,
+#   - komunikat błędu CLI to kilkadziesiąt–kilkaset bajtów płaskiego tekstu.
+#
+# Wzorce służą już tylko do NAZWANIA przyczyny w komunikacie, nie do decyzji.
+
+#: Minimalna objętość odpowiedzi, którą w ogóle rozważamy jako ocenę.
+MIN_OCENA_BAJTOW=1000
+
+#: Nazwanie przyczyny — stosowane wyłącznie do odpowiedzi już uznanej za błąd.
+LIMIT_PATTERN='spend limit|credit balance|rate limit|usage limit|quota|insufficient|too many requests|overloaded|status code 429|http 429'
+NETWORK_PATTERN='enotfound|econnrefused|etimedout|network error|connection (refused|reset)|unable to connect'
 
 #: Ile ocen faktycznie zapisano w tym przebiegu — do komunikatu przy przerwaniu.
 ZAPISANE=0
@@ -163,14 +179,20 @@ Raport do oceny: ${md_file}"
     # (`API Error: Unable to connect to API (ENOTFOUND)`), nadpisując nimi
     # pięć dobrych ocen. Dlatego obok wzorców błędów sprawdzamy też długość:
     # ocena krótsza niż 1000 bajtów nie jest oceną.
+    # Ocena to dokument markdown o sensownej objętości. Wszystko inne jest
+    # błędem — niezależnie od tego, jakie słowa w sobie zawiera.
+    rozmiar=$(wc -c <"$tmp_review" | tr -d ' ')
     powod=""
-    if grep -qiE "$LIMIT_PATTERN" "$tmp_review"; then
-        powod="limit"
-    elif grep -qiE "$NETWORK_PATTERN" "$tmp_review"; then
-        powod="siec"
-    elif [ ! -s "$tmp_review" ] ||
-         [ "$(wc -c <"$tmp_review" | tr -d ' ')" -lt 1000 ]; then
-        powod="pusto"
+    if [ "$rozmiar" -lt "$MIN_OCENA_BAJTOW" ] ||
+       ! grep -qE '^[[:space:]]*(#|\|)' "$tmp_review"; then
+        # Dopiero teraz wzorce — wyłącznie po to, żeby nazwać przyczynę.
+        if grep -qiE "$LIMIT_PATTERN" "$tmp_review"; then
+            powod="limit"
+        elif grep -qiE "$NETWORK_PATTERN" "$tmp_review"; then
+            powod="siec"
+        else
+            powod="pusto"
+        fi
     fi
 
     if [ -n "$powod" ]; then
@@ -190,8 +212,11 @@ Raport do oceny: ${md_file}"
                 podpowiedz_czekaj="gdy wróci połączenie"
                 ;;
             pusto)
-                echo "🛑 STOP: CLI zwróciło odpowiedź, która nie jest oceną"
-                echo "    (pustą albo krótszą niż 1000 bajtów)."
+                echo "🛑 STOP: CLI zwróciło odpowiedź, która nie jest oceną."
+                echo "    Rozmiar: ${rozmiar} B. Pierwsze 200 znaków:"
+                echo ""
+                head -c 200 "$tmp_review" | sed 's/^/      /'
+                echo ""
                 ;;
         esac
         echo ""
