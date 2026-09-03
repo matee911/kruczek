@@ -10,6 +10,18 @@
 #
 # Zawężanie ma znaczenie kosztowe: każda ocena to osobne wywołanie płatnego
 # modelu, więc powtarzanie ocen już aktualnych to czysta strata.
+#
+# ZACHOWANIE PRZY WYCZERPANYM LIMICIE
+#   Skrypt PRZERYWA przebieg (kod wyjścia 2) zamiast lecieć dalej. Po limicie
+#   każde kolejne wywołanie padnie tak samo, więc przelecenie do końca listy
+#   pali czas i zostawia szesnaście identycznych ostrzeżeń zamiast jednego
+#   zdania o tym, co się stało. Przy przerwaniu wypisuje, ile ocen zapisano,
+#   ile zostało, i podpowiada ponowne uruchomienie z `--brakujace`.
+#
+#   Żadna istniejąca ocena nie jest wtedy nadpisywana — wynik trafia najpierw
+#   do pliku tymczasowego. To nie jest ostrożność teoretyczna: w jednym
+#   z wcześniejszych przebiegów `tee` nadpisał dwanaście dobrych ocen
+#   stubajtowym komunikatem o limicie.
 
 # Bez `set -e`: jeden plik, którego nie da się przetworzyć, nie może przerywać
 # całego przebiegu. Wcześniej `set -e` w parze z wyciszonym stderr kończył skrypt
@@ -18,6 +30,15 @@ set -uo pipefail
 
 EML_DIR="do_not_commit"
 FORENSICS_SCRIPT="scripts/eml_forensics.py"
+
+#: Komunikaty oznaczające wyczerpany limit — po nich każde kolejne wywołanie
+#: padnie tak samo, więc przebieg się PRZERYWA, a nie pomija pojedynczy plik.
+LIMIT_PATTERN='spend limit|credit balance|rate limit|usage limit|quota|insufficient|too many requests|overloaded|429'
+#: Błędy łączności — też przerywają, ale sugerowany czas oczekiwania jest inny.
+NETWORK_PATTERN='api error|enotfound|econnrefused|etimedout|network error|connection (refused|reset)|unable to connect'
+
+#: Ile ocen faktycznie zapisano w tym przebiegu — do komunikatu przy przerwaniu.
+ZAPISANE=0
 
 # `python` bywa nieobecny — pyenv wystawia shim tylko dla wersji, w których go
 # zainstalowano, więc w powłoce bez aktywnego środowiska `python` kończy się
@@ -142,17 +163,57 @@ Raport do oceny: ${md_file}"
     # (`API Error: Unable to connect to API (ENOTFOUND)`), nadpisując nimi
     # pięć dobrych ocen. Dlatego obok wzorców błędów sprawdzamy też długość:
     # ocena krótsza niż 1000 bajtów nie jest oceną.
-    if [ ! -s "$tmp_review" ] ||
-       [ "$(wc -c <"$tmp_review" | tr -d ' ')" -lt 1000 ] ||
-       grep -qiE 'spend limit|credit balance|rate limit|invalid api key|api error|enotfound|econnrefused|etimedout|usage limit' "$tmp_review"; then
+    powod=""
+    if grep -qiE "$LIMIT_PATTERN" "$tmp_review"; then
+        powod="limit"
+    elif grep -qiE "$NETWORK_PATTERN" "$tmp_review"; then
+        powod="siec"
+    elif [ ! -s "$tmp_review" ] ||
+         [ "$(wc -c <"$tmp_review" | tr -d ' ')" -lt 1000 ]; then
+        powod="pusto"
+    fi
+
+    if [ -n "$powod" ]; then
+        # PRZERYWAMY, nie pomijamy. Po wyczerpaniu limitu każde kolejne
+        # wywołanie padnie tak samo — przelecenie do końca listy pali czas
+        # i zaśmieca wynik szesnastoma identycznymi ostrzeżeniami, zamiast
+        # jednym zdaniem o tym, co się stało i co zrobić dalej.
         echo ""
-        echo "⚠️  CLI nie zwróciło oceny (limit albo błąd) — zachowuję poprzednią wersję:"
-        echo "    $(basename "$review_file")"
+        podpowiedz_czekaj="za jakiś czas"
+        case "$powod" in
+            limit)
+                echo "🛑 STOP: CLI zgłosiło wyczerpany limit."
+                podpowiedz_czekaj="gdy limit się odnowi (zwykle kilka godzin)"
+                ;;
+            siec)
+                echo "🛑 STOP: CLI nie mogło połączyć się z API."
+                podpowiedz_czekaj="gdy wróci połączenie"
+                ;;
+            pusto)
+                echo "🛑 STOP: CLI zwróciło odpowiedź, która nie jest oceną"
+                echo "    (pustą albo krótszą niż 1000 bajtów)."
+                ;;
+        esac
+        echo ""
+        echo "    Plik przerwany:      $(basename "$eml_file")"
+        echo "    Ocen zapisanych:     $ZAPISANE"
+        echo "    Zostało do zrobienia: $((${#FILES[@]} - ZAPISANE))"
+        echo ""
+        echo "    Poprzednia wersja oceny NIE została nadpisana."
+        echo ""
+        echo "    Uruchom ponownie ${podpowiedz_czekaj}:"
+        echo ""
+        echo "        ./$(basename "$0") --brakujace"
+        echo ""
+        echo "    Flaga --brakujace pomija pliki, które mają już aktualną ocenę"
+        echo "    (sprawdzane po sumie kontrolnej raportu), więc nie zapłacisz"
+        echo "    drugi raz za to, co już się udało."
         rm -f "$tmp_review"
-        continue
+        exit 2
     fi
 
     mv "$tmp_review" "$review_file"
+    ZAPISANE=$((ZAPISANE + 1))
     # Znacznik wiąże ocenę z konkretną wersją raportu — bez niego nie da się
     # odróżnić oceny aktualnej od takiej, która opisuje kod sprzed poprawek.
     printf '\n<!-- oceniono raport sha256:%s -->\n' \
@@ -164,4 +225,4 @@ Raport do oceny: ${md_file}"
 done
 
 echo ""
-echo "✅ Koniec analizy wszystkich plików EML"
+echo "✅ Koniec — ocen zapisanych: $ZAPISANE z ${#FILES[@]}"
