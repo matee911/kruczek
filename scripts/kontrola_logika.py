@@ -3,8 +3,8 @@
 Bez I/O, bez subprocesów — wejście: tekst, wyjście: wynik. Testowalność bez PDF.
 """
 
-import re
 import collections
+import re
 
 # Polskie cudzysłowy i angielskie — maskujemy cytaty, żeby nie wykryć nawiasów w cytatach
 _QUOTE_RE = re.compile(r"[\u201e\u201c\"][^\u201d\u201c\"]{0,400}[\u201d\u201c\"]")
@@ -65,7 +65,7 @@ def find_attachment_page_headers(t: str) -> list:
     >>> find_attachment_page_headers("Załącznik nr 1 — Umowa\\nZałącznik nr 2 — Faktura")
     [('1', 'Umowa'), ('2', 'Faktura')]
     """
-    return re.findall(r"Za[łl][ąa]cznik\s+nr\s+(\d+)\s*[—–-]\s*(.+)", t, re.I)
+    return re.findall(r"Za[łl][ąa]cznik\s+nr\s+(\d+)\s*[—–-]\s*(.+)", t, re.IGNORECASE)
 
 
 def find_attachment_list_items(t: str) -> list:
@@ -78,7 +78,7 @@ def find_attachment_list_items(t: str) -> list:
     >>> find_attachment_list_items("Załącznik nr 1: Umowa\\nZałącznik nr 2: Faktura")
     [('1', 'Umowa'), ('2', 'Faktura')]
     """
-    return re.findall(r"Za[łl][ąa]cznik\s+nr\s+(\d+):\s*(.+)", t, re.I)
+    return re.findall(r"Za[łl][ąa]cznik\s+nr\s+(\d+):\s*(.+)", t, re.IGNORECASE)
 
 
 def find_cross_references(t: str) -> set:
@@ -93,11 +93,11 @@ def find_cross_references(t: str) -> set:
     >>> find_cross_references("zał. 1 i zał. 1")
     {1}
     """
-    refs = {int(x) for x in re.findall(r"zał\.\s*(\d+)", t, re.I)}
+    refs = {int(x) for x in re.findall(r"zał\.\s*(\d+)", t, re.IGNORECASE)}
     refs |= {
         int(x)
         for x in re.findall(
-            r"za[łl][ąa]cznik(?:a|iem|u|ach|ow|ów)?\s+nr\s*(\d+)", t, re.I
+            r"za[łl][ąa]cznik(?:a|iem|u|ach|ow|ów)?\s+nr\s*(\d+)", t, re.IGNORECASE
         )
     }
     return refs
@@ -165,7 +165,8 @@ def find_paragraph_numbering_issues(t: str) -> tuple:
     ([], [])
     """
     ust = [
-        int(m.group(1)) for m in re.finditer(r"^\s{0,8}(\d{1,3})\.\s{2,}\S", t, re.M)
+        int(m.group(1))
+        for m in re.finditer(r"^\s{0,8}(\d{1,3})\.\s{2,}\S", t, re.MULTILINE)
     ]
     if not ust:
         return [], []
