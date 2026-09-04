@@ -65,6 +65,7 @@ from eml_forensics_logika import (
     line_endings,
     load_message,
     load_raw_bytes,
+    organisations_in_content,
     oversigned_headers,
     raw_header_block,
     raw_header_value,
@@ -541,6 +542,14 @@ def build_report(eml_path: Path, outdir: Path) -> tuple[str, Path]:
         filter(None, [deobfuscate(html_body) if html_body else None, text_body])
     )
     mtime = datetime.datetime.fromtimestamp(stat.st_mtime).astimezone().isoformat()
+    # Sekcja tożsamości PRZED sekcją artefaktów: ta druga kończy się stopką
+    # zamykającą dokument, więc wszystko dopięte po niej wisiało poza raportem.
+    write_identity_layers_section(
+        identity_layers(msg, dkim, resources),
+        registry_identifiers(scannable_text),
+        W,
+        tuple(organisations_in_content(scannable_text)),
+    )
     write_artifacts_section(
         eml_path.name,
         stat.st_size,
@@ -550,11 +559,6 @@ def build_report(eml_path: Path, outdir: Path) -> tuple[str, Path]:
         written,
         W,
         msg.get("Date"),
-    )
-    write_identity_layers_section(
-        identity_layers(msg, dkim, resources),
-        registry_identifiers(scannable_text),
-        W,
     )
 
     report = "\n".join(lines) + "\n"

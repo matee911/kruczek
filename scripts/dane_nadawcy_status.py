@@ -59,6 +59,10 @@ def parsuj(text: str) -> dict[str, str]:
     {'Imię i nazwisko': 'Jan Kowalski'}
     >>> parsuj("| Pole | Wartość |\n| --- | --- |\n| Imię i nazwisko | Jan Kowalski |\n| Do korespondencji | <brak> |\n")
     {'Imię i nazwisko': 'Jan Kowalski', 'Do korespondencji': '<brak>'}
+    >>> parsuj("# Nagłówek\nZwykły akapit, nie tabela.\n| Imię i nazwisko | Jan |\n")
+    {'Imię i nazwisko': 'Jan'}
+    >>> parsuj("| Samotna komórka bez wartości |\n")
+    {}
     """
     wartosci: dict[str, str] = {}
 
@@ -113,6 +117,33 @@ def znajdz(wartosci: dict[str, str], pole: str) -> str:
     return ""
 
 
+def required_fields(wartosci: dict[str, str]) -> list[str]:
+    """
+    Pola krytyczne dla tego pliku: zawsze KRYTYCZNE, plus NIP gdy wypełniona jest
+    sekcja działalności gospodarczej.
+
+    Charakter wystąpienia (konsument / przedsiębiorca / w cudzym imieniu) jest cechą
+    pojedynczej sprawy, nie tego pliku — zob. pole "Występuję jako" w index.md sprawy.
+    Tutaj jedyne, co da się stwierdzić, to czy użytkownik w ogóle wypełnił sekcję
+    działalności gospodarczej; jeśli tak, NIP staje się polem krytycznym.
+
+    >>> required_fields({})[-1]
+    'E-mail w sprawach spornych'
+    >>> required_fields({"Firma": "ACME sp. z o.o."})[-1]
+    'NIP'
+    >>> required_fields({"REGON": "123456789"})[-1]
+    'NIP'
+    """
+    pola = list(KRYTYCZNE)
+    ma_dzialalnosc = any(
+        not puste(znajdz(wartosci, p))
+        for p in ("Firma", "Forma prawna", "REGON", "KRS")
+    )
+    if ma_dzialalnosc:
+        pola += WARUNKOWE_PRZEDSIEBIORCA
+    return pola
+
+
 def main():
     if len(sys.argv) != 2:
         sys.exit("Użycie: dane_nadawcy_status.py <plik>")
@@ -127,19 +158,7 @@ def main():
         return
 
     wartosci = parsuj(text)
-    # Charakter wystąpienia (konsument / przedsiębiorca / w cudzym imieniu) jest cechą
-    # pojedynczej sprawy, nie tego pliku — zob. pole "Występuję jako" w index.md sprawy.
-    # Tutaj jedyne, co da się stwierdzić, to czy użytkownik w ogóle wypełnił sekcję
-    # działalności gospodarczej; jeśli tak, NIP staje się polem krytycznym.
-    ma_dzialalnosc = any(
-        not puste(znajdz(wartosci, p))
-        for p in ("Firma", "Forma prawna", "REGON", "KRS")
-    )
-    pola = list(KRYTYCZNE)
-    if ma_dzialalnosc:
-        pola += WARUNKOWE_PRZEDSIEBIORCA
-
-    for pole in pola:
+    for pole in required_fields(wartosci):
         w = znajdz(wartosci, pole)
         print(("BRAK " if puste(w) else "OK ") + pole)
 

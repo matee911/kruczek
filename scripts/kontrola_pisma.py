@@ -37,6 +37,7 @@ from kontrola_logika import (
     find_sha256_hashes,
     titles_match,
 )
+from utils import evaluate_print_mail_requirements, parse_unembedded_fonts
 from utils import sha256_file as sha
 
 
@@ -194,8 +195,7 @@ def main():
 
     # ---- 6. wymogi print&mail ----------------------------------------------
     mb = os.path.getsize(a.pdf) / 1048576
-    if mb > 2:
-        o(f"PDF ma {mb:.2f} MB — Envelo neoList przyjmuje max 2 MB (PUH: 15 MB)")
+    pages = None
     if shutil.which("pdfinfo"):
         m = re.search(
             r"Pages:\s+(\d+)",
@@ -203,26 +203,25 @@ def main():
                 ["pdfinfo", a.pdf], capture_output=True, text=True, check=False
             ).stdout,
         )
-        if m and (int(m.group(1)) + 1) // 2 > 98:
-            b(
-                f"{m.group(1)} stron = {(int(m.group(1)) + 1) // 2} kartek — limit to 98 kartek"
+        if m:
+            pages = int(m.group(1))
+    for r in evaluate_print_mail_requirements(mb, pages):
+        if r["check"] == "size" and not r["ok"]:
+            o(
+                f"PDF ma {r['size_mb']:.2f} MB — Envelo neoList przyjmuje max "
+                f"{r['max_size_mb']} MB (PUH: 15 MB)"
             )
+        elif r["check"] == "sheets" and not r["ok"]:
+            b(f"{r['pages']} stron = {r['sheets']} kartek — limit to {r['max_sheets']} kartek")
     if shutil.which("pdffonts"):
         out = subprocess.run(
             ["pdffonts", a.pdf], capture_output=True, text=True, check=False
         ).stdout
-        lines = out.splitlines()
-        if lines and "emb" in lines[0]:
-            col = lines[0].index("emb")
-            nie = [
-                l[:36].strip()
-                for l in lines[2:]
-                if l.strip() and l[col : col + 3].strip() != "yes"
-            ]
-            if nie:
-                b(
-                    f"Fonty nieosadzone w PDF: {', '.join(nie)} — Envelo i e-Doręczenia odrzucą plik"
-                )
+        nie = parse_unembedded_fonts(out)
+        if nie:
+            b(
+                f"Fonty nieosadzone w PDF: {', '.join(nie)} — Envelo i e-Doręczenia odrzucą plik"
+            )
 
     # ---- 7. podpis ----------------------------------------------------------
     if not re.search(r"(Z powa[żz]aniem|podpis|_{5,}|…{3,})", t, re.IGNORECASE):

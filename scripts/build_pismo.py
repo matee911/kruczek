@@ -32,6 +32,17 @@ import shutil
 import subprocess
 import sys
 
+from build_pismo_logic import (
+    choose_engine,
+    command_for_engine,
+    parse_attachment_spec,
+    postprocess_pandoc_html,
+)
+from utils import (
+    all_requirements_met,
+    evaluate_print_mail_requirements,
+    parse_unembedded_fonts,
+)
 from utils import human_size as human
 from utils import sha256_file as sha
 
@@ -72,17 +83,7 @@ def render_md(path):
         text=True,
         check=True,
     ).stdout
-    out = re.sub(r"^\s*<h1[^>]*>.*?</h1>", "", out, flags=re.DOTALL)
-    for a, b in (
-        ("<h1", "<h4"),
-        ("</h1>", "</h4>"),
-        ("<h2", "<h4"),
-        ("</h2>", "</h4>"),
-        ("<h3", "<h5"),
-        ("</h3>", "</h5>"),
-    ):
-        out = out.replace(a, b)
-    return out
+    return postprocess_pandoc_html(out)
 
 
 def render_attachment(path):
@@ -107,6 +108,37 @@ def render_attachment(path):
     )
 
 
+def build_attachments(specs):
+    """Build the HTML page blocks and list items for every -z attachment.
+
+    Does real file I/O (existence check, size, checksum, content rendering) so it
+    isn't doctest material — see test_build_pismo.py. Exits the process if a
+    referenced file doesn't exist, same as the inline loop this replaced.
+
+    Returns (page_blocks, list_items, report_info) where report_info is a list of
+    (index, title, filename, sha256) tuples for the closing report.
+    """
+    blocks, lista, zal_info = [], [], []
+    for i, spec in enumerate(specs, 1):
+        path, tytul = parse_attachment_spec(spec)
+        if not os.path.exists(path):
+            sys.exit(f"BŁĄD: brak pliku załącznika: {path}")
+        s = sha(path)
+        zal_info.append((i, tytul, os.path.basename(path), s))
+        blocks.append(
+            f'<div class="pb zal-strona">\n'
+            f'<h2 class="bez-numeru">Załącznik nr {i} — {H.escape(tytul)}</h2>\n'
+            f'<p class="zal-meta">plik: {H.escape(os.path.basename(path))} &nbsp;·&nbsp; '
+            f"rozmiar: {human(os.path.getsize(path))} &nbsp;·&nbsp; SHA-256: {s}</p>\n"
+            f'<div class="zal-tresc">{render_attachment(path)}</div>\n</div>'
+        )
+        lista.append(
+            f'<li>{H.escape(tytul)} <span class="male">(plik <code>'
+            f"{H.escape(os.path.basename(path))}</code>)</span></li>"
+        )
+    return blocks, lista, zal_info
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("szablon")
@@ -125,25 +157,7 @@ def main():
     with open(a.szablon, encoding="utf-8") as f:
         tpl = f.read()
 
-    blocks, lista, zal_info = [], [], []
-    for i, spec in enumerate(a.zalacznik, 1):
-        path, _, tytul = spec.partition(":")
-        tytul = tytul or os.path.basename(path)
-        if not os.path.exists(path):
-            sys.exit(f"BŁĄD: brak pliku załącznika: {path}")
-        s = sha(path)
-        zal_info.append((i, tytul, os.path.basename(path), s))
-        blocks.append(
-            f'<div class="pb zal-strona">\n'
-            f'<h2 class="bez-numeru">Załącznik nr {i} — {H.escape(tytul)}</h2>\n'
-            f'<p class="zal-meta">plik: {H.escape(os.path.basename(path))} &nbsp;·&nbsp; '
-            f"rozmiar: {human(os.path.getsize(path))} &nbsp;·&nbsp; SHA-256: {s}</p>\n"
-            f'<div class="zal-tresc">{render_attachment(path)}</div>\n</div>'
-        )
-        lista.append(
-            f'<li>{H.escape(tytul)} <span class="male">(plik <code>'
-            f"{H.escape(os.path.basename(path))}</code>)</span></li>"
-        )
+    blocks, lista, zal_info = build_attachments(a.zalacznik)
 
     tpl = tpl.replace("<!--KRUCZEK:ZALACZNIKI-->", "\n".join(blocks))
     tpl = tpl.replace(
@@ -155,63 +169,10 @@ def main():
         f.write(tpl)
 
     chrome = find_chrome()
-    if shutil.which("weasyprint"):
-        engine = "weasyprint"
-        subprocess.run(["weasyprint", tmp, a.out], check=True)
-    elif chrome:
-        engine = "chrome"
-        # Marginesy i rozmiar strony bierze z @page w szablonie — Chrome headless
-        # nie ma prostych flag CLI na marginesy (tylko przez DevTools Protocol),
-        # ale poprawnie honoruje CSS paged media, więc @page wystarczy.
-        cmd = [
-            chrome,
-            "--headless",
-            "--disable-gpu",
-            "--no-pdf-header-footer",
-            f"--print-to-pdf={a.out}",
-            "--virtual-time-budget=20000",
-            f"file://{os.path.abspath(tmp)}",
-        ]
-        r = subprocess.run(cmd, capture_output=True, text=True, check=False)
-        if r.returncode != 0 or not os.path.exists(a.out):
-            sys.exit("Chrome/Chromium headless: " + (r.stderr or "")[-800:])
-    elif shutil.which("wkhtmltopdf"):
-        engine = "wkhtmltopdf"
-        # Bez --dpi: w praktyce łamał @page i ściskał strony (18 stron wychodziło
-        # jako 8, tekst wylewał się poza wiersz). wkhtmltopdf i tak nie honoruje
-        # @page z szablonu, więc marginesy dostaje tu jawnie jako flagi CLI.
-        cmd = [
-            "wkhtmltopdf",
-            "--encoding",
-            "utf-8",
-            "--enable-local-file-access",
-            "--page-size",
-            "A4",
-            "-T",
-            MARGINS["T"],
-            "-B",
-            MARGINS["B"],
-            "-L",
-            MARGINS["L"],
-            "-R",
-            MARGINS["R"],
-            "--footer-font-name",
-            "Liberation Serif",
-            "--footer-font-size",
-            "8",
-            "--footer-spacing",
-            "6",
-            "--footer-center",
-            (a.stopka + " · str. [page] z [topage]")
-            if a.stopka
-            else "str. [page] z [topage]",
-            tmp,
-            a.out,
-        ]
-        r = subprocess.run(cmd, capture_output=True, text=True, check=False)
-        if r.returncode != 0:
-            sys.exit("wkhtmltopdf: " + (r.stderr or "")[-800:])
-    else:
+    engine = choose_engine(
+        bool(shutil.which("weasyprint")), chrome, bool(shutil.which("wkhtmltopdf"))
+    )
+    if engine is None:
         sys.exit(
             "BŁĄD: brak silnika PDF (weasyprint / Chrome lub Chromium / wkhtmltopdf).\n"
             "Zainstaluj jedno z nich:\n"
@@ -221,6 +182,30 @@ def main():
             "Potem uruchom ponownie. Pełną listę zależności sprawdza "
             "${CLAUDE_PLUGIN_ROOT}/scripts/check-deps.sh."
         )
+
+    # Marginesy i rozmiar strony bierze z @page w szablonie dla weasyprint i Chrome
+    # (Chrome headless nie ma prostych flag CLI na marginesy, ale poprawnie honoruje
+    # CSS paged media). wkhtmltopdf ma słabe wsparcie @page — bez --dpi w praktyce
+    # łamał je i ściskał strony (18 stron wychodziło jako 8) — więc command_for_engine
+    # dostaje MARGINS jawnie jako flagi CLI tylko dla tego silnika.
+    cmd = command_for_engine(
+        engine,
+        out_path=a.out,
+        tmp_html_path=os.path.abspath(tmp) if engine == "chrome" else tmp,
+        chrome_path=chrome,
+        footer=a.stopka,
+        margins=MARGINS,
+    )
+    if engine == "weasyprint":
+        subprocess.run(cmd, check=True)
+    elif engine == "chrome":
+        r = subprocess.run(cmd, capture_output=True, text=True, check=False)
+        if r.returncode != 0 or not os.path.exists(a.out):
+            sys.exit("Chrome/Chromium headless: " + (r.stderr or "")[-800:])
+    elif engine == "wkhtmltopdf":
+        r = subprocess.run(cmd, capture_output=True, text=True, check=False)
+        if r.returncode != 0:
+            sys.exit("wkhtmltopdf: " + (r.stderr or "")[-800:])
 
     if not a.keep_html:
         os.remove(tmp)
@@ -253,43 +238,38 @@ def main():
 
     # kontrola wymogów print&mail
     print("\nKontrola wymogów wysyłki papierowej:")
-    ok = True
     size_mb = os.path.getsize(a.out) / 1024 / 1024
-    print(
-        f"  {'OK ' if size_mb <= 2 else 'UWAGA'} rozmiar {size_mb:.2f} MB (Envelo neoList: max 2 MB, PUH: max 15 MB)"
-    )
-    ok &= size_mb <= 2
-    if pages != "?":
-        kartek = (int(pages) + 1) // 2
-        print(
-            f"  {'OK ' if kartek <= 98 else 'UWAGA'} {pages} stron = {kartek} kartek dwustronnie (max 98 kartek)"
-        )
-        ok &= kartek <= 98
+    wymogi = evaluate_print_mail_requirements(size_mb, int(pages) if pages != "?" else None)
+    for r in wymogi:
+        if r["check"] == "size":
+            print(
+                f"  {'OK ' if r['ok'] else 'UWAGA'} rozmiar {r['size_mb']:.2f} MB "
+                f"(Envelo neoList: max 2 MB, PUH: max 15 MB)"
+            )
+        elif r["check"] == "sheets":
+            print(
+                f"  {'OK ' if r['ok'] else 'UWAGA'} {r['pages']} stron = {r['sheets']} kartek "
+                f"dwustronnie (max {r['max_sheets']} kartek)"
+            )
+    fonts_ok = True
     if shutil.which("pdffonts"):
         out = subprocess.run(
             ["pdffonts", a.out], capture_output=True, text=True, check=False
         ).stdout
-        lines = out.splitlines()
-        # kolumny mają stałą szerokość; "type" bywa dwuwyrazowe ("CID TrueType"),
-        # więc pozycję kolumny emb bierzemy z nagłówka, nie ze split()
-        col = lines[0].index("emb") if lines and "emb" in lines[0] else None
-        rows = [l for l in lines[2:] if l.strip()]
-        if col is None:
+        nieosadzone = parse_unembedded_fonts(out)
+        if nieosadzone is None:
             print(
                 "  ?   nie udało się odczytać nagłówka pdffonts — sprawdź osadzenie fontów ręcznie"
             )
+        elif nieosadzone:
+            print(
+                f"  UWAGA fonty NIEOSADZONE: {', '.join(nieosadzone)} — Envelo i PUH tego nie przyjmą"
+            )
+            fonts_ok = False
         else:
-            nieosadzone = [
-                l[:36].strip() for l in rows if l[col : col + 3].strip() != "yes"
-            ]
-            if nieosadzone:
-                print(
-                    f"  UWAGA fonty NIEOSADZONE: {', '.join(nieosadzone)} — Envelo i PUH tego nie przyjmą"
-                )
-                ok = False
-            else:
-                print(f"  OK  wszystkie fonty osadzone ({len(rows)})")
-    if not ok:
+            rows = [l for l in out.splitlines()[2:] if l.strip()]
+            print(f"  OK  wszystkie fonty osadzone ({len(rows)})")
+    if not (all_requirements_met(wymogi) and fonts_ok):
         print("\n  → Popraw powyższe przed wysyłką przez Envelo / e-Doręczenia.")
 
     print("\nZanim przekażesz pismo użytkownikowi: uruchom kontrolę spójności")

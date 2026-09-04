@@ -31,6 +31,27 @@ from dataclasses import dataclass, field, replace
 from html.parser import HTMLParser
 from pathlib import Path
 
+# ──────────────────────────── pomoce ────────────────────────────
+
+
+def unique_matches(pattern: str, text: str, flags: int = 0) -> list[str]:
+    """Dopasowania `re.findall`, bez duplikatów, w kolejności pierwszego wystąpienia.
+
+    `dict.fromkeys`, nie `set`: iteracja po zbiorze łańcuchów idzie w kolejności
+    zależnej od losowania hashy, więc ten sam plik dawał raporty o różnej sumie
+    kontrolnej między uruchomieniami. Dokument dowodowy musi być odtwarzalny
+    co do bajtu.
+
+    >>> unique_matches(r"\\w+", "a b a c b")
+    ['a', 'b', 'c']
+    >>> unique_matches(r"[A-Z]+", "ABC abc DEF", re.IGNORECASE)
+    ['ABC', 'abc', 'DEF']
+    >>> unique_matches(r"\\d+", "brak cyfr")
+    []
+    """
+    return list(dict.fromkeys(re.findall(pattern, text, flags)))
+
+
 ZERO_WIDTH_CHARS = {
     0x200B: "ZERO WIDTH SPACE",
     0x200C: "ZERO WIDTH NON-JOINER",
@@ -576,6 +597,43 @@ def _first_address(text: str) -> str | None:
     return None
 
 
+#: Znacznik czasu zapisany bez `;` przed datą — spotykany u dostawców, którzy
+#: nie trzymają się składni RFC 5321 dla nagłówka `Received`.
+TRAILING_TIMESTAMP_PATTERNS = (
+    # RFC 5322 z ułamkiem sekund, poprzedzone tabulatorem/spacją zamiast `;`
+    (
+        r"([A-Z][a-z]{2},\s+\d{1,2}\s+[A-Z][a-z]{2}\s+\d{4}\s+[\d:.]+\s*[+-]\d{4}"
+        r"(?:\s*\([A-Z]+\))?)\s*$"
+    ),
+    # format `time.Time` z Go: `2026-08-29 06:40:50.390557031 +0000 UTC`
+    r"(\d{4}-\d{2}-\d{2}\s+[\d:.]+\s*[+-]\d{4}\s+[A-Z]{2,4})",
+)
+
+
+def _timestamp_without_separator(text: str) -> "datetime.datetime | None":
+    """Znacznik czasu z ogona nagłówka `Received`, gdy brakuje `;` przed datą.
+
+    >>> _timestamp_without_separator(
+    ...     "from a by b with HTTP id X Sat, 29 Aug 2026 06:40:50.368 +0000 (UTC)"
+    ... ).isoformat()
+    '2026-08-29T06:40:50.368000+00:00'
+    >>> _timestamp_without_separator(
+    ...     "by recvd-1 id A 2026-08-29 06:40:50.390557031 +0000 UTC m=+2721003.06"
+    ... ).isoformat()
+    '2026-08-29T06:40:50.390557+00:00'
+    >>> _timestamp_without_separator("from a by b with ESMTP") is None
+    True
+    """
+    for pattern in TRAILING_TIMESTAMP_PATTERNS:
+        match = re.search(pattern, text)
+        if not match:
+            continue
+        parsed = parse_date_header(match.group(1))
+        if parsed:
+            return parsed
+    return None
+
+
 @dataclass(frozen=True, slots=True)
 class ReceivedHop:
     """Jeden nagłówek Received rozłożony na pola, z zachowaniem surowej treści.
@@ -729,6 +787,13 @@ class ReceivedHop:
         timestamp = None
         if date_part.strip():
             timestamp = parse_date_header(date_part.strip())
+        if timestamp is None:
+            # Nie każdy MTA stawia `;` przed datą. SendGrid pisze
+            # `id X<TAB>Sat, 29 Aug 2026 06:40:50.368 +0000 (UTC)`, a warstwa
+            # w Go — `2026-08-29 06:40:50.390557031 +0000 UTC`. Oba znaczniki
+            # SĄ w pliku; pominięte, wypadały z osi czasu razem z odstępem
+            # między wstrzyknięciem przez API a przyjęciem przez MTA.
+            timestamp = _timestamp_without_separator(text)
 
         return cls(
             index=index,
@@ -1322,50 +1387,79 @@ def extract_hops(msg: email.message.Message) -> list[ReceivedHop]:
 
 def received_chain_continuity(
     hops: list[ReceivedHop],
-) -> list[tuple[int, str, str, bool]]:
+) -> list[tuple[int, str, str, str]]:
     """Czy `by` skoku N zgadza się z nazwą, od której zaczyna się skok N+1.
 
-    Test ciągłości łańcucha: host, który przyjął wiadomość, powinien być tym
-    samym, który ją dalej nadaje. Raport liczył skoki i orzekał, że nazwy są
-    składniowo poprawne, ale tego zestawienia nie robił — a w jednym z plików
-    między `by` a następnym `from` stoi host niewystępujący nigdzie indziej,
-    czyli odcinek drogi bez żadnego nagłówka.
+    Werdykt jest TRÓJWARTOŚCIOWY: `tak`, `nie`, `?`. Wersja dwuwartościowa
+    zgłaszała lukę wszędzie tam, gdzie porównanie było nierozstrzygalne —
+    a nierozstrzygalne to nie to samo co niezgodne.
 
-    Zwraca krotki `(numer skoku, by, from następnego, czy zgodne)`.
+    Porządek źródeł: rDNS przed HELO. rDNS ustala serwer przyjmujący, HELO to
+    deklaracja klienta. Porównanie kanonicznego `by` z deklaracją HELO dawało
+    „nie" dla `mail.przyklad.pl` obok `przyklad.pl`, czyli dla normalnej
+    konfiguracji jednego hosta.
+
+    Zwraca krotki `(numer skoku, by, obserwowana nazwa, werdykt)`.
 
     >>> h1 = ReceivedHop(1, "", helo=None, rdns=None, ip=None, by="mx1.przyklad.pl",
     ...                  by_ip=None, protocol=None, tls=None, queue_id=None,
     ...                  for_address=None, timestamp=None)
-    >>> h2 = ReceivedHop(2, "", helo="mx1.przyklad.pl", rdns=None, ip=None,
+    >>> h2 = ReceivedHop(2, "", helo=None, rdns="mx1.przyklad.pl", ip=None,
     ...                  by="mx2.przyklad.pl", by_ip=None, protocol=None, tls=None,
     ...                  queue_id=None, for_address=None, timestamp=None)
     >>> received_chain_continuity([h1, h2])
-    [(1, 'mx1.przyklad.pl', 'mx1.przyklad.pl', True)]
+    [(1, 'mx1.przyklad.pl', 'mx1.przyklad.pl', 'tak')]
 
-    Przerwa jest zwracana jako `False` — to ustalenie, nie brak danych:
+    Niezgodny rDNS to ustalenie o przerwie:
 
-    >>> h2b = ReceivedHop(2, "", helo="obcy.przyklad.pl", rdns=None, ip=None,
+    >>> h2b = ReceivedHop(2, "", helo=None, rdns="obcy.przyklad.pl", ip=None,
     ...                   by="mx2.przyklad.pl", by_ip=None, protocol=None, tls=None,
     ...                   queue_id=None, for_address=None, timestamp=None)
-    >>> received_chain_continuity([h1, h2b])
-    [(1, 'mx1.przyklad.pl', 'obcy.przyklad.pl', False)]
+    >>> received_chain_continuity([h1, h2b])[0][3]
+    'nie'
+
+    Samo HELO nie rozstrzyga — zgodność potwierdza, rozbieżność nie dowodzi
+    luki, bo HELO bywa skróconą nazwą tego samego hosta:
+
+    >>> h2c = ReceivedHop(2, "", helo="przyklad.pl", rdns=None, ip=None,
+    ...                   by="mx2.przyklad.pl", by_ip=None, protocol=None, tls=None,
+    ...                   queue_id=None, for_address=None, timestamp=None)
+    >>> received_chain_continuity([h1, h2c])[0][3]
+    '?'
+
+    Skok bez klauzuli `from` też daje `?`, a nie ciche pominięcie:
+
+    >>> h2d = ReceivedHop(2, "", helo=None, rdns=None, ip=None, by="mx2.przyklad.pl",
+    ...                   by_ip=None, protocol=None, tls=None, queue_id=None,
+    ...                   for_address=None, timestamp=None)
+    >>> received_chain_continuity([h1, h2d])
+    [(1, 'mx1.przyklad.pl', 'brak klauzuli `from`', '?')]
     >>> received_chain_continuity([h1])
     []
     """
-    out: list[tuple[int, str, str, bool]] = []
+    out: list[tuple[int, str, str, str]] = []
     for earlier, later in itertools.pairwise(hops):
         receiver = (earlier.by or "").rstrip(".").lower()
-        sender = (later.helo or later.rdns or "").rstrip(".").lower()
-        if not receiver or not sender:
+        # rDNS przed HELO: rDNS ustala serwer, HELO to DEKLARACJA klienta.
+        # Porównanie kanonicznej nazwy `by` z deklaracją HELO dawało werdykt
+        # „nie” dla `mail.przyklad.pl` obok `przyklad.pl`, czyli dla normalnej
+        # konfiguracji jednego hosta — zgłaszało lukę, której plik nie pokazuje.
+        canonical = (later.rdns or "").rstrip(".").lower()
+        declared = (later.helo or "").rstrip(".").lower()
+        if not receiver or not (canonical or declared):
+            # Skok bez klauzuli `from` nie daje się porównać — to inny stan niż
+            # „nie zgadza się”, więc zapisujemy go wprost zamiast pomijać.
+            out.append((earlier.index, earlier.by or "", "brak klauzuli `from`", "?"))
             continue
-        out.append(
-            (
-                earlier.index,
-                earlier.by or "",
-                later.helo or later.rdns or "",
-                receiver == sender,
-            )
-        )
+        if canonical:
+            verdict = "tak" if receiver == canonical else "nie"
+            observed = later.rdns or ""
+        else:
+            # Sama deklaracja klienta nie rozstrzyga — zgodność potwierdza,
+            # niezgodność nie dowodzi luki, bo HELO bywa skróconą nazwą hosta.
+            verdict = "tak" if receiver == declared else "?"
+            observed = f"{later.helo} (HELO — deklaracja klienta)"
+        out.append((earlier.index, earlier.by or "", observed, verdict))
     return out
 
 
@@ -1951,6 +2045,18 @@ def extract_bodies(msg: email.message.Message) -> tuple[str | None, str | None]:
     >>> msg = message_from_string("Content-Type: text/html\\n\\n<p>x</p>", policy=policy.default)
     >>> extract_bodies(msg)
     ('<p>x</p>', None)
+
+    Zadeklarowany charset bywa nieprawdziwy albo nieznany kodekowi Pythona — wtedy
+    `bytes.decode` rzuca `LookupError` niezależnie od trybu obsługi błędów
+    (`"replace"` łagodzi tylko błędne bajty W OBRĘBIE znanego kodeka, nie samą
+    nazwę kodeka). Cała analiza wiadomości nie może wywalać się na metadanej,
+    którą nadawca podał błędnie — dokument dowodowy i tak trzeba przeanalizować.
+
+    >>> msg = message_from_string(
+    ...     'Content-Type: text/plain; charset="bogus-charset-xyz"\\n\\nHello',
+    ...     policy=policy.default)
+    >>> extract_bodies(msg)
+    (None, 'Hello')
     """
     html_body: str | None = None
     txt_body: str | None = None
@@ -1961,7 +2067,10 @@ def extract_bodies(msg: email.message.Message) -> tuple[str | None, str | None]:
         payload = part.get_payload(decode=True)
         if not isinstance(payload, bytes):
             continue
-        text = payload.decode(part.get_content_charset() or "utf-8", "replace")
+        try:
+            text = payload.decode(part.get_content_charset() or "utf-8", "replace")
+        except LookupError:
+            text = payload.decode("utf-8", "replace")
         if content_type == "text/html" and html_body is None:
             html_body = text
         elif content_type == "text/plain" and txt_body is None:
@@ -2052,13 +2161,17 @@ def deobfuscate(src: str) -> str:
         flags=re.DOTALL | re.IGNORECASE,
     )
 
-    text = html.unescape(text)
     text = "".join(c for c in text if ord(c) not in ZERO_WIDTH_CHARS)
     text = re.sub(r"<br\s*/?>", "\n", text, flags=re.IGNORECASE)
     text = re.sub(
         r"</?(?:p|div|tr|table|h[1-6]|li)[^>]*>", "\n", text, flags=re.IGNORECASE
     )
     text = re.sub(r"<[^>]+>", "", text)
+    # Encje rozwijamy DOPIERO po usunięciu znaczników. Odwrotna kolejność
+    # zamieniała `&lt;CAHYL8Sc…&gt;` w `<CAHYL8Sc…>`, po czym kolejny krok
+    # zjadał to jako rzekomy znacznik — trzy Message-ID cytowane w treści
+    # traciły całą część przed `@`, a raport reprodukował okaleczony dowód.
+    text = html.unescape(text)
     text = re.sub(r"[ \t]+\n", "\n", text)
     return re.sub(r"\n{3,}", "\n\n", text).strip()
 
@@ -2576,10 +2689,13 @@ def find_hidden_elements(src: str) -> list[HiddenElement]:
     # i to, że komentarz nie jest elementem. Wszystkie trzy dawały wcześniej
     # albo urwany tekst dowodowy, albo element, którego w dokumencie nie ma.
     stylesheet = stylesheet_declarations(src)
-    scanned = frozenset(["div", "span", "p", "td", "tr", "table", "a", "font"])
+    # Bez białej listy znaczników: liczy się to, że element NIESIE deklarację,
+    # nie jak się nazywa. Lista `div span p td tr table a font` pomijała `<img>`,
+    # więc piksel z `font-size: 0px; line-height: 1px` dawał ustalenie negatywne
+    # „nie znaleziono deklaracji rozmiaru 0–1 px” w raporcie, który ten sam
+    # atrybut cytował dwie sekcje wyżej. Mianownik sekcji (`styled_total`) i tak
+    # liczy WSZYSTKIE atrybuty `style`, więc zawężony licznik im przeczył.
     for node in parse_html(src).walk():
-        if node.tag not in scanned:
-            continue
         style = node.attrs.get("style")
         if not style:
             continue
@@ -4011,6 +4127,12 @@ def decode_header_tokens(msg: email.message.Message) -> list[Token]:
     ['YWJjZGVmZ2hpams=']
     >>> toks[0].source
     'nagłówek List-Unsubscribe: parametr unsubscribe='
+
+    Zwykłe słowo poza URL-em nie jest tokenem — ten sam filtr co dla treści:
+
+    >>> src = "X-Track-Page: polityka-prywatnosci-firmy\\n\\nx"
+    >>> decode_header_tokens(message_from_string(src, policy=policy.default))
+    []
     """
     out: list[Token] = []
     for name, value in msg.items():
@@ -4030,6 +4152,12 @@ def decode_header_tokens(msg: email.message.Message) -> list[Token]:
         bez_url = re.sub(r"https?://\S+", " ", text)
 
         for candidate in re.findall(r"[A-Za-z0-9+/=_-]{16,}", bez_url):
+            # Ten sam filtr słów co decode_tokens (skaner treści) — bez niego
+            # zwykłe angielskie słowo w nagłówku (np. nazwa polityki w
+            # X-Mailer) było traktowane inaczej niż identyczny ciąg w treści,
+            # tylko dlatego, że trafił tu inną ścieżką kodu.
+            if _looks_like_word(candidate):
+                continue
             # Ścieżka hex istniała wyłącznie dla treści; identyfikator kolejki
             # w `In-Reply-To` (16 znaków hex) był w efekcie pomijany, mimo że
             # sekcja deklaruje szukanie hexa także w nagłówkach.
@@ -4199,13 +4327,7 @@ def repeated_identifiers(
             for uuid_match in re.finditer(UUID_PATTERN, haystack, re.IGNORECASE):
                 note(uuid_match.group(0), label)
                 rest = rest.replace(uuid_match.group(0), " ")
-            # `dict.fromkeys`, nie `set`: iteracja po zbiorze łańcuchów idzie
-            # w kolejności zależnej od losowania hashy, więc ten sam plik dawał
-            # raporty o różnej sumie kontrolnej między uruchomieniami. Dokument
-            # dowodowy musi być odtwarzalny co do bajtu.
-            for found in dict.fromkeys(
-                re.findall(rf"[A-Za-z0-9]{{{min_length},}}", rest)
-            ):
+            for found in unique_matches(rf"[A-Za-z0-9]{{{min_length},}}", rest):
                 # Etykieta domeny (`newsletter`, `marketing`, `powiadomienia`)
                 # to nie identyfikator odbiorcy ani kampanii — powiązania między
                 # nazwami opisuje inwentarz domen. Skaner wpisywał je do tabeli
@@ -4498,52 +4620,13 @@ def message_id_parts(message_id: str | None) -> list[tuple[str, str]]:
     return out
 
 
-def software_fingerprints(
-    msg: email.message.Message, html_body: str | None
-) -> list[tuple[str, str]]:
-    """Ślady oprogramowania, które wiadomość wytworzyło — obecne i nieobecne.
-
-    Nieobecność `X-Mailer` i `User-Agent` jest obserwacją tak samo jak ich wartość;
-    tak samo format `boundary` i `<meta name="Generator">`. Raporty odnotowywały
-    to sporadycznie i tylko w prozie sekcji 8.
+def _fingerprint_mailer_headers(msg: email.message.Message) -> list[tuple[str, str]]:
+    """`X-Mailer`/`User-Agent`/`X-Originating-Client`/`X-MimeOLE`, gdy obecne.
 
     >>> from email import message_from_string, policy
-    >>> src = 'X-Mailer: Sendy (https://sendy.co)\\nContent-Type: multipart/mixed; boundary="b1"\\n\\nx'
-    >>> software_fingerprints(message_from_string(src, policy=policy.default), None)
-    [('X-Mailer', 'Sendy (https://sendy.co)'), ('MIME boundary', 'b1'), ('User-Agent', '(nagłówek nieobecny)')]
-
-    Boundary w formacie `email.generator._make_boundary()` z Pythona ma stałą
-    postać (15 znaków `=`, cyfry, `==`) — odnotowujemy sam format, bez wniosku:
-
-    >>> src = 'Content-Type: multipart/mixed; boundary="===============4403652449191023895=="\\n\\nx'
-    >>> [v for k, v in software_fingerprints(message_from_string(src, policy=policy.default), None)
-    ...  if k == "Format boundary"]
-    ['15× "=" + 19 cyfr + "==" — postać generowana przez email.generator._make_boundary() (Python)']
-
-    >>> src = 'From: a@b.pl\\n\\nx'
-    >>> software_fingerprints(message_from_string(src, policy=policy.default), None)
-    [('X-Mailer', '(nagłówek nieobecny)'), ('User-Agent', '(nagłówek nieobecny)')]
-
-    >>> software_fingerprints(message_from_string(src, policy=policy.default),
-    ...                       '<meta name="Generator" content="Cocoa HTML Writer">')[-1]
-    ('meta Generator', 'Cocoa HTML Writer')
-
-    Ślady z treści też się liczą — szablon i niepodstawione znaczniki merge
-    identyfikują narzędzie równie jednoznacznie, co nagłówek `X-Mailer`:
-
-    >>> tresc = "<!-- NAME: SELL PRODUCTS --><title>*|MC:SUBJECT|*</title>"
-    >>> [v for k, v in software_fingerprints(
-    ...     message_from_string(src, policy=policy.default), tresc)
-    ...  if k in {"Nazwa szablonu", "Niepodstawiony znacznik merge"}]
-    ['NAME: SELL PRODUCTS', '*|MC:SUBJECT|*']
-
-    Wszystkie znaczniki merge, nie tylko pierwszy:
-
-    >>> wiele = "<title>*|MC:SUBJECT|*</title><!--*|IF:MC_PREVIEW_TEXT|*--><!--*|END:IF|*-->"
-    >>> [v for k, v in software_fingerprints(
-    ...     message_from_string(src, policy=policy.default), wiele)
-    ...  if k == "Niepodstawiony znacznik merge"]
-    ['*|MC:SUBJECT|*, *|IF:MC_PREVIEW_TEXT|*, *|END:IF|*']
+    >>> src = "X-Mailer: Sendy (https://sendy.co)\\n\\nx"
+    >>> _fingerprint_mailer_headers(message_from_string(src, policy=policy.default))
+    [('X-Mailer', 'Sendy (https://sendy.co)')]
     """
     out: list[tuple[str, str]] = []
     for name in ("X-Mailer", "User-Agent", "X-Originating-Client", "X-MimeOLE"):
@@ -4551,7 +4634,22 @@ def software_fingerprints(
         if value is not None:
             text = str(value).strip()
             out.append((name, text if text else "(nagłówek obecny, wartość pusta)"))
+    return out
 
+
+def _fingerprint_boundary(msg: email.message.Message) -> list[tuple[str, str]]:
+    """`boundary` MIME i, gdy pasuje, jego format generowany przez Python.
+
+    Boundary w formacie `email.generator._make_boundary()` z Pythona ma stałą
+    postać (15 znaków `=`, cyfry, `==`) — odnotowujemy sam format, bez wniosku.
+
+    >>> src = 'Content-Type: multipart/mixed; boundary="===============4403652449191023895=="\\n\\nx'
+    >>> from email import message_from_string, policy
+    >>> [v for k, v in _fingerprint_boundary(message_from_string(src, policy=policy.default))
+    ...  if k == "Format boundary"]
+    ['15× "=" + 19 cyfr + "==" — postać generowana przez email.generator._make_boundary() (Python)']
+    """
+    out: list[tuple[str, str]] = []
     boundary = msg.get_param("boundary")
     if boundary:
         out.append(("MIME boundary", str(boundary)))
@@ -4566,11 +4664,22 @@ def software_fingerprints(
                     ),
                 )
             )
+    return out
 
-    # Nagłówki własne dostawcy wysyłki. Sekcja sprawdzała wyłącznie `X-Mailer`
-    # i `User-Agent`, więc dla wiadomości z czterema nagłówkami `X-sare*`
-    # nazywającymi system wprost drukowała „brak śladów oprogramowania” —
-    # ustalenie sprzeczne z zawartością pliku.
+
+def _fingerprint_vendor_headers(msg: email.message.Message) -> list[tuple[str, str]]:
+    """Nagłówki własne dostawcy wysyłki (X-sare*, X-sg*, X-ses* itd.).
+
+    Sekcja sprawdzała wyłącznie `X-Mailer` i `User-Agent`, więc dla wiadomości
+    z czterema nagłówkami `X-sare*` nazywającymi system wprost drukowała
+    „brak śladów oprogramowania” — ustalenie sprzeczne z zawartością pliku.
+
+    >>> from email import message_from_string, policy
+    >>> src = "X-sare-ID: abc123\\n\\nx"
+    >>> _fingerprint_vendor_headers(message_from_string(src, policy=policy.default))
+    [('X-sare-ID', 'abc123')]
+    """
+    out: list[tuple[str, str]] = []
     for name in msg:
         if re.match(
             r"(?i)^x-(sare|sg|ses|campaign|mailer-|esp|sendgrid|mailgun)", name
@@ -4578,13 +4687,29 @@ def software_fingerprints(
             value = str(msg.get(name) or "").strip()
             if value and (name, value) not in out:
                 out.append((name, value[:200]))
+    return out
 
-    # Format części lokalnej `Message-ID` bywa sygnaturą oprogramowania: `E`
-    # + długi identyfikator to kolejka Exima, `----=_Part_N_M.epoch` w boundary
-    # to JavaMail. Raport pokazywał obie wartości, ale ich nie nazywał.
+
+def _fingerprint_message_id_and_boundary_format(
+    msg: email.message.Message,
+) -> list[tuple[str, str]]:
+    """Format `Message-ID`/`boundary` jako sygnatura oprogramowania.
+
+    Format części lokalnej `Message-ID` bywa sygnaturą oprogramowania: `E`
+    + długi identyfikator to kolejka Exima, `----=_Part_N_M.epoch` w boundary
+    to JavaMail. Raport pokazywał obie wartości, ale ich nie nazywał.
+
+    >>> from email import message_from_string, policy
+    >>> src = "Message-ID: <E1abcdef-01234567-AB@host>\\n\\nx"
+    >>> _fingerprint_message_id_and_boundary_format(
+    ...     message_from_string(src, policy=policy.default))
+    [('Format Message-ID', 'identyfikator kolejki Exim (`E` + id sesji)')]
+    """
+    out: list[tuple[str, str]] = []
     message_id = str(msg.get("Message-ID") or "")
     if re.search(r"<E[0-9A-Za-z]{6,}-[0-9A-Za-z]{8,}-[0-9A-Za-z]{2,4}@", message_id):
         out.append(("Format Message-ID", "identyfikator kolejki Exim (`E` + id sesji)"))
+    boundary = msg.get_param("boundary")
     if boundary and re.fullmatch(r"----=_Part_\d+_\d+\.\d{10,13}", str(boundary)):
         out.append(
             (
@@ -4592,9 +4717,18 @@ def software_fingerprints(
                 "`----=_Part_N_M.epoch-ms` — postać generowana przez JavaMail/Jakarta Mail",
             )
         )
+    return out
 
-    # Nazwa MTA bywa jedyną identyfikacją oprogramowania w pliku, a stała
-    # wyłącznie w surowym cytacie sekcji o trasie.
+
+def _fingerprint_mta_from_received(msg: email.message.Message) -> list[tuple[str, str]]:
+    """Nazwa MTA, gdy stała wyłącznie w surowym cytacie nagłówka `Received`.
+
+    >>> from email import message_from_string, policy
+    >>> src = "Received: from a.example by b.example (Exim 4.96)\\n\\nx"
+    >>> _fingerprint_mta_from_received(message_from_string(src, policy=policy.default))
+    [('MTA z nagłówka Received', 'Exim 4.96')]
+    """
+    out: list[tuple[str, str]] = []
     for raw in msg.get_all("Received") or []:
         mta = re.search(
             r"\((Exim|Postfix|Sendmail|qmail|OpenSMTPD|MailEnable)\b[^)]*\)", str(raw)
@@ -4603,100 +4737,227 @@ def software_fingerprints(
             value = mta.group(0).strip("()")
             if ("MTA z nagłówka Received", value) not in out:
                 out.append(("MTA z nagłówka Received", value))
+    return out
 
+
+def _fingerprint_absent_mailer_headers(
+    msg: email.message.Message,
+) -> list[tuple[str, str]]:
+    """Nieobecność `X-Mailer`/`User-Agent` jest obserwacją tak samo jak ich wartość.
+
+    >>> from email import message_from_string, policy
+    >>> _fingerprint_absent_mailer_headers(
+    ...     message_from_string("From: a@b.pl\\n\\nx", policy=policy.default))
+    [('X-Mailer', '(nagłówek nieobecny)'), ('User-Agent', '(nagłówek nieobecny)')]
+    """
+    out: list[tuple[str, str]] = []
     for name in ("X-Mailer", "User-Agent"):
         if msg.get(name) is None:
             out.append((name, "(nagłówek nieobecny)"))
+    return out
 
-    if html_body:
-        meta = re.search(
-            r'<meta[^>]+name=["\']Generator["\'][^>]+content=["\']([^"\']+)["\']',
-            html_body,
-            re.IGNORECASE,
-        )
-        if meta:
-            out.append(("meta Generator", meta.group(1)))
-        comment = re.search(
-            r"<!--\s*(Created with [^>]{0,60}?)\s*-->", html_body, re.IGNORECASE
-        )
-        if comment:
-            out.append(("Komentarz generatora", comment.group(1)))
 
-        # Pozostałe znaczniki `<meta>` i przestrzenie nazw. Raport wyłapywał
-        # `Cocoa HTML Writer`, a gubił `CocoaVersion`, `MSHTML` i deklaracje
-        # `xmlns:v`/`xmlns:o` — czyli resztę odcisku tego samego środowiska.
-        for pattern, label in (
+def _fingerprint_html_generator(html_body: str) -> list[tuple[str, str]]:
+    """`<meta name="Generator">` i komentarz `<!-- Created with ... -->`.
+
+    >>> _fingerprint_html_generator('<meta name="Generator" content="Cocoa HTML Writer">')
+    [('meta Generator', 'Cocoa HTML Writer')]
+    """
+    out: list[tuple[str, str]] = []
+    meta = re.search(
+        r'<meta[^>]+name=["\']Generator["\'][^>]+content=["\']([^"\']+)["\']',
+        html_body,
+        re.IGNORECASE,
+    )
+    if meta:
+        out.append(("meta Generator", meta.group(1)))
+    comment = re.search(
+        r"<!--\s*(Created with [^>]{0,60}?)\s*-->", html_body, re.IGNORECASE
+    )
+    if comment:
+        out.append(("Komentarz generatora", comment.group(1)))
+    return out
+
+
+def _fingerprint_html_other_meta(html_body: str) -> list[tuple[str, str]]:
+    """Pozostałe znaczniki `<meta>` i przestrzenie nazw tego samego środowiska.
+
+    Raport wyłapywał `Cocoa HTML Writer`, a gubił `CocoaVersion`, `MSHTML`
+    i deklaracje `xmlns:v`/`xmlns:o` — czyli resztę odcisku tego samego
+    środowiska.
+
+    >>> _fingerprint_html_other_meta('<html xmlns:o="urn:schemas-microsoft-com:office:office">')
+    [('Przestrzeń nazw XML', 'urn:schemas-microsoft-com:office:office')]
+    """
+    out: list[tuple[str, str]] = []
+    for pattern, label in (
+        (
+            r'<meta[^>]+name=["\']?CocoaVersion["\']?[^>]+content=["\']?([^"\'>]+)',
+            "meta CocoaVersion",
+        ),
+        (r'<meta[^>]+content=["\']?(MSHTML [0-9.]+)', "meta GENERATOR (MSHTML)"),
+        (r'xmlns:(?:v|o|w|x)\s*=\s*["\']?([^"\'\s>]+)', "Przestrzeń nazw XML"),
+        (r'(font-family\s*:\s*Aptos[^;"\']*)', "Deklaracja kroju"),
+    ):
+        found = unique_matches(pattern, html_body, re.IGNORECASE)
+        if found:
+            out.append((label, ", ".join(found[:6])))
+    return out
+
+
+def _fingerprint_html_darkreader_count(html_body: str) -> list[tuple[str, str]]:
+    """Znaczniki Dark Reader w treści — bez sumowania i bez wniosku o pochodzeniu.
+
+    Wcześniej ta funkcja podawała SUMĘ obu rodzin (atrybuty + zmienne CSS)
+    jako osobne ustalenie, obok dwóch wierszy, które ją tworzą — więc `63`
+    stało w tabeli obok `29` i `34` pod niemal identyczną etykietą.
+
+    Zdanie „obecne w wysłanej treści" też zniknęło: Dark Reader wstrzykuje
+    atrybuty w przeglądarce ODBIORCY, po doręczeniu. Plik nie zawiera niczego,
+    co pozwala ustalić, kiedy trafiły do bajtów — to była hipoteza o pochodzeniu
+    w raporcie deklarującym brak hipotez. Podajemy sam fakt i jego znaczenie.
+
+    >>> _fingerprint_html_darkreader_count('<p data-darkreader-inline-bgcolor="1">x</p>')
+    [('Znaczniki Dark Reader', '1 wystąpień (`data-darkreader-*`, `--darkreader-*`) — atrybuty wstrzykiwane do DOM przez rozszerzenie przeglądarki; raport nie ustala, na którym etapie trafiły do bajtów pliku')]
+    >>> _fingerprint_html_darkreader_count("<p>bez</p>")
+    []
+    """
+    out: list[tuple[str, str]] = []
+    darkreader = len(re.findall(r"data-darkreader|--darkreader-", html_body))
+    if darkreader:
+        out.append(
             (
-                r'<meta[^>]+name=["\']?CocoaVersion["\']?[^>]+content=["\']?([^"\'>]+)',
-                "meta CocoaVersion",
-            ),
-            (r'<meta[^>]+content=["\']?(MSHTML [0-9.]+)', "meta GENERATOR (MSHTML)"),
-            (r'xmlns:(?:v|o|w|x)\s*=\s*["\']?([^"\'\s>]+)', "Przestrzeń nazw XML"),
-            (r'(font-family\s*:\s*Aptos[^;"\']*)', "Deklaracja kroju"),
-        ):
-            found = list(dict.fromkeys(re.findall(pattern, html_body, re.IGNORECASE)))
-            if found:
-                out.append((label, ", ".join(found[:6])))
-
-        # Dark Reader wstrzykuje swoje atrybuty w przeglądarce, po stronie
-        # odbiorcy strony. Ich obecność w WYSŁANYM HTML-u to ślad autorski,
-        # nie transportowy — raport liczył je, nie mówiąc, czym są.
-        darkreader = len(re.findall(r"data-darkreader|--darkreader-", html_body))
-        if darkreader:
-            out.append(
+                "Znaczniki Dark Reader",
                 (
-                    "Atrybuty Dark Reader",
-                    (
-                        f"{darkreader} wystąpień — atrybuty wstrzykiwane przez "
-                        f"rozszerzenie przeglądarki do DOM po stronie klienta, "
-                        f"obecne w wysłanej treści"
-                    ),
-                )
+                    f"{darkreader} wystąpień (`data-darkreader-*`, "
+                    f"`--darkreader-*`) — atrybuty wstrzykiwane do DOM przez "
+                    f"rozszerzenie przeglądarki; raport nie ustala, na którym "
+                    f"etapie trafiły do bajtów pliku"
+                ),
             )
-
-        # Ślady zostawione w samej treści. Sekcja czytała wyłącznie `X-Mailer`
-        # i `User-Agent`, przez co przy wiadomości z komentarzami szablonu,
-        # prefiksowanymi klasami CSS i hostem CDN kończyła się „pusto”, choć
-        # inna sekcja te same bajty liczyła.
-        for pattern, label in (
-            (r"<!--\s*(NAME:\s*[^>]{0,60}?)\s*-->", "Nazwa szablonu"),
-            (r"<!--\s*(BEGIN TEMPLATE[^>]{0,40}?)\s*-->", "Znacznik szablonu"),
-            (r"(\*\|[A-Z_:]{2,30}\|\*)", "Niepodstawiony znacznik merge"),
-            (r"<!--\s*(blockId:[0-9a-f-]{8,})", "Identyfikator bloku edytora"),
-        ):
-            # `findall`, nie `search` — raport podawał 1 z 3 znaczników merge.
-            found = list(dict.fromkeys(re.findall(pattern, html_body, re.IGNORECASE)))
-            if found:
-                out.append((label, ", ".join(found)))
-
-        # Ucinanie do 4 znaków i lowercase robiło z jednej rodziny `mcn*` trzy
-        # nieistniejące (`mcni`, `mcnd`, `mcnt`), a z sześciu różnych klas
-        # Gmaila — jedną `gmai`. Wielkość liter jest częścią dowodu.
-        classes = collections.Counter(
-            name
-            for atrybut in re.findall(r"""class\s*=\s*["']([^"']+)""", html_body)
-            for name in atrybut.split()
         )
-        most_common = [(n, c) for n, c in classes.most_common(8) if c >= 2]
-        if most_common:
-            out.append(
-                (
-                    "Najczęstsze klasy CSS",
-                    ", ".join(f"{n} ({c}×)" for n, c in most_common),
-                )
+    return out
+
+
+def _fingerprint_html_template_traces(html_body: str) -> list[tuple[str, str]]:
+    """Ślady szablonu i niepodstawione znaczniki merge w treści HTML.
+
+    Sekcja czytała wyłącznie `X-Mailer` i `User-Agent`, przez co przy
+    wiadomości z komentarzami szablonu, prefiksowanymi klasami CSS i hostem
+    CDN kończyła się „pusto”, choć inna sekcja te same bajty liczyła.
+
+    >>> _fingerprint_html_template_traces("<!-- NAME: SELL PRODUCTS --><title>*|MC:SUBJECT|*</title>")
+    [('Nazwa szablonu', 'NAME: SELL PRODUCTS'), ('Niepodstawiony znacznik merge', '*|MC:SUBJECT|*')]
+
+    Wszystkie znaczniki merge, nie tylko pierwszy:
+
+    >>> wiele = "<title>*|MC:SUBJECT|*</title><!--*|IF:MC_PREVIEW_TEXT|*--><!--*|END:IF|*-->"
+    >>> [v for k, v in _fingerprint_html_template_traces(wiele)
+    ...  if k == "Niepodstawiony znacznik merge"]
+    ['*|MC:SUBJECT|*, *|IF:MC_PREVIEW_TEXT|*, *|END:IF|*']
+    """
+    out: list[tuple[str, str]] = []
+    for pattern, label in (
+        (r"<!--\s*(NAME:\s*[^>]{0,60}?)\s*-->", "Nazwa szablonu"),
+        (r"<!--\s*(BEGIN TEMPLATE[^>]{0,40}?)\s*-->", "Znacznik szablonu"),
+        (r"(\*\|[A-Z_:]{2,30}\|\*)", "Niepodstawiony znacznik merge"),
+        (r"<!--\s*(blockId:[0-9a-f-]{8,})", "Identyfikator bloku edytora"),
+    ):
+        # `findall`, nie `search` — raport podawał 1 z 3 znaczników merge.
+        found = unique_matches(pattern, html_body, re.IGNORECASE)
+        if found:
+            out.append((label, ", ".join(found)))
+    return out
+
+
+def _fingerprint_html_css_classes(html_body: str) -> list[tuple[str, str]]:
+    """Najczęstsze klasy CSS w treści HTML (odcisk szablonu/generatora).
+
+    Ucinanie do 4 znaków i lowercase robiło z jednej rodziny `mcn*` trzy
+    nieistniejące (`mcni`, `mcnd`, `mcnt`), a z sześciu różnych klas Gmaila —
+    jedną `gmai`. Wielkość liter jest częścią dowodu.
+
+    >>> _fingerprint_html_css_classes('<p class="mcnTextContent mcnTextContent">x</p>')
+    [('Najczęstsze klasy CSS', 'mcnTextContent (2×)')]
+    >>> _fingerprint_html_css_classes('<p class="jedna">x</p>')
+    []
+    """
+    out: list[tuple[str, str]] = []
+    classes = collections.Counter(
+        name
+        for atrybut in re.findall(r"""class\s*=\s*["']([^"']+)""", html_body)
+        for name in atrybut.split()
+    )
+    most_common = [(n, c) for n, c in classes.most_common(8) if c >= 2]
+    if most_common:
+        out.append(
+            (
+                "Najczęstsze klasy CSS",
+                ", ".join(f"{n} ({c}×)" for n, c in most_common),
             )
-        # Artefakty rozszerzeń przeglądarki i edytorów WYSIWYG obecne w wysłanym
-        # źródle to ustalenie o pochodzeniu HTML-a; 64 takie atrybuty w jednym
-        # pliku nie zostały odnotowane ani razu.
-        for pattern, label in (
-            (r"data-darkreader-[a-z-]+", "Atrybuty DarkReader"),
-            (r"--darkreader-[a-z-]+", "Zmienne CSS DarkReader"),
-            (r"contenteditable\s*=", "Atrybut contenteditable (edytor WYSIWYG)"),
-            (r"data-template-container", "Atrybut data-template-container"),
-        ):
-            count = len(re.findall(pattern, html_body, re.IGNORECASE))
-            if count:
-                out.append((label, f"{count} wystąpień"))
+        )
+    return out
+
+
+def _fingerprint_html_editor_attributes(html_body: str) -> list[tuple[str, str]]:
+    """Artefakty rozszerzeń przeglądarki i edytorów WYSIWYG w treści HTML.
+
+    Ich obecność w wysłanym źródle to ustalenie o pochodzeniu HTML-a; 64 takie
+    atrybuty w jednym pliku nie zostały odnotowane ani razu.
+
+    >>> _fingerprint_html_editor_attributes('<div contenteditable="true">x</div>')
+    [('Atrybut contenteditable (edytor WYSIWYG)', '1 wystąpień')]
+    """
+    out: list[tuple[str, str]] = []
+    for pattern, label in (
+        (r"contenteditable\s*=", "Atrybut contenteditable (edytor WYSIWYG)"),
+        (r"data-template-container", "Atrybut data-template-container"),
+    ):
+        count = len(re.findall(pattern, html_body, re.IGNORECASE))
+        if count:
+            out.append((label, f"{count} wystąpień"))
+    return out
+
+
+def software_fingerprints(
+    msg: email.message.Message, html_body: str | None
+) -> list[tuple[str, str]]:
+    """Ślady oprogramowania, które wiadomość wytworzyło — obecne i nieobecne.
+
+    Nieobecność `X-Mailer` i `User-Agent` jest obserwacją tak samo jak ich wartość;
+    tak samo format `boundary` i `<meta name="Generator">`. Raporty odnotowywały
+    to sporadycznie i tylko w prozie sekcji 8.
+
+    Złożenie z ~10 niezależnych detektorów (`_fingerprint_*`), każdy testowany
+    osobno — zobacz ich doctesty dla poszczególnych kategorii śladu.
+
+    >>> from email import message_from_string, policy
+    >>> src = 'X-Mailer: Sendy (https://sendy.co)\\nContent-Type: multipart/mixed; boundary="b1"\\n\\nx'
+    >>> software_fingerprints(message_from_string(src, policy=policy.default), None)
+    [('X-Mailer', 'Sendy (https://sendy.co)'), ('MIME boundary', 'b1'), ('User-Agent', '(nagłówek nieobecny)')]
+
+    >>> src = 'From: a@b.pl\\n\\nx'
+    >>> software_fingerprints(message_from_string(src, policy=policy.default), None)
+    [('X-Mailer', '(nagłówek nieobecny)'), ('User-Agent', '(nagłówek nieobecny)')]
+
+    >>> software_fingerprints(message_from_string(src, policy=policy.default),
+    ...                       '<meta name="Generator" content="Cocoa HTML Writer">')[-1]
+    ('meta Generator', 'Cocoa HTML Writer')
+    """
+    out: list[tuple[str, str]] = []
+    out += _fingerprint_mailer_headers(msg)
+    out += _fingerprint_boundary(msg)
+    out += _fingerprint_vendor_headers(msg)
+    out += _fingerprint_message_id_and_boundary_format(msg)
+    out += _fingerprint_mta_from_received(msg)
+    out += _fingerprint_absent_mailer_headers(msg)
+    if html_body:
+        out += _fingerprint_html_generator(html_body)
+        out += _fingerprint_html_other_meta(html_body)
+        out += _fingerprint_html_darkreader_count(html_body)
+        out += _fingerprint_html_template_traces(html_body)
+        out += _fingerprint_html_css_classes(html_body)
+        out += _fingerprint_html_editor_attributes(html_body)
     return out
 
 
@@ -4761,7 +5022,11 @@ def compare_parts(html_body: str | None, text_body: str | None) -> dict[str, obj
     def words(text: str) -> set[str]:
         return set(re.findall(r"\w{4,}", text.lower()))
 
-    html_words = words(deobfuscate(html_body))
+    # Adnotacja `[DEKLARACJE: …]` jest dopisywana przez raport, nie przez
+    # nadawcę. Wliczona do porównania dawała 12 „słów występujących wyłącznie
+    # w text/html" (`display`, `hidden`, `opacity`, `visibility`…), których
+    # w wiadomości nie ma, i zaniżała indeks Jaccarda.
+    html_words = words(re.sub(r"\[DEKLARACJE:[^\]]*\]", " ", deobfuscate(html_body)))
     text_words = words(text_body)
     overlap = len(html_words & text_words) / max(1, len(html_words | text_words))
 
@@ -4886,7 +5151,7 @@ def registry_identifiers(text: str) -> list[tuple[str, str, str]]:
     """
     out: list[tuple[str, str, str]] = []
     for label, pattern, validator in REGISTRY_PATTERNS:
-        for matched in dict.fromkeys(re.findall(pattern, text)):
+        for matched in unique_matches(pattern, text):
             if validator is None:
                 status = "brak sumy kontrolnej w standardzie"
             elif validator(matched):
@@ -4961,3 +5226,47 @@ def identity_layers(
     if resource_hosts:
         add("Hosty zasobów pobieranych w treści", ", ".join(resource_hosts))
     return out
+
+
+#: Formy prawne spółek — kotwica do wyciągnięcia nazwy podmiotu z treści.
+#: Wyszukiwanie po formie prawnej jest odczytem, nie rozpoznawaniem nazw:
+#: dopasowuje się dosłowny ciąg z pliku, a nie domysł o tym, czym jest wyraz.
+LEGAL_FORMS = (
+    r"sp\.\s*z\s*o\.\s*o\.(?:\s*sp\.\s*[jk]\.)?",
+    r"S\.A\.",
+    r"sp\.\s*[jk]\.",
+    r"S\.C\.",
+)
+
+
+def organisations_in_content(text: str) -> list[str]:
+    """Nazwy podmiotów gospodarczych z treści, wyciągnięte po formie prawnej.
+
+    Sekcja warstw tożsamości czytała wyłącznie nagłówki i hosty, więc podmiot
+    **nazwany wprost w wiadomości** nie był w niej warstwą — mimo że nazwa
+    sekcji to obiecuje. W dziesięciu z szesnastu ocenianych raportów był to
+    jedyny brakujący element zestawienia.
+
+    >>> organisations_in_content("Stopka: Przyklad Systems S.A., Warszawa")
+    ['Przyklad Systems S.A.']
+    >>> organisations_in_content("TMSYS sp. z o.o. — dystrybutor")
+    ['TMSYS sp. z o.o.']
+    >>> organisations_in_content("HitITgroup EP sp. z o.o. sp.j. (dawniej Inna)")
+    ['HitITgroup EP sp. z o.o. sp.j.']
+    >>> organisations_in_content("bez podmiotu")
+    []
+    """
+    found: list[str] = []
+    for form in LEGAL_FORMS:
+        # Najwyżej 3 wyrazy przed formą prawną. Bez limitu regex sklejał
+        # sąsiadujące zdania: podpis „Zespół Zdrofit" wchodził do nazwy
+        # „Benefit Systems S.A." stojącej w następnym akapicie stopki.
+        pattern = (
+            r"((?:[A-ZŁŚŹŻĆÓĄĘŃ][\w.&-]*(?:\s+(?:[A-ZŁŚŹŻĆÓĄĘŃ][\w.&-]*|i|of|and)){0,2})"
+            r"\s+" + form + ")"
+        )
+        for match in re.finditer(pattern, text):
+            value = re.sub(r"\s+", " ", match.group(1)).strip(" ,")
+            if value and not any(value in existing for existing in found):
+                found = [f for f in found if f not in value] + [value]
+    return found
