@@ -43,6 +43,9 @@ from eml_forensics_logika import (
     collect_domains,
     collect_net_addresses,
     compare_parts,
+    contact_details,
+    content_claims,
+    declaration_crosschecks,
     decode_header_tokens,
     decode_hop_tokens,
     decode_tokens,
@@ -544,11 +547,17 @@ def build_report(eml_path: Path, outdir: Path) -> tuple[str, Path]:
     mtime = datetime.datetime.fromtimestamp(stat.st_mtime).astimezone().isoformat()
     # Sekcja tożsamości PRZED sekcją artefaktów: ta druga kończy się stopką
     # zamykającą dokument, więc wszystko dopięte po niej wisiało poza raportem.
+    registry = registry_identifiers(scannable_text)
     write_identity_layers_section(
         identity_layers(msg, dkim, resources),
-        registry_identifiers(scannable_text),
+        registry,
         W,
         tuple(organisations_in_content(scannable_text)),
+        # Wykluczamy wartości rozpoznane już jako identyfikatory rejestrowe:
+        # NIP ma kształt numeru telefonu i trafiał do obu tabel naraz.
+        contact_details(scannable_text, exclude=tuple(v for _, v, _ in registry)),
+        content_claims(scannable_text),
+        declaration_crosschecks(msg, scannable_text, html_body),
     )
     write_artifacts_section(
         eml_path.name,
