@@ -31,6 +31,7 @@ jobs:
               # celowo bez +x: nie do bezpośredniego uruchamiania (source/import, nie CLI)
               lib.sh|utils.py|kontrola_logika.py) continue ;;
               eml_forensics_logika.py|eml_forensics_raport.py) continue ;;
+              build_pismo_logic.py) continue ;;
               test_*.py) continue ;;
             esac
             mode=$(git ls-files -s "$f" | awk '{print $1}')
