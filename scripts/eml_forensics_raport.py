@@ -2777,11 +2777,92 @@ def write_artifacts_section(
     )
 
 
+def _write_content_evidence(
+    contacts: list[tuple[str, str]],
+    claims: list[tuple[str, str]],
+    crosschecks: list[tuple[str, str, str]],
+    W: WriteLine,
+) -> None:
+    """Podsekcje 22.2–22.4: treść jako materiał dowodowy, nie zrzut tekstu.
+
+    Raport zbierał domeny, adresy IP i tokeny, a to, co wiadomość deklaruje
+    wprost — kanał kontaktu, kwotę, termin, nazwę produktu w tytule dokumentu —
+    zostawało wyłącznie prozą w bloku treści. Nieobecność każdej z tych klas
+    jest ustaleniem tak samo jak jej obecność.
+
+    >>> lines = []
+    >>> _write_content_evidence(
+    ...     [("Telefon", "71 308 98 97")], [("Kwota", "1 zł")],
+    ...     [("`Subject` wobec `<title>` dokumentu", "Kod", "Verification")],
+    ...     lines.append)
+    >>> out = "\\n".join(lines)
+    >>> "71 308 98 97" in out and "1 zł" in out and "Verification" in out
+    True
+
+    >>> lines = []
+    >>> _write_content_evidence([], [], [], lines.append)
+    >>> out = "\\n".join(lines)
+    >>> "nie zawiera numeru telefonu" in out and "nie zawiera kwoty" in out
+    True
+    """
+    W("\n### 22.2. Dane kontaktowe podane w treści\n")
+    write_table_or_finding(
+        W,
+        ["Rodzaj", "Wartość dosłowna z treści"],
+        [[kind, code(value)] for kind, value in contacts],
+        "W treści nie ma danych kontaktowych (telefonu, adresu e-mail, "
+        "adresu pocztowego).",
+    )
+    for kind, label in (
+        ("Telefon", "nie zawiera numeru telefonu"),
+        ("Adres e-mail", "nie zawiera adresu e-mail"),
+        ("Ulica z numerem", "nie zawiera adresu pocztowego z ulicą i numerem"),
+    ):
+        if not any(k == kind for k, _ in contacts):
+            write_no_findings(W, f"Treść {label}.")
+
+    W("\n### 22.3. Kwoty, wartości procentowe i daty z treści\n")
+    write_table_or_finding(
+        W,
+        ["Rodzaj", "Wartość dosłowna z treści"],
+        [[kind, code(value)] for kind, value in claims],
+        "W treści nie ma kwot, wartości procentowych ani dat.",
+    )
+    for kind, label in (
+        ("Kwota", "nie zawiera kwoty"),
+        ("Data (DD.MM.RRRR)", "nie zawiera daty w zapisie DD.MM.RRRR"),
+    ):
+        if not any(k == kind for k, _ in claims):
+            write_no_findings(W, f"Treść {label}.")
+    if claims:
+        W(
+            "Wartości podane dosłownie, bez przeliczania i bez sprawdzania, "
+            "czy odpowiadają czemukolwiek poza plikiem.\n"
+        )
+
+    W("\n### 22.4. Zestawienia pól deklarujących to samo\n")
+    write_table_or_finding(
+        W,
+        ["Co porównano", "Wartość A", "Wartość B"],
+        [[what, code(first), code(second)] for what, first, second in crosschecks],
+        "Brak pól nadających się do zestawienia (nagłówek `Subject`, `<title>` "
+        "dokumentu, domena `From`).",
+    )
+    if crosschecks:
+        W(
+            "Zestawienie podane **bez oceny zgodności** — obie wartości pochodzą "
+            "z pliku i stoją tu obok siebie, bo deklarują to samo.\n"
+        )
+
+
 def write_identity_layers_section(
     layers: list[tuple[str, str]],
     registry: list[tuple[str, str, str]],
     W: WriteLine,
     content_organisations: tuple[str, ...] = (),
+    contacts: list[tuple[str, str]] | None = None,
+    claims: list[tuple[str, str]] | None = None,
+    crosschecks: list[tuple[str, str, str]] | None = None,
 ) -> None:
     """Sekcja 22: warstwy deklarujące nadawcę i identyfikatory rejestrowe z treści.
 
@@ -2874,4 +2955,6 @@ def write_identity_layers_section(
             W,
             "W treści nie znaleziono numeru rachunku, NIP-u, KRS-u, REGON-u ani BDO.",
         )
+
+    _write_content_evidence(contacts or [], claims or [], crosschecks or [], W)
     W("")

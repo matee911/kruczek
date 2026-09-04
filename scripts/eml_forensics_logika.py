@@ -5270,3 +5270,185 @@ def organisations_in_content(text: str) -> list[str]:
             if value and not any(value in existing for existing in found):
                 found = [f for f in found if f not in value] + [value]
     return found
+
+
+# ──────────────────────────── treść jako materiał dowodowy ────────────────────────────
+
+#: Wzorce danych kontaktowych. Każdy odczytuje DOSŁOWNY ciąg z pliku — to ta
+#: sama klasa faktu co suma kontrolna, nie rozpoznawanie znaczeń.
+CONTACT_PATTERNS = (
+    (
+        "Telefon",
+        # Wymagany SYGNAŁ, że to numer telefonu: prefiks `+48`, słowo-kotwica
+        # albo separatory między grupami cyfr. Goły ciąg 9 cyfr nim nie jest —
+        # bez tego warunku jako „telefon" trafiały numer BDO (`000558784`)
+        # i numer sprawy (`801002647`), czyli szum podany jako ustalenie.
+        (
+            r"(?:(?:tel\.?|telefon|kom\.?|fax|faks|T)[\s.:]{0,3})?"
+            r"(?<![\d-])(\+48[\s-]?\d{2,3}[\s-]?\d{3}[\s-]?\d{2,3}[\s-]?\d{0,3}"
+            r"|\d{2,3}[\s-]\d{3}[\s-]\d{2,3}(?:[\s-]\d{2,3})?)(?![\d-])"
+        ),
+    ),
+    ("Adres e-mail", r"\b([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})\b"),
+    (
+        "Kod pocztowy z miejscowością",
+        r"\b(\d{2}-\d{3}\s+[A-ZŁŚŹŻĆÓĄĘŃ][\w-]+(?:\s+[A-ZŁŚŹŻĆÓĄĘŃ][\w-]+)?)",
+    ),
+    (
+        "Ulica z numerem",
+        (
+            r"\b((?:ul\.|al\.|pl\.|Plac|Aleja|Ulica)\s+[A-ZŁŚŹŻĆÓĄĘŃ][\w.-]*"
+            r"(?:\s+[A-ZŁŚŹŻĆÓĄĘŃ]?[\w.-]+){0,3}\s+\d+[A-Za-z]?(?:/\d+[A-Za-z]?)?)"
+        ),
+    ),
+)
+
+
+def contact_details(text: str, exclude: tuple[str, ...] = ()) -> list[tuple[str, str]]:
+    """Dane kontaktowe z treści — telefony, adresy e-mail i pocztowe.
+
+    Raport inwentaryzował domeny, adresy IP i tokeny, a dane, które wiadomość
+    podaje wprost jako kanał kontaktu, zostawały wyłącznie jako proza w zrzucie
+    treści. W ocenach wracało to jako brak w większości plików.
+
+    Zwraca pary `(rodzaj, wartość)` bez powtórzeń, w kolejności z tekstu.
+
+    >>> contact_details("Tel. 71 308 98 97, biuro@przyklad.pl")
+    [('Telefon', '71 308 98 97'), ('Adres e-mail', 'biuro@przyklad.pl')]
+
+    Goły ciąg dziewięciu cyfr NIE jest telefonem — numer BDO i numer sprawy
+    trafiały wcześniej do tabeli jako kanał kontaktu:
+
+    >>> contact_details("BDO: 000558784, sprawa 801002647")
+    []
+    >>> contact_details("kom. 790-502-102")
+    [('Telefon', '790-502-102')]
+    >>> contact_details("Adres: ul. Kominiarska 42A, 51-180 Wroclaw")
+    [('Kod pocztowy z miejscowością', '51-180 Wroclaw'), ('Ulica z numerem', 'ul. Kominiarska 42A')]
+    >>> contact_details("bez danych kontaktowych")
+    []
+
+    `exclude` odsiewa wartości rozpoznane już jako identyfikatory rejestrowe —
+    NIP `836-167-65-10` ma kształt numeru telefonu i trafiał do tabeli jako
+    kanał kontaktu, choć sekcja obok opisuje go jako numer podatkowy:
+
+    >>> contact_details("NIP: 836-167-65-10", exclude=("836-167-65-10",))
+    []
+    """
+    normalised_exclusions = {re.sub(r"\D", "", value) for value in exclude}
+    out: list[tuple[str, str]] = []
+    for label, pattern in CONTACT_PATTERNS:
+        for match in dict.fromkeys(re.findall(pattern, text)):
+            value = re.sub(r"\s+", " ", match).strip(" ,.")
+            if not value or (label, value) in out:
+                continue
+            if label == "Telefon" and re.sub(r"\D", "", value) in normalised_exclusions:
+                continue
+            out.append((label, value))
+    return out
+
+
+#: Wartości liczbowe, które wiadomość deklaruje wprost. Ich zebranie pozwala
+#: później sprawdzić deklarację poza plikiem; brak którejkolwiek klasy jest
+#: ustaleniem tak samo jak jej obecność.
+CLAIM_PATTERNS = (
+    ("Kwota", r"(?<![\w.])(\d{1,3}(?:[ .]\d{3})*(?:,\d{2})?\s*(?:zł|PLN|EUR|USD))"),
+    ("Wartość procentowa", r"(?<![\w.])(\d{1,3}(?:,\d+)?\s*%)"),
+    ("Data (DD.MM.RRRR)", r"\b(\d{1,2}[.\-/]\d{1,2}[.\-/]\d{4})\b"),
+    ("Data (RRRR-MM-DD)", r"\b(\d{4}-\d{2}-\d{2})\b"),
+)
+
+
+def content_claims(text: str) -> list[tuple[str, str]]:
+    """Kwoty, wartości procentowe i daty zadeklarowane w treści wiadomości.
+
+    Wiadomość obiecująca rabat albo żądająca przelewu podaje liczby, które
+    da się później zweryfikować — a raport reprodukował je wyłącznie w bloku
+    treści, bez wyodrębnienia.
+
+    >>> content_claims("Rabat 15% na licencje, cena 1 zł, oferta do 30.07.2026")
+    [('Kwota', '1 zł'), ('Wartość procentowa', '15%'), ('Data (DD.MM.RRRR)', '30.07.2026')]
+    >>> content_claims("bez liczb")
+    []
+    """
+    out: list[tuple[str, str]] = []
+    for label, pattern in CLAIM_PATTERNS:
+        for match in dict.fromkeys(re.findall(pattern, text)):
+            value = re.sub(r"\s+", " ", match).strip()
+            if value and (label, value) not in out:
+                out.append((label, value))
+    return out
+
+
+def declaration_crosschecks(
+    msg: email.message.Message, content: str, html_body: str | None
+) -> list[tuple[str, str, str]]:
+    """Pola deklarujące to samo, zestawione obok siebie — bez oceny zgodności.
+
+    Raport podawał każdą z tych wartości w innej sekcji, więc rozjazd trzeba
+    było składać ręcznie. Zestawienie to fakt, nie wniosek: sekcja o adresach
+    robi już to samo dla nazwy wyświetlanej i domeny.
+
+    Zwraca krotki `(co porównano, wartość A, wartość B)`.
+
+    >>> from email import message_from_string, policy
+    >>> src = "From: Marka <a@marka.pl>\\nSubject: Kod weryfikacyjny\\n\\nx"
+    >>> msg = message_from_string(src, policy=policy.default)
+    >>> for co, a, b in declaration_crosschecks(
+    ...     msg, "tresc bez domeny", "<title>Verification</title>"
+    ... ):
+    ...     print(f"{co} | {a} | {b}")
+    `Subject` wobec `<title>` dokumentu | Kod weryfikacyjny | Verification
+    Wyrazy z `Subject` nieobecne w treści | weryfikacyjny | 1 z 1
+    Domena `From` w treści wiadomości | marka.pl | nie występuje
+
+    Gdy dokument nie deklaruje tytułu, wiersz porównania tytułu nie powstaje,
+    a obecność domeny w treści jest odnotowana tak samo jak jej brak:
+
+    >>> [b for _, _, b in declaration_crosschecks(msg, "kontakt: marka.pl", None)]
+    ['1 z 1', 'występuje']
+    """
+    out: list[tuple[str, str, str]] = []
+
+    subject = re.sub(r"\s+", " ", str(msg.get("Subject") or "")).strip()
+    title = None
+    if html_body:
+        match = re.search(
+            r"<title[^>]*>(.*?)</title>", html_body, re.DOTALL | re.IGNORECASE
+        )
+        if match:
+            title = re.sub(r"\s+", " ", html.unescape(match.group(1))).strip()
+    if subject and title is not None:
+        out.append(("`Subject` wobec `<title>` dokumentu", subject, title or "(pusty)"))
+
+    # Wyrazy z tematu nieobecne w treści. Temat zapowiada, czego wiadomość
+    # dotyczy; gdy jego słowo kluczowe nie pada w ciele ani razu, jest to fakt
+    # policzalny — inaczej niż wniosek „brak faktury", który wymagałby ustalenia,
+    # czym jest która kwota.
+    if subject and content.strip():
+        lowered = content.lower()
+        missing_words = [
+            word
+            for word in dict.fromkeys(re.findall(r"\w{5,}", subject.lower()))
+            if word not in lowered
+        ]
+        if missing_words:
+            out.append(
+                (
+                    "Wyrazy z `Subject` nieobecne w treści",
+                    ", ".join(missing_words[:8]),
+                    f"{len(missing_words)} z "
+                    f"{len(set(re.findall(r'\w{5,}', subject.lower())))}",
+                )
+            )
+
+    from_value = str(msg.get("From") or "")
+    _, address = email.utils.parseaddr(from_value)
+    if address and "@" in address:
+        domain = address.rsplit("@", 1)[1].strip("> ").lower()
+        # Ustalenie negatywne o domenie nadawcy: gdy żaden odnośnik ani żadne
+        # zdanie treści jej nie wymienia, wiadomość nie odsyła do podmiotu,
+        # którym się przedstawia. Wracało to jako brak w wielu ocenach.
+        present = "występuje" if domain in content.lower() else "nie występuje"
+        out.append(("Domena `From` w treści wiadomości", domain, present))
+    return out

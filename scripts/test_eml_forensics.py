@@ -2008,7 +2008,8 @@ class TestRundaSiodma(unittest.TestCase):
         """„63 = 29 + 34 podane jako trzy niezależne ustalenia."""
         html = '<p data-darkreader-inline-color="1" style="--darkreader-x:1">x</p>'
         etykiety = [
-            k for k, _ in logika.software_fingerprints(
+            k
+            for k, _ in logika.software_fingerprints(
                 message_from_string("From: a@b.pl\n\nx", policy=policy.default), html
             )
         ]
@@ -2057,6 +2058,122 @@ class TestRundaSiodma(unittest.TestCase):
         report = analyze(raw)
         self.assertIn("Podmioty nazwane w treści", report)
         self.assertIn("Przyklad Systems S.A.", report)
+
+
+class TestTrescJakoMaterialDowodowy(unittest.TestCase):
+    """Rozbudowa zakresu: treść ma być materiałem, nie zrzutem tekstu."""
+
+    def test_dane_kontaktowe_z_tresci_sa_wyodrebnione(self):
+        """„Raport nie zbiera tego, co JEST: telefonów, adresu, e-maili."""
+        raw = build(
+            "From: a@przyklad.pl\nContent-Type: text/html",
+            "<p>Kontakt: tel. 71 308 98 97, biuro@przyklad.pl</p>"
+            "<p>ul. Kominiarska 42A, 51-180 Wroclaw</p>",
+        )
+        report = analyze(raw)
+        for wartosc in ("71 308 98 97", "biuro@przyklad.pl", "51-180 Wroclaw"):
+            self.assertIn(wartosc, report)
+
+    def test_numer_rejestrowy_nie_udaje_telefonu(self):
+        """„000558784 to BDO, 801002647 to numer sprawy — nie kanały kontaktu."""
+        self.assertEqual(
+            logika.contact_details("BDO: 000558784, sprawa nr 801002647"), []
+        )
+
+    def test_nip_nie_trafia_do_dwoch_tabel_naraz(self):
+        """NIP ma kształt numeru telefonu — bez wykluczenia stał w obu."""
+        tekst = "NIP: 836-167-65-10"
+        rejestrowe = logika.registry_identifiers(tekst)
+        kontakty = logika.contact_details(
+            tekst, exclude=tuple(v for _, v, _ in rejestrowe)
+        )
+        self.assertTrue(any(r[0] == "NIP" for r in rejestrowe))
+        self.assertEqual([k for k, _ in kontakty if k == "Telefon"], [])
+
+    def test_brak_kwoty_w_wezwaniu_jest_ustaleniem(self):
+        """„Wezwanie do zapłaty nie zawiera kwoty ani terminu — brak ustalenia."""
+        raw = build(
+            "From: a@przyklad.pl\nSubject: Czekamy na platnosc",
+            "Prosimy o uregulowanie naleznosci przelewem.",
+        )
+        report = analyze(raw)
+        self.assertIn("Treść nie zawiera kwoty", report)
+        self.assertIn("Treść nie zawiera daty", report)
+
+    def test_kwoty_i_procenty_z_tresci_sa_zebrane(self):
+        """„Raport cytuje obietnice, nie zbiera ich jako wartości."""
+        raw = build(
+            "From: a@przyklad.pl",
+            "Rabat 35% na licencje, aktualizacja za 1 zł, oferta do 30.07.2026.",
+        )
+        report = analyze(raw)
+        for wartosc in ("35%", "1 zł", "30.07.2026"):
+            self.assertIn(wartosc, report)
+
+    def test_subject_zestawiony_z_tytulem_dokumentu(self):
+        """„Subject mówi »Partner Center«, <title> »Open Platform« — brak zestawienia.
+
+        Recenzent nazwał to najmocniejszym pominięciem w tym pliku.
+        """
+        raw = build(
+            "From: a@przyklad.pl\nSubject: Kod weryfikacyjny\nContent-Type: text/html",
+            "<html><head><title>Weryfikacja konta</title></head><body>x</body></html>",
+        )
+        report = analyze(raw)
+        self.assertIn("Zestawienia pól deklarujących to samo", report)
+        self.assertIn("Weryfikacja konta", report)
+
+    def test_niepodstawiony_znacznik_merge_w_tytule_jest_widoczny(self):
+        """`<title>` = `*|MC:SUBJECT|*` znaczy, że szablon nie został wyrenderowany."""
+        raw = build(
+            "From: a@przyklad.pl\nSubject: Prawdziwy temat\nContent-Type: text/html",
+            "<html><head><title>*|MC:SUBJECT|*</title></head><body>x</body></html>",
+        )
+        # Pipe'y są escapowane, bo tabela markdown inaczej rozpadłaby się
+        # na kolumny — sprawdzamy więc rdzeń znacznika, nie jego zapis.
+        self.assertIn("MC:SUBJECT", analyze(raw))
+
+    def test_brak_domeny_nadawcy_w_tresci_jest_ustaleniem(self):
+        """„Zero odwołań do domeny From w treści — najmocniejszy brakujący negatyw."""
+        raw = build(
+            "From: Marka <a@marka.example>\nContent-Type: text/html",
+            '<a href="https://zupelnie.inna.example/x">Kliknij</a>',
+        )
+        report = analyze(raw)
+        self.assertIn("Domena `From` w treści wiadomości", report)
+        self.assertIn("nie występuje", report)
+
+    def test_wyrazy_z_tematu_nieobecne_w_tresci(self):
+        """„Subject: Zapytanie Ofertowe; treść nie zawiera zapytania ofertowego."
+
+        Fakt policzalny — inaczej niż wniosek „brak faktury", który wymagałby
+        ustalenia, czym jest która kwota.
+        """
+        raw = build(
+            "From: a@przyklad.pl\nSubject: Zapytanie Ofertowe",
+            "Sprawdzilam Panstwa strone i proponuje wykonanie analizy.",
+        )
+        report = analyze(raw)
+        self.assertIn("Wyrazy z `Subject` nieobecne w treści", report)
+        self.assertIn("zapytanie", report)
+
+    def test_temat_obecny_w_tresci_nie_generuje_ustalenia(self):
+        """Sprawdzenie działa w obie strony — inaczej byłoby tylko zarzutem."""
+        raw = build(
+            "From: a@przyklad.pl\nSubject: Faktura",
+            "W zalaczeniu faktura za okres rozliczeniowy.",
+        )
+        self.assertNotIn("Wyrazy z `Subject` nieobecne w treści", analyze(raw))
+
+    def test_domena_nadawcy_obecna_w_tresci_tez_jest_odnotowana(self):
+        """Ustalenie działa w obie strony — inaczej byłoby tylko oskarżeniem."""
+        raw = build(
+            "From: Marka <a@marka.example>",
+            "Napisz do nas przez marka.example, chetnie pomozemy.",
+        )
+        report = analyze(raw)
+        self.assertIn("Domena `From` w treści wiadomości", report)
+        self.assertIn("| `występuje` |", report)
 
 
 if __name__ == "__main__":
