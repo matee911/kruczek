@@ -131,7 +131,14 @@ def evaluate_print_mail_requirements(
 
 
 def all_requirements_met(results: list) -> bool:
-    """>>> all_requirements_met([{'ok': True}, {'ok': True}])
+    """Czy wszystkie sprawdzenia wypadły pomyślnie.
+
+    Doctest zaczyna się od NOWEJ linii, nie w linii otwierającego cudzysłowu.
+    Python 3.14 usuwa wcięcie docstringów już przy kompilacji, 3.12 nie — więc
+    przy zapisie w jednej linii doctest widział w obu wersjach inne wcięcie
+    oczekiwanego wyniku: test przechodził lokalnie i padał w CI.
+
+    >>> all_requirements_met([{'ok': True}, {'ok': True}])
     True
     >>> all_requirements_met([{'ok': True}, {'ok': False}])
     False
