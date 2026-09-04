@@ -1480,18 +1480,94 @@ class TestRundaSzosta(unittest.TestCase):
         self.assertEqual(len(wynik[0][1]), 3)
 
     def test_przerwa_w_lancuchu_received_jest_ustaleniem(self):
-        """„by skoku 2 to AM9PR04MB8274, from skoku 3 to GVXPR05CU001 — brak testu."""
+        """„by skoku 2 to AM9PR04MB8274, from skoku 3 to GVXPR05CU001 — brak testu."
+
+        Przerwę stwierdzamy na podstawie rDNS, bo to nazwa ustalona przez
+        serwer przyjmujący. Wcześniejsza wersja porównywała `by` z HELO, czyli
+        z deklaracją klienta — i zgłaszała przerwę dla `mail.a.pl` obok `a.pl`.
+        """
         raw = build(
-            "Received: from c.przyklad.pl by mx3.przyklad.pl with ESMTP;"
-            " Tue, 11 Aug 2026 10:00:02 +0000\n"
-            "Received: from mx1.przyklad.pl by mx2.przyklad.pl with ESMTP;"
-            " Tue, 11 Aug 2026 10:00:01 +0000\n"
-            "Received: from klient.przyklad.pl by mx1.przyklad.pl with ESMTPA;"
-            " Tue, 11 Aug 2026 10:00:00 +0000"
+            "Received: from obcy.przyklad.pl (obcy.przyklad.pl. [203.0.113.9])"
+            " by mx3.przyklad.pl with ESMTP; Tue, 11 Aug 2026 10:00:02 +0000\n"
+            "Received: from mx1.przyklad.pl (mx1.przyklad.pl. [203.0.113.8])"
+            " by mx2.przyklad.pl with ESMTP; Tue, 11 Aug 2026 10:00:01 +0000\n"
+            "Received: from klient.przyklad.pl (klient.przyklad.pl. [203.0.113.7])"
+            " by mx1.przyklad.pl with ESMTPA; Tue, 11 Aug 2026 10:00:00 +0000"
         )
         report = analyze(raw)
         self.assertIn("Ciągłość łańcucha", report)
         self.assertIn("**nie**", report)
+
+    def test_helo_nie_dowodzi_przerwy_w_lancuchu(self):
+        """„HELO psif.pl przy by mail.psif.pl to jeden host, nie luka."
+
+        Werdykt musi być trójwartościowy: sama deklaracja klienta nie
+        rozstrzyga, bo HELO bywa skróconą nazwą tego samego hosta.
+        """
+        h1 = logika.ReceivedHop(
+            1,
+            "",
+            helo=None,
+            rdns=None,
+            ip=None,
+            by="mail.przyklad.pl",
+            by_ip=None,
+            protocol=None,
+            tls=None,
+            queue_id=None,
+            for_address=None,
+            timestamp=None,
+        )
+        h2 = logika.ReceivedHop(
+            2,
+            "",
+            helo="przyklad.pl",
+            rdns=None,
+            ip=None,
+            by="mx.google.example",
+            by_ip=None,
+            protocol=None,
+            tls=None,
+            queue_id=None,
+            for_address=None,
+            timestamp=None,
+        )
+        self.assertEqual(logika.received_chain_continuity([h1, h2])[0][3], "?")
+
+    def test_skok_bez_from_nie_jest_pomijany_po_cichu(self):
+        """Nierozstrzygalne to inny stan niż niezgodne — musi być widoczny."""
+        h1 = logika.ReceivedHop(
+            1,
+            "",
+            helo=None,
+            rdns=None,
+            ip=None,
+            by="mx1.przyklad.pl",
+            by_ip=None,
+            protocol=None,
+            tls=None,
+            queue_id=None,
+            for_address=None,
+            timestamp=None,
+        )
+        h2 = logika.ReceivedHop(
+            2,
+            "",
+            helo=None,
+            rdns=None,
+            ip=None,
+            by="mx2.przyklad.pl",
+            by_ip=None,
+            protocol=None,
+            tls=None,
+            queue_id=None,
+            for_address=None,
+            timestamp=None,
+        )
+        wynik = logika.received_chain_continuity([h1, h2])
+        self.assertEqual(len(wynik), 1)
+        self.assertEqual(wynik[0][3], "?")
+        self.assertIn("brak klauzuli", wynik[0][2])
 
     def test_numer_rachunku_jest_dana_a_nie_proza(self):
         """„Numer konta pojawia się wyłącznie jako fragment prozy w zrzucie treści."
@@ -1842,6 +1918,145 @@ class TestOdtwarzalnosc(unittest.TestCase):
                 )
                 checksums.add((Path(tmp) / "w_analiza.md").read_bytes())
         self.assertEqual(len(checksums), 1, "raport różni się między uruchomieniami")
+
+
+class TestRundaSiodma(unittest.TestCase):
+    """Regresje wprowadzone w rundzie 6 — testy pilnują ZAKRESU twierdzenia."""
+
+    def test_licznik_skokow_zgadza_sie_miedzy_sekcjami(self):
+        """„§4 mówi 3 skoki, §3 mówi 2" — w 14 z 16 raportów.
+
+        `"Received" in label` łapało `X-Received`, który jest nagłówkiem
+        odbiorcy, nie zapisem przekazania.
+        """
+        raw = build(
+            "Date: Tue, 11 Aug 2026 10:00:00 +0000\n"
+            "X-Received: by 2002:a05:1 with SMTP id x.1786528808000;\n"
+            "Received: from b.pl by mx.pl with ESMTP; Tue, 11 Aug 2026 10:00:08 +0000\n"
+            "Received: from a.pl by b.pl with ESMTPA; Tue, 11 Aug 2026 10:00:00 +0000"
+        )
+        report = analyze(raw)
+        z_sekcji_3 = int(
+            re.search(r"Skoków `Received` ogółem: \*\*(\d+)\*\*", report).group(1)
+        )
+        z_sekcji_4 = int(
+            re.search(r"skoków ze znacznikiem: \*\*(\d+)\*\*", report).group(1)
+        )
+        self.assertEqual(z_sekcji_3, z_sekcji_4, "sekcje podają różną liczbę skoków")
+        self.assertEqual(z_sekcji_3, 2)
+
+    def test_sekcja_1_ujawnia_mianownik(self):
+        """„Liczba czyta się jak twierdzenie o wszystkich 25 nagłówkach."
+
+        Porównywanych jest 5 nagłówków tożsamościowych; bez podania zakresu
+        ustalenie jest fałszywe dla pliku z kilkunastoma zwiniętymi nagłówkami.
+        """
+        report = analyze(build("From: a@przyklad.pl\nSubject: Temat"))
+        self.assertIn("Zakres porównania:", report)
+        self.assertIn("nagłówków tożsamościowych", report)
+        self.assertIn("nie wchodzą do tej liczby", report)
+
+    def test_ustalenie_o_ciaglosci_nie_wykracza_poza_dane(self):
+        """„Tabela ma 1 wiersz z 2 przejść, a wniosek mówi »każdy skok«."""
+        raw = build(
+            "Received: from x.przyklad.pl by mx3.przyklad.pl with ESMTP;"
+            " Tue, 11 Aug 2026 10:00:02 +0000\n"
+            "Received: by mx2.przyklad.pl with ESMTP;"
+            " Tue, 11 Aug 2026 10:00:01 +0000\n"
+            "Received: from k.przyklad.pl (k.przyklad.pl. [203.0.113.7])"
+            " by mx1.przyklad.pl with ESMTPA; Tue, 11 Aug 2026 10:00:00 +0000"
+        )
+        report = analyze(raw)
+        self.assertNotIn("Każdy skok zaczyna się", report)
+        self.assertIn("nierozstrzygaln", report)
+
+    def test_brak_rdns_nie_jest_zarzucany_skokowi_bez_klienta(self):
+        """„Skok bez klauzuli from nie miał klienta, którego nazwy nie ustalono."""
+        raw = build(
+            "Received: by mx2.przyklad.pl with ESMTP; Tue, 11 Aug 2026 10:00:01 +0000\n"
+            "Received: from k.przyklad.pl (k.przyklad.pl. [203.0.113.7])"
+            " by mx1.przyklad.pl with ESMTPA; Tue, 11 Aug 2026 10:00:00 +0000"
+        )
+        report = analyze(raw)
+        self.assertIn("nie ma klauzuli `from`", report)
+        self.assertIn("nie mają w nim zastosowania", report)
+
+    def test_stopka_zamyka_dokument(self):
+        """„Sekcje 23 i 23.1 wiszą pod zamknięciem raportu."""
+        report = analyze(build("From: a@przyklad.pl"))
+        stopka = report.index("_Raport wygenerowany mechanicznie")
+        for naglowek in ("## 22.", "## 23."):
+            self.assertLess(
+                report.index(naglowek), stopka, f"{naglowek} stoi po stopce"
+            )
+
+    def test_liczniki_tresci_bez_adnotacji_raportu(self):
+        """„16% znaków niebiałych to tekst raportu, nie wiadomości."""
+        raw = build(
+            "Content-Type: text/html",
+            '<div style="display:none">ukryty fragment</div><p>widoczna tresc</p>',
+        )
+        report = analyze(raw)
+        self.assertIn("[DEKLARACJE:", report)
+        self.assertIn("nie są wliczone", report)
+        m = re.search(r"Treść liczy \*\*(\d+)\*\* znaków", report)
+        blok = re.search(r"```\n(.*?)\n```", report[m.end() :], re.DOTALL).group(1)
+        bez_adnotacji = re.sub(r"\[DEKLARACJE:[^\]]*\]\s*", "", blok)
+        self.assertEqual(int(m.group(1)), len(bez_adnotacji))
+
+    def test_darkreader_nie_jest_liczony_dwa_razy(self):
+        """„63 = 29 + 34 podane jako trzy niezależne ustalenia."""
+        html = '<p data-darkreader-inline-color="1" style="--darkreader-x:1">x</p>'
+        etykiety = [
+            k for k, _ in logika.software_fingerprints(
+                message_from_string("From: a@b.pl\n\nx", policy=policy.default), html
+            )
+        ]
+        self.assertEqual(
+            len([e for e in etykiety if "arkReader" in e or "ark Reader" in e]), 1
+        )
+
+    def test_darkreader_bez_twierdzenia_o_momencie_wstrzyknięcia(self):
+        """„»obecne w wysłanej treści« to hipoteza o pochodzeniu."""
+        wynik = dict(
+            logika.software_fingerprints(
+                message_from_string("From: a@b.pl\n\nx", policy=policy.default),
+                '<p data-darkreader-inline-color="1">x</p>',
+            )
+        )
+        opis = wynik["Znaczniki Dark Reader"]
+        self.assertNotIn("w wysłanej treści", opis)
+        self.assertIn("nie ustala", opis)
+
+    def test_element_ze_stylem_nie_jest_pomijany_przez_nazwe_znacznika(self):
+        """„§19 mówi »nie znaleziono«, a §17 cytuje font-size: 0px na <img>."""
+        html = '<img src="https://cel.example/p.gif" style="font-size: 0px; line-height: 1px;">'
+        elementy = logika.find_hidden_elements(html)
+        self.assertEqual(len(elementy), 1)
+        self.assertEqual(elementy[0].tag, "img")
+        self.assertIn("font-size:0px", elementy[0].rules)
+
+    def test_cytat_dowodowy_nie_gubi_znakow_z_encji(self):
+        """„Zniknął fragment <CAHYL8ScvJQVDZQKHq16hZTi-KsS5Edo5gkh=."
+
+        Encje dekodowane PRZED usuwaniem znaczników zamieniały `&lt;…&gt;`
+        w `<…>`, po czym kolejny krok zjadał to jako rzekomy znacznik.
+        """
+        html = "<p>Message-ID: &lt;CAHYL8Sc@mail.przyklad.pl&gt;.</p>"
+        self.assertEqual(
+            logika.deobfuscate(html),
+            "Message-ID: <CAHYL8Sc@mail.przyklad.pl>.",
+        )
+
+    def test_podmiot_z_tresci_wchodzi_do_warstw_tozsamosci(self):
+        """„§23 nazywa się »warstwy tożsamości«, a czyta tylko nagłówki."""
+        raw = build(
+            "From: Marka <a@przyklad.pl>\nContent-Type: text/html",
+            "<p>Pozdrawiam</p><p>Przyklad Systems S.A., Warszawa</p>",
+        )
+        report = analyze(raw)
+        self.assertIn("Podmioty nazwane w treści", report)
+        self.assertIn("Przyklad Systems S.A.", report)
 
 
 if __name__ == "__main__":

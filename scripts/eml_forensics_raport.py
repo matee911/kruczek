@@ -164,6 +164,19 @@ def labelled_rows(pairs: Iterable[tuple[str, object]]) -> list[list[str]]:
     return [[label, code(value)] for label, value in pairs if code(value) != "—"]
 
 
+def other_tag_rows(other_tags: Iterable[tuple[str, object]]) -> list[list[str]]:
+    """Wiersze tabeli dla tagów podpisu spoza stałej listy (`other_tags`).
+
+    Ten sam kształt wiersza był budowany osobno w sekcji DKIM i w sekcji
+    ARC-Message-Signature — obie tabele pomijały tagi spoza stałej listy
+    (np. `v=`, `q=`, `b=` w DKIM; `fh=`, `dara=` w ARC), mimo że są w pliku.
+
+    >>> other_tag_rows([("v", "1"), ("q", "dns/txt")])
+    [['`v=`', '`1`'], ['`q=`', '`dns/txt`']]
+    """
+    return [[f"`{klucz}=`", code(value)] for klucz, value in other_tags]
+
+
 def write_table(W: WriteLine, headers: list[str], rows: Iterable[list[str]]) -> int:
     """Tabela markdown bez pustych linii w środku — te łamały render w §2.5 i §6.5.
 
@@ -286,7 +299,9 @@ def write_identification(
 
     >>> "Bajty z pliku są identyczne" in out and "`Subject`" in out
     True
-    >>> "Nagłówków, w których bajty z pliku różnią się od wyniku parsera: **1**" in out
+    >>> "Zakres porównania: **2 nagłówków tożsamościowych**" in out
+    True
+    >>> "bajty różnią się od wyniku parsera w **1**" in out
     True
     """
     W("## 1. Identyfikacja\n")
@@ -340,11 +355,20 @@ def write_identification(
                 for name, literal, sparsowane in comparisons
             ],
         )
+    # Zakres podajemy ZAWSZE, także gdy nic się nie różni — to wtedy liczba
+    # najłatwiej czyta się jako twierdzenie o całym pliku.
+    if literal_vs_parsed:
         W(
-            f"Nagłówków, w których bajty z pliku różnią się od wyniku parsera: "
-            f"**{len(comparisons)}**. Przyczyną bywa kodowanie RFC 2047, zwinięcie "
-            f"na kilka linii albo normalizacja parsera (np. dopełnienie dnia zerem); "
-            f"kolumna druga to bajty z pliku, trzecia to wynik parsera.\n"
+            f"Zakres porównania: **{len(literal_vs_parsed or ())} nagłówków "
+            f"tożsamościowych** ({', '.join(code(n) for n, _, _ in (literal_vs_parsed or ()))}), "
+            f"nie wszystkie nagłówki pliku. Z tego bajty różnią się od wyniku "
+            f"parsera w **{len(comparisons)}**. Przyczyną bywa kodowanie RFC 2047 "
+            f"albo normalizacja parsera (np. dopełnienie dnia zerem); kolumna druga "
+            f"to bajty z pliku, trzecia to wynik parsera.\n"
+            f"\nNagłówki **zwinięte na kilka linii** (m.in. `Received`, podpisy "
+            f"DKIM/ARC, `Authentication-Results`) także różnią się bajtowo od "
+            f"wyniku parsera i **nie wchodzą do tej liczby** — ich rozwinięcie "
+            f"jest operacją parsera, nie zmianą treści.\n"
         )
     if identical_rows:
         write_no_findings(
@@ -577,22 +601,41 @@ def write_received_section(
         # Wiersze puste są odfiltrowane, więc czytelnik nie odróżnia „pola nie
         # ma w nagłówku” od „parser go nie odczytał”. Dla pól, które niosą
         # dowód o pochodzeniu, mówimy to wprost.
+        # Pola opisujące KLIENTA mają sens wyłącznie w skoku, który jakiegoś
+        # klienta przyjął. Doklejane do skoku bez klauzuli `from` twierdziły,
+        # że „serwer nie ustalił nazwy odwrotnej klienta” tam, gdzie klienta
+        # w ogóle nie było — a raport sam zdanie wyżej pisze, że to przekazanie
+        # wewnątrz jednej infrastruktury.
+        ma_klienta = bool(hop.helo or hop.rdns or hop.ip)
         missing = [
             label
-            for label, value in (
-                ("rDNS (nazwa odwrotna klienta)", hop.rdns),
-                ("HELO (nazwa zadeklarowana przez klienta)", hop.helo),
-                ("Znacznik czasu", hop.timestamp),
+            for label, value, wymaga_klienta in (
+                ("rDNS (nazwa odwrotna klienta)", hop.rdns, True),
+                ("HELO (nazwa zadeklarowana przez klienta)", hop.helo, True),
+                ("Znacznik czasu", hop.timestamp, False),
             )
-            if not value
+            if not value and (ma_klienta or not wymaga_klienta)
         ]
         if missing:
+            wyjasnienie = (
+                " Brak rDNS znaczy, że serwer przyjmujący nie ustalił nazwy "
+                "odwrotnej klienta albo jej nie zapisał."
+                if any("rDNS" in e for e in missing)
+                else ""
+            )
             write_no_findings(
                 W,
                 f"Skok {hop.index} nie zawiera pól: "
                 + ", ".join(f"**{e}**" for e in missing)
-                + ". Brak rDNS znaczy, że serwer przyjmujący nie ustalił nazwy "
-                "odwrotnej klienta albo jej nie zapisał.",
+                + "."
+                + wyjasnienie,
+            )
+        if not ma_klienta:
+            write_no_findings(
+                W,
+                f"Skok {hop.index} nie ma klauzuli `from` — nie zapisuje żadnego "
+                f"klienta zdalnego, więc pola opisujące klienta (HELO, rDNS, IP) "
+                f"nie mają w nim zastosowania.",
             )
 
     continuity = received_chain_continuity(hops)
@@ -610,23 +653,36 @@ def write_received_section(
                     f"{number} → {number + 1}",
                     code(receiver),
                     code(sender),
-                    "tak" if matches else "**nie**",
+                    {"tak": "tak", "nie": "**nie**"}.get(verdict, "nierozstrzygalne"),
                 ]
-                for number, receiver, sender, matches in continuity
+                for number, receiver, sender, verdict in continuity
             ],
         )
-        gaps = [c for c in continuity if not c[3]]
+        gaps = [c for c in continuity if c[3] == "nie"]
+        checked = [c for c in continuity if c[3] in {"tak", "nie"}]
+        unknown = [c for c in continuity if c[3] == "?"]
         if gaps:
             W(
                 f"Przejść, w których nazwy się nie zgadzają: **{len(gaps)}**. "
                 f"Dla takiego odcinka plik nie zawiera nagłówka dokumentującego, "
                 f"jak wiadomość trafiła z jednego hosta na drugi.\n"
             )
-        else:
+        elif checked:
+            # Ustalenie negatywne obejmuje TYLKO przejścia rozstrzygnięte.
+            # Wersja mówiąca „każdy skok” była szersza niż własne dane:
+            # przy jednym sprawdzonym przejściu z dwóch twierdziła o obu.
             write_no_findings(
                 W,
-                "Każdy skok zaczyna się na hoście, na którym skończył się "
-                "poprzedni — łańcuch nie ma nieudokumentowanych odcinków.",
+                f"Sprawdzalnych przejść: **{len(checked)}** z **{len(continuity)}** — "
+                f"w każdym z nich skok zaczyna się na hoście, na którym skończył "
+                f"się poprzedni.",
+            )
+        if unknown:
+            W(
+                f"\nPrzejść **nierozstrzygalnych z pliku**: **{len(unknown)}**. "
+                f"Skok bez klauzuli `from` nie zapisuje hosta nadającego, a samo "
+                f"HELO jest deklaracją klienta — jego rozbieżność z `by` nie "
+                f"dowodzi przerwy, bo bywa skróconą nazwą tego samego hosta.\n"
             )
 
     if addresses:
@@ -792,7 +848,12 @@ def write_timeline_section(
             )
         # Czas tranzytu liczony wyłącznie po `Received` — to jedyny odcinek,
         # który mówi o drodze wiadomości, a nie o momentach jej podpisania.
-        received = [(label, dt) for label, dt in ordered if "Received" in label]
+        # `startswith`, nie `in`: dopasowanie podciągiem łapało `X-Received`,
+        # który jest nagłówkiem odbiorcy, nie zapisem przekazania. Stąd licznik
+        # skoków w tej sekcji przeczył liczbie z sekcji o drodze wiadomości.
+        received = [
+            (label, dt) for label, dt in ordered if label.startswith("Received skok")
+        ]
         if len(received) > 1:
             transit = (received[-1][1] - received[0][1]).total_seconds()
             W(
@@ -942,7 +1003,7 @@ def write_dkim_section(
             rows.append([f"`x=` ({sig.expires})", code(format_local(moment))])
         # Tagi spoza stałej listy (`v=`, `q=`, `b=`) są w pliku, a tabela ich
         # nie pokazywała — mimo że sekcja deklaruje wypisanie tagów podpisu.
-        rows += [[f"`{klucz}=`", code(value)] for klucz, value in sig.other_tags]
+        rows += other_tag_rows(sig.other_tags)
         write_table(W, ["Tag", "Wartość"], [r for r in rows if r[1] != "—"])
         # Brak tagu to ustalenie tej samej klasy co jego obecność. Raport
         # odnotowywał wyłącznie brak `l=`, choć brak `t=` (podpis bez znacznika
@@ -1126,7 +1187,7 @@ def write_arc_section(
                 ]
                 # Tagi spoza stałej listy — `fh=`, `dara=`, `b=`, `v=`, `q=` —
                 # są w pliku, a tabela ich nie pokazywała.
-                + [[f"`{klucz}=`", code(value)] for klucz, value in sig.other_tags],
+                + other_tag_rows(sig.other_tags),
             )
             W(
                 f"Lista `h=` podpisu ARC nr {i} zapisuje, które nagłówki zostały "
@@ -1500,8 +1561,6 @@ def write_message_id_section(message_id: str | None, W: WriteLine) -> None:
     >>> "Brak nagłówka Message-ID" in "\\n".join(lines)
     True
     """
-    import re
-
     W("## 13. Message-ID\n")
     if not message_id:
         write_no_findings(W, "Brak nagłówka Message-ID.")
@@ -1632,8 +1691,6 @@ def write_thread_section(
     >>> "Brak nagłówków `In-Reply-To` i `References`" in out
     True
     """
-    import re
-
     W("## 14. Powiązanie z wątkiem\n")
     subject_text = str(subject or "")
     if re.match(r"\s*(re|odp|fwd|fw)\s*:", subject_text, re.IGNORECASE):
@@ -1731,16 +1788,7 @@ def write_tokens_section(tokens: list[Token], W: WriteLine) -> None:
     True
     """
     W("## 15. Tokeny i identyfikatory zakodowane\n")
-    if not tokens:
-        write_no_findings(
-            W,
-            "Nie znaleziono ciągów dających się zdekodować jako base64/base64url/hex "
-            "w URL-ach, ścieżkach ani nagłówkach.",
-        )
-        W("")
-        return
-
-    write_table(
+    write_table_or_finding(
         W,
         ["Miejsce", "Token (dosłownie)", "Kodowanie", "Po zdekodowaniu"],
         [
@@ -1752,6 +1800,8 @@ def write_tokens_section(tokens: list[Token], W: WriteLine) -> None:
             ]
             for t in tokens
         ],
+        "Nie znaleziono ciągów dających się zdekodować jako base64/base64url/hex "
+        "w URL-ach, ścieżkach ani nagłówkach.",
     )
     if any(t.decoded_text is not None for t in tokens):
         W(
@@ -1829,8 +1879,6 @@ def _anchor_text_differs(resource: HtmlResource) -> bool:
     >>> _anchor_text_differs(HtmlResource("a", "https://a.pl/x", None, "https", "a.pl"))
     False
     """
-    import re
-
     text = (resource.text or "").strip()
     if not text or text == resource.url:
         return False
@@ -2267,10 +2315,7 @@ def _write_stylesheet_rules(stylesheet: list[StylesheetRule], W: WriteLine) -> N
     False
     """
     W("\n### Reguły ukrywające w blokach `<style>`\n")
-    if not stylesheet:
-        write_no_findings(W, "Bloki `<style>` nie zawierają reguł ukrywających.")
-        return
-    write_table(
+    write_table_or_finding(
         W,
         ["Selektor", "Deklaracje", "Elementów z tą klasą w treści", "Warunek"],
         [
@@ -2282,6 +2327,7 @@ def _write_stylesheet_rules(stylesheet: list[StylesheetRule], W: WriteLine) -> N
             ]
             for rule in stylesheet
         ],
+        "Bloki `<style>` nie zawierają reguł ukrywających.",
     )
     warunkowe = [r for r in stylesheet if r.condition]
     bezwarunkowe = [r for r in stylesheet if r.unconditional]
@@ -2533,14 +2579,26 @@ def write_content_section(
         # są osobno raportowane w sekcji o sumach kontrolnych, więc normalizacja
         # tutaj nie kasuje dowodu.
         printed = plain.replace("\r\n", "\n").replace("\r", "\n")
-        non_whitespace = len(re.sub(r"\s", "", printed))
+        # Liczniki BEZ adnotacji `[DEKLARACJE: …]` — to tekst raportu, nie
+        # wiadomości. Wliczany, stanowił do 16% znaków niebiałych i zawyżał
+        # licznik o coś, czego odbiorca nigdy nie dostał.
+        annotation = re.compile(r"\[DEKLARACJE:[^\]]*\]\s*")
+        message_only = annotation.sub("", printed)
+        annotation_chars = len(printed) - len(message_only)
+        non_whitespace = len(re.sub(r"\s", "", message_only))
         W(
-            f"Treść liczy **{len(printed)}** znaków, w tym **{non_whitespace}** "
-            "niebędących białymi — obie liczby policzone na bloku poniżej, więc "
-            "odtwarzają się z niego. Różnica to białe znaki: odstępy i złamania "
+            f"Treść liczy **{len(message_only)}** znaków, w tym **{non_whitespace}** "
+            "niebędących białymi. Różnica to białe znaki: odstępy i złamania "
             "wierszy pozostałe po usunięciu znaczników. Zakończenia linii "
             "w pliku źródłowym podaje sekcja o sumach kontrolnych. "
             "Nie wykryto granicy cytatu.\n"
+            + (
+                f"\nBlok poniżej zawiera dodatkowo **{annotation_chars}** znaków "
+                f"adnotacji `[DEKLARACJE: …]` dopisanych przez raport — **nie są "
+                f"wliczone** w liczby wyżej, bo nie pochodzą z wiadomości.\n"
+                if annotation_chars
+                else ""
+            )
         )
         W("```")
         W(printed)
@@ -2633,17 +2691,11 @@ def write_software_section(fingerprints: list[tuple[str, str]], W: WriteLine) ->
     True
     """
     W("## 21. Ślady oprogramowania\n")
-    if not fingerprints:
-        write_no_findings(
-            W,
-            "Nie znaleziono żadnych śladów oprogramowania nadawczego w nagłówkach ani w treści.",
-        )
-        W("")
-        return
-    write_table(
+    write_table_or_finding(
         W,
         ["Źródło", "Wartość"],
         [[code(name), escape_pipe(value)] for name, value in fingerprints],
+        "Nie znaleziono żadnych śladów oprogramowania nadawczego w nagłówkach ani w treści.",
     )
     W("")
 
@@ -2658,7 +2710,7 @@ def write_artifacts_section(
     W: WriteLine,
     date_header: str | None = None,
 ) -> None:
-    """Sekcja 9: artefakty, sumy kontrolne i granice tego, co sumy poświadczają.
+    """Sekcja 23: artefakty, sumy kontrolne i granice tego, co sumy poświadczają.
 
     `_naglowki.txt` bywał opisany jako „pełne nagłówki (wyciąg)” — a powstawał
     z re-serializacji przez parser (rozwinięte zwinięcia, zdekodowane RFC 2047,
@@ -2677,7 +2729,7 @@ def write_artifacts_section(
     >>> "CRLF w całym pliku" in out
     True
     """
-    W("## 22. Artefakty i sumy kontrolne\n")
+    W("## 23. Artefakty i sumy kontrolne\n")
     W(f"**Plik źródłowy**: {code(eml_basename)}\n")
     write_table(
         W,
@@ -2726,9 +2778,12 @@ def write_artifacts_section(
 
 
 def write_identity_layers_section(
-    layers: list[tuple[str, str]], registry: list[tuple[str, str, str]], W: WriteLine
+    layers: list[tuple[str, str]],
+    registry: list[tuple[str, str, str]],
+    W: WriteLine,
+    content_organisations: tuple[str, ...] = (),
 ) -> None:
-    """Sekcja 23: warstwy deklarujące nadawcę i identyfikatory rejestrowe z treści.
+    """Sekcja 22: warstwy deklarujące nadawcę i identyfikatory rejestrowe z treści.
 
     Obie tabele zestawiają wartości, które wcześniej leżały rozrzucone po pięciu
     sekcjach albo wyłącznie w prozie zrzutu treści. Zestawienie to fakt, nie
@@ -2749,7 +2804,7 @@ def write_identity_layers_section(
     >>> "Brak warstw" in "\\n".join(lines)
     True
     """
-    W("## 23. Warstwy tożsamości i identyfikatory z treści\n")
+    W("## 22. Warstwy tożsamości i identyfikatory z treści\n")
     if layers:
         W(
             "Każda warstwa deklaruje nadawcę niezależnie od pozostałych. "
@@ -2775,7 +2830,33 @@ def write_identity_layers_section(
     else:
         write_no_findings(W, "Brak warstw deklarujących nadawcę.")
 
-    W("\n### 23.1. Identyfikatory rejestrowe i finansowe z treści\n")
+    # Warstwa z TREŚCI, nie z nagłówków. Sekcja nazywa się „warstwy tożsamości",
+    # a czytała wyłącznie nagłówki i hosty — więc podmiot nazwany wprost
+    # w wiadomości nie był w niej warstwą.
+    if content_organisations:
+        W("\n**Podmioty nazwane w treści wiadomości:**\n")
+        write_table(
+            W,
+            ["Nazwa z treści", "Sposób odczytania"],
+            [
+                [code(name), "ciąg przed formą prawną spółki"]
+                for name in content_organisations
+            ],
+        )
+        W(
+            "Nazwa jest wycinana jako **najwyżej trzy wyrazy stojące przed formą "
+            "prawną** (`sp. z o.o.`, `S.A.`, `sp.j.`, `S.C.`) — to odczyt "
+            "dosłownego ciągu z pliku, nie rozpoznawanie nazw własnych. Przy "
+            "zbitce dwóch zdań granica może być szersza niż sama nazwa.\n"
+        )
+    else:
+        write_no_findings(
+            W,
+            "W treści nie znaleziono nazwy podmiotu z formą prawną spółki "
+            "(`sp. z o.o.`, `S.A.`, `sp.j.`, `S.C.`).",
+        )
+
+    W("\n### 22.1. Identyfikatory rejestrowe i finansowe z treści\n")
     if registry:
         write_table(
             W,

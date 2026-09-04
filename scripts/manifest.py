@@ -78,6 +78,76 @@ def table(root):
     return "\n".join(L)
 
 
+def parse_sha256sums(text: str) -> dict[str, str]:
+    """Parse SHA256SUMS.txt-format text ('<sha>  <rel path>' per line) into {rel: sha}.
+
+    Blank lines are ignored — a trailing newline in the file would otherwise crash
+    the `sha, rel = line.split(None, 1)` unpack.
+
+    >>> parse_sha256sums("abc123  a.txt\\n\\ndef456  b/c.txt\\n")
+    {'a.txt': 'abc123', 'b/c.txt': 'def456'}
+    >>> parse_sha256sums("")
+    {}
+    """
+    recorded = {}
+    for line in text.splitlines():
+        line = line.rstrip("\n")
+        if not line.strip():
+            continue
+        sha, rel = line.split(None, 1)
+        recorded[rel] = sha
+    return recorded
+
+
+def compare_manifest(actual: dict[str, str], recorded: dict[str, str]) -> dict:
+    """Compare actual file checksums against a recorded SHA256SUMS.txt snapshot.
+
+    Returns {'missing': [rel...], 'mismatched': [(rel, recorded_sha, actual_sha)...],
+    'new': [rel...]} — files only in `recorded`, files in both with a different hash,
+    and files only in `actual`, respectively.
+
+    >>> compare_manifest({'a.txt': 's1'}, {'a.txt': 's1'})
+    {'missing': [], 'mismatched': [], 'new': []}
+    >>> compare_manifest({}, {'a.txt': 's1'})
+    {'missing': ['a.txt'], 'mismatched': [], 'new': []}
+    >>> compare_manifest({'a.txt': 's2'}, {'a.txt': 's1'})
+    {'missing': [], 'mismatched': [('a.txt', 's1', 's2')], 'new': []}
+    >>> compare_manifest({'b.txt': 's1'}, {})
+    {'missing': [], 'mismatched': [], 'new': ['b.txt']}
+    """
+    missing, mismatched = [], []
+    for rel, sha in recorded.items():
+        if rel not in actual:
+            missing.append(rel)
+        elif actual[rel] != sha:
+            mismatched.append((rel, sha, actual[rel]))
+    new = [rel for rel in actual if rel not in recorded]
+    return {"missing": missing, "mismatched": mismatched, "new": new}
+
+
+def insert_or_replace_block(text: str, block: str, start: str, end: str) -> str:
+    """Replace the `start`/`end`-delimited block in `text` with `block`, or append it
+    under a new "## Manifest plików" heading if the markers aren't present yet.
+
+    `block` is expected to already contain `start`/`end` itself (see `main()`'s
+    "wstaw" command) — this function only locates what to replace, it doesn't
+    construct the markers.
+
+    >>> insert_or_replace_block("# Sprawa\\n\\ntreść\\n", "<S>\\nBLOK\\n<E>", "<S>", "<E>")
+    '# Sprawa\\n\\ntreść\\n\\n## Manifest plików\\n\\n<S>\\nBLOK\\n<E>\\n'
+    >>> insert_or_replace_block("przed\\n<S>\\nstare\\n<E>\\npo", "<S>\\nnowe\\n<E>", "<S>", "<E>")
+    'przed\\n<S>\\nnowe\\n<E>\\npo'
+    """
+    if start in text and end in text:
+        return re.sub(
+            re.escape(start) + r".*?" + re.escape(end),
+            lambda _: block,
+            text,
+            flags=re.DOTALL,
+        )
+    return text.rstrip() + "\n\n## Manifest plików\n\n" + block + "\n"
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("cmd", choices=["skan", "sumy", "sprawdz", "wstaw"])
@@ -102,29 +172,24 @@ def main():
         bad = missing = new = 0
         p = os.path.join(root, "SHA256SUMS.txt")
         if os.path.exists(p):
-            recorded = {}
             with open(p, encoding="utf-8") as f:
-                for line in f:
-                    line = line.rstrip("\n")
-                    if not line.strip():
-                        continue
-                    sha, rel = line.split(None, 1)
-                    recorded[rel] = sha
-            for rel, sha in recorded.items():
-                if rel not in actual:
-                    print(f"BRAK PLIKU: {rel}")
-                    missing += 1
-                elif actual[rel] != sha:
-                    print(
-                        f"NIEZGODNA SUMA: {rel}\n  w SHA256SUMS: {sha}\n  faktyczna:    {actual[rel]}"
-                    )
-                    bad += 1
-            for rel in actual:
-                if rel not in recorded:
-                    print(
-                        f"NOWY PLIK (brak w SHA256SUMS — uruchom `manifest.py sumy`): {rel}"
-                    )
-                    new += 1
+                recorded = parse_sha256sums(f.read())
+            diff = compare_manifest(actual, recorded)
+            for rel in diff["missing"]:
+                print(f"BRAK PLIKU: {rel}")
+            for rel, sha_recorded, sha_actual in diff["mismatched"]:
+                print(
+                    f"NIEZGODNA SUMA: {rel}\n  w SHA256SUMS: {sha_recorded}\n  faktyczna:    {sha_actual}"
+                )
+            for rel in diff["new"]:
+                print(
+                    f"NOWY PLIK (brak w SHA256SUMS — uruchom `manifest.py sumy`): {rel}"
+                )
+            missing, bad, new = (
+                len(diff["missing"]),
+                len(diff["mismatched"]),
+                len(diff["new"]),
+            )
         else:
             print(f"(brak {p} — pomijam porównanie z plikiem sum)")
         idx = os.path.join(root, "index.md")
@@ -156,15 +221,7 @@ def main():
         with open(idx, encoding="utf-8") as f:
             txt = f.read()
         block = f"{START}\n{table(root)}\n{END}"
-        if START in txt and END in txt:
-            txt = re.sub(
-                re.escape(START) + r".*?" + re.escape(END),
-                lambda _: block,
-                txt,
-                flags=re.DOTALL,
-            )
-        else:
-            txt = txt.rstrip() + "\n\n## Manifest plików\n\n" + block + "\n"
+        txt = insert_or_replace_block(txt, block, START, END)
         with open(idx, "w", encoding="utf-8") as f:
             f.write(txt)
         print(f"Zaktualizowano manifest w {idx}")
