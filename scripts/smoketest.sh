@@ -168,6 +168,9 @@ skip_py() {
     # a smoketest.sh próbuje URUCHOMIĆ każdy skrypt bezpośrednio — więc
     # moduły bez +x wywracały build z „Permission denied”.
     eml_forensics_logika.py|eml_forensics_raport.py) return 0 ;;
+    # czysta logika importowana przez build_pismo.py, bez CLI — `+x` byłby
+    # nieprawdziwą deklaracją o roli pliku, więc wyjątek zamiast chmod.
+    build_pismo_logic.py) return 0 ;;
     test_*.py) return 0 ;;  # pliki testowe — źródło/import, nie CLI
     *) return 1 ;;
   esac
