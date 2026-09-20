@@ -5,6 +5,92 @@ wersjonowanie wg [SemVer](https://semver.org/lang/pl/).
 
 ## [Unreleased]
 
+## [0.5.0] — 2026-09-20
+
+### Dodane
+- **`eml_forensics` czyta treść jako materiał dowodowy, nie jako zrzut tekstu** — nowe podsekcje
+  pod §22: dane kontaktowe podane w treści (telefon rozpoznawany po sygnale — prefiks `+48`,
+  słowo-kotwica albo separatory — bo goły ciąg dziewięciu cyfr to równie dobrze numer BDO),
+  kwoty, wartości procentowe i daty zbierane dosłownie, oraz zestawienia pól deklarujących
+  to samo: `Subject` wobec `<title>`, wyrazy z `Subject` nieobecne w treści, obecność domeny
+  z `From` w treści. Brak którejkolwiek klasy jest ustaleniem negatywnym — dla wezwania do
+  zapłaty „treść nie zawiera kwoty" bywa najmocniejszym materiałem
+- Podmioty nazwane w treści wyciągane po formie prawnej (`sp. z o.o.`, `S.A.`, `sp.j.`, `S.C.`),
+  z ujawnioną w raporcie metodą wycinania
+- **`review_eml_forensics.sh`** — przebieg recenzji raportów: przerywa się po wyczerpaniu limitu
+  (kod wyjścia 2) zamiast przelatywać całą listę z identycznymi ostrzeżeniami, rozróżnia przyczynę
+  (limit / sieć / pusta odpowiedź), a `--brakujace` wznawia przebieg pomijając pliki z aktualną
+  oceną — porównanie po sumie kontrolnej raportu, więc wznowienie nie płaci drugi raz za to,
+  co się już udało
+- **Parser DOM tam, gdzie zmierzono brak utraty danych** — `find_hidden_elements`,
+  `classify_comments` i `find_word_splitting_spans`; decyzja podejmowana per funkcja i poparta
+  porównaniem wyników na całym korpusie. `extract_html_resources` świadomie zostaje na regexie:
+  drzewo traktuje komentarz warunkowy jako nieprzezroczysty, więc atrybucja „piksel VML
+  renderowany wyłącznie przez Outlooka" by zniknęła
+- Testy 343 → 509, w tym `test_manifest.py` (pokrycie `manifest.py` 11% → 100%),
+  `test_kontrola_pisma.py`, `test_build_pismo.py`, `test_dane_nadawcy_status.py`.
+  Nowe testy pilnują **zakresu twierdzenia**, nie pojedynczego przypadku
+- `skills/zrodla-rejestry` — **Portal Rejestrów Sądowych**: co daje ponad API (akta rejestrowe
+  i sprawozdania finansowe), dlaczego nie da się go pobrać WebFetchem i jak to obejść przeglądarką
+
+### Zmienione
+- **`eml_forensics` rozbity na warstwy** (ports & adapters): `eml_forensics_logika.py` —
+  ekstrakcja faktów bez I/O, `eml_forensics_raport.py` — renderowanie markdown bez I/O,
+  `eml_forensics.py` — CLI i orchestracja
+- Kod po angielsku, output po polsku — wcześniej jedno wyrażenie mieszało oba języki. Rename
+  po tokenach, nie `sed`-em, więc docstringi i teksty raportu zostały nietknięte
+- Objętość raportu −19% bez utraty dowodu: puste elementy układu zestawione zbiorczo
+- Proza w docstringach skrócona — opis stanu sprzed poprawki należy do historii gita
+
+### Naprawione
+- **Raport nie był odtwarzalny.** Iteracja po zbiorze łańcuchów uzależniała kolejność wierszy
+  od `PYTHONHASHSEED`, więc ten sam plik wejściowy dawał dokumenty o różnych sumach kontrolnych,
+  a dwie osoby analizujące ten sam materiał dostawały różne wyniki. Dla materiału dowodowego
+  to dyskwalifikujące
+- Przebieg recenzji przerywał się komunikatem o wyczerpanym limicie przy 4% zużycia okna.
+  Wzorzec zawierał gołe `429`, dopasowywane jako podciąg liczby `1429` **zacytowanej w recenzji**.
+  Decyzja opiera się teraz na kształcie odpowiedzi, nie na słowach w jej treści — recenzja
+  jest materiałem dowodowym i może zacytować dowolny komunikat błędu
+- Znaczniki czasu bez `;` przed datą nie były parsowane (SendGrid, warstwy w Go), przez co
+  skoki wypadały z osi czasu
+- Nagłówek `X-Received` liczony jako skok przekazania — sekcja o osi czasu przeczyła sekcji
+  o drodze wiadomości w tym samym dokumencie
+- Encje rozwijane przed usuwaniem znaczników zjadały część `Message-ID` przed `@`
+- Atrybuty `<a>` stojące za `href` były niewidoczne dla ekstraktora
+- Brak nagłówków `Received` powodował wyjście z całej sekcji o drodze wiadomości, razem
+  z inwentarzem adresów — ginął jedyny zapisany w pliku adres nadawcy
+- `smoketest` — moduły bez CLI (`eml_forensics_logika.py`, `eml_forensics_raport.py`,
+  `build_pismo_logic.py`, `test_*.py`) wykluczone z kontroli bitu `+x` w **obu** niezależnych
+  warstwach; nadanie im `+x` byłoby nieprawdziwą deklaracją o ich roli
+- Testy wołające CLI przez subprocess działały wyłącznie z katalogu repo, a jeden z nich
+  **przechodził z błędnego powodu**: dostawał niezerowy kod wyjścia dlatego, że interpreter
+  nie znalazł skryptu, a nie dlatego, że skrypt odrzucił nieistniejący plik
+- Doctest `all_requirements_met` zależał od wersji Pythona (3.14 usuwa wcięcie docstringów
+  przy kompilacji, 3.12 nie) — przechodził lokalnie, padał w CI
+- 36 błędów `ruff` w `scripts/`
+
+### Bezpieczeństwo dowodowe
+- **Komentarz HTML nie jest treścią dokumentu.** Element z regułą ukrywającą zapisany wewnątrz
+  komentarza był liczony jako ukryta treść — czyli jako dowód na coś, czego odbiorca nie dostał
+- `@keyframes fade{from{opacity:0}}` trafiało do tabeli jako reguła ukrywająca; to klatka
+  startowa animacji. Dodane wykluczenie reguł `@`, które nie niosą treści
+- Warunki zagnieżdżonych reguł warunkowych **kumulują się** — raport podawał wyłącznie warunek
+  wewnętrzny, więc regułę obowiązującą warunkowo przedstawiał jako obowiązującą szerzej
+- Fałszywy pozytyw ciągłości łańcucha `Received`: kanoniczne `by` porównywane z deklaracją HELO
+  dawało „przerwę", której plik nie pokazuje. Werdykt jest teraz trójwartościowy
+  (`tak`/`nie`/`?`), rDNS ma pierwszeństwo przed HELO, a ustalenie negatywne obejmuje wyłącznie
+  przejścia rozstrzygnięte
+- Zakres porównania nagłówków tożsamościowych podawany zawsze — zdanie „bajty różnią się: N"
+  czytało się jak twierdzenie o wszystkich nagłówkach, a dotyczyło pięciu
+- Liczniki treści i indeks Jaccarda liczone razem z adnotacją, którą sam raport wstawia:
+  w jednym pliku 134 znaki adnotacji dawały 16% licznika, a 12 „słów wyłącznie w `text/html`"
+  pochodziło z tekstu raportu, nie z wiadomości
+- DarkReader — usunięte zdanie „obecne w wysłanej treści": rozszerzenie wstrzykuje atrybuty
+  w przeglądarce **odbiorcy**, więc była to hipoteza o pochodzeniu w raporcie deklarującym
+  brak hipotez
+- `<span>` bez zawartości między literami wyrazu zostaje wykryty jako rozbicie wyrazu —
+  to klasyczna technika omijania filtrów, a poprawka fałszywego pozytywu chwilowo ją wyłączyła
+
 ## [0.4.0] — 2026-08-28
 
 ### Dodane
