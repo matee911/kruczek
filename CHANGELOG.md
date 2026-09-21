@@ -5,6 +5,14 @@ wersjonowanie wg [SemVer](https://semver.org/lang/pl/).
 
 ## [Unreleased]
 
+## [0.5.1] — 2026-09-22
+
+### Naprawione
+- **`marketplace.json` nie deklarował wersji pluginu**, więc zainstalowana kopia zostawała na
+  starym wydaniu mimo podbicia `version` w `plugin.json`. Pole `version` w `plugins[]` jest
+  wspierane i używane przez inne marketplace'y — u nas nie było go od początku, przez co
+  wydanie 0.5.0 nie dochodziło do zainstalowanego pluginu. Oba manifesty trzeba podbijać razem
+
 ## [0.5.0] — 2026-09-20
 
 ### Dodane
