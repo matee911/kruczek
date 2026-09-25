@@ -5,6 +5,17 @@ wersjonowanie wg [SemVer](https://semver.org/lang/pl/).
 
 ## [Unreleased]
 
+### Dodane
+- **`eurlex.sh`** — pobieranie dokumentów z EUR-Lex po numerze CELEX: `html` i `pdf`, dowolna
+  z 24 wersji językowych UE (domyślnie PL), zapis do pliku z SHA-256, URL-em i datą pobrania.
+  Uczciwy User-Agent kruczka, odstęp 10 s między wywołaniami (`Crawl-delay` z robots.txt).
+  Wyzwanie AWS WAF (`202`, `x-amzn-waf-action: challenge`) kończy się kodem 2 z instrukcją,
+  nie próbą obejścia
+
+### Zmienione
+- Dokumentacja EUR-Lex (`zrodla-prawa`, `pobierz-przepis`, `fallback-przegladarka`): blokada
+  anty-botowa jest czasowa i dotyczy każdego narzędzia, także WebFetch — nie tylko curla
+
 ## [0.5.1] — 2026-09-22
 
 ### Naprawione

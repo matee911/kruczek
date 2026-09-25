@@ -54,15 +54,26 @@ Artykuł trzeba wyciąć z PDF-u tekstu ujednoliconego.
 
 ## Prawo UE — EUR-Lex
 
-Wersja skonsolidowana (aktualna), polska wersja językowa:
-```
-https://eur-lex.europa.eu/legal-content/PL/TXT/HTML/?uri=CELEX:0<rok>R<numer>-<RRRRMMDD>
-```
-RODO: `CELEX:02016R0679-20160504`. Wiodące `0` = wersja skonsolidowana, `3` = akt bazowy.
+Dokumenty adresowane numerem CELEX — akty, wersje skonsolidowane, wyroki TSUE.
+Wrapper: `${CLAUDE_PLUGIN_ROOT}/scripts/eurlex.sh`
 
-**Pobieraj przez WebFetch, nie curl** — EUR-Lex odbija curla anty-botem (HTTP 202).
-Alternatywa dla curla: `curl -L -H "Accept-Language: pol" https://publications.europa.eu/resource/celex/32016R0679`
-(bez nagłówka `Accept-Language` zwraca HTTP 400).
+```bash
+eurlex.sh html 02016R0679-20160504        # RODO, wersja skonsolidowana, PL
+eurlex.sh pdf  62010CJ0618                # wyrok C-618/10, PDF po polsku
+eurlex.sh html 32016R0679 EN rodo-en.html # akt bazowy, wersja angielska, własna nazwa pliku
+```
+
+Adres pod spodem: `https://eur-lex.europa.eu/legal-content/<JĘZYK>/TXT/<HTML|PDF>/?uri=CELEX:<numer>`.
+Wiodąca cyfra CELEX: `0` = wersja skonsolidowana (z sufiksem `-RRRRMMDD`), `3` = akt bazowy,
+`6` = orzecznictwo (`CJ` wyrok Trybunału, `TJ` Sądu). Skrypt zapisuje plik, podaje SHA-256,
+URL i datę pobrania — to idzie do `BAZA_WIEDZY/przepisy/` albo `ARCHIWUM/`.
+
+**Blokada anty-botowa.** EUR-Lex stoi za AWS WAF: po serii szybkich zapytań odpowiada
+`202` z nagłówkiem `x-amzn-waf-action: challenge` i pustą treścią — **niezależnie od narzędzia**,
+WebFetch też wtedy dostaje pustą stronę. Skrypt robi odstęp 10 s między wywołaniami
+(`Crawl-delay` z robots.txt), przedstawia się uczciwym User-Agentem kruczka i przy wyzwaniu
+kończy się kodem 2 — nie obchodzimy go. Odczekaj kilka minut i ponów, potem WebFetch,
+na końcu `fallback-przegladarka`.
 
 ### ⚠ Nie cytuj RODO z serwisów wtórnych
 
