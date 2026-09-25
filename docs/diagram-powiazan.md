@@ -39,7 +39,7 @@ SKILLE WIEDZY (ładowane automatycznie przez kontekst, nie przez komendę):
 - zrodla-rejestry → skrypt:podmiot.sh
 - ocr-transkrypcja → agent:transkrybuj
 - fallback-przegladarka (brak subagenta)
-- zrodla-prawa → skrypt:eli.sh
+- zrodla-prawa → skrypt:eli.sh, skrypt:eurlex.sh
 - zrodla-orzecznictwa → skrypt:orzecznictwo.sh
 
 Użyj validate_and_render_mermaid_diagram do walidacji przed pokazaniem.
@@ -117,6 +117,7 @@ flowchart LR
     sc_eml[(eml_forensics.py)]
     sc_manifest[(manifest.py)]
     sc_eli[(eli.sh)]
+    sc_eurlex[(eurlex.sh)]
     sc_orzecznictwo[(orzecznictwo.sh)]
     sc_podmiot[(podmiot.sh)]
     sc_dns[(dns.sh)]
@@ -134,6 +135,7 @@ flowchart LR
   cmd_baza --> sk_baza & sk_prawo & sk_orzecznictwo
   cmd_pismo --> sk_pismo & sk_redagowanie & sk_konwencje --> ag_redaktor & ag_zrodlo & ag_researcher --> sc_build
   ag_zrodlo --> sc_eli
+  ag_zrodlo --> sc_eurlex
   ag_researcher --> sc_orzecznictwo
   cmd_kontrola --> sk_kontrola --> ag_kontroler --> sc_kontrola
   cmd_weryfikuj --> sk_weryfikuj --> ag_weryfikator --> sk_prawo & sk_orzecznictwo
@@ -145,5 +147,6 @@ flowchart LR
   sk_rejestry --> ag_ustalacz --> sc_podmiot
   sk_ocr --> ag_transkryber
   sk_prawo --> sc_eli
+  sk_prawo --> sc_eurlex
   sk_orzecznictwo --> sc_orzecznictwo
 ```

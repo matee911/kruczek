@@ -11,8 +11,9 @@ od góry — każdy szczebel kosztuje więcej niż poprzedni.
 
 ## 1. Zmień narzędzie
 
-`WebFetch` respektuje `robots.txt`, `curl` nie — i odwrotnie, EUR-Lex odbija curla anty-botem,
-a przez `WebFetch` przechodzi. Zanim uznasz źródło za zamknięte, spróbuj obu.
+`WebFetch` respektuje `robots.txt`, `curl` nie — a blokady anty-botowe bywają czasowe
+(EUR-Lex po serii zapytań odbija przez kilka minut każde narzędzie, WebFetch też). Zanim uznasz
+źródło za zamknięte, odczekaj i spróbuj obu.
 
 Sprawdź też, czy nie ma bocznego wejścia: SPA zwykle ma pod spodem API (`/api/…`), portal Domino
 ma bezpośrednie `?OpenDocument`, a serwis z wyszukiwarką POST często wystawia dokumenty pod

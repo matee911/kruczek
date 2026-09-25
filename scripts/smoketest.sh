@@ -264,6 +264,13 @@ smoke_cmd "eli.sh obowiazuje"   bash "$E" obowiazuje DU 2004 1800
 smoke_cmd "eli.sh zmiany"       bash "$E" zmiany 2026-08-01
 
 echo
+echo "=== realne podkomendy (eurlex.sh) — tryb soft: EUR-Lex stoi za AWS WAF, który po serii"
+echo "    zapytań czasowo odpowiada 202 (wyzwanie JS); skrypt kończy się wtedy kodem 2 ==="
+EU="$SCRIPTS_DIR/eurlex.sh"
+smoke_cmd_soft "eurlex.sh html" bash "$EU" html 62010CJ0618
+smoke_cmd_soft "eurlex.sh pdf"  bash "$EU" pdf 62010CJ0618
+
+echo
 echo "=== realne podkomendy (orzecznictwo.sh) — tryb soft: bazy orzeczeń stron trzecich"
 echo "    (SAOS, CBOSA, SN) mają udokumentowaną (patrz retrospektywy kruczka) historię"
 echo "    niedostępności/blokad dla automatów, w praktyce bywają wolne/niestabilne pod"
