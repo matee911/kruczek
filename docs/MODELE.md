@@ -32,6 +32,7 @@ Wartości dopuszczalne w Claude Code: `haiku`, `sonnet`, `opus`, `inherit`.
 | `baza-wiedzy` | skill | `sonnet` | medium | streszczanie wniosków praktycznych z przepisu |
 | `ocr-transkrypcja` | skill | `sonnet` | medium | odczyt obrazu, polskie diakrytyki |
 | `sprawdz-klauzule` | agent | `sonnet` | — | analiza klauzul abuzywnych — wymaga oceny, nie tylko wykrycia |
+| `sprawdz-forme` | agent | `sonnet` | — | kwalifikacja czynności, dobór rygoru z tabeli, odczyt podpisów elektronicznych |
 | `transkrybuj` | agent | `sonnet` | — | haiku gubi „ą/ę/ł" i myli podobne litery w skanach |
 | `pobierz-przepis` | agent | `sonnet` | — | nawigacja po API i wycinanie artykułu z 300-stronicowego PDF |
 | `szukaj-orzeczen` | agent | `sonnet` | — | wiele źródeł, część zablokowana, trzeba obchodzić |

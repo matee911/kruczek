@@ -67,6 +67,7 @@ a jeśli z rozmowy wynika konkretna potrzeba — wskaż jedną, właściwą pozy
 | `recenzuj` | fakty kontra dowody, ryzyko dla nadawcy, język, siła pisma | opus | ostatnia bramka przed nadaniem |
 | `archiwizuj-strone` | CDX API, Save Page Now, diff digestów, interpretacja zmian stron | sonnet | nawigacja po API + Python parsing |
 | `sprawdz-klauzule` | checklista red flags w regulaminach i OWU | sonnet | przeszukiwanie wzorców, zero uznaniowości |
+| `sprawdz-forme` | wymagana vs zachowana forma czynności i podpisu, wskazuje formę nieodpowiednią | sonnet | kwalifikacja czynności i rygoru, odczyt `pdfsig` |
 
 ## Skrypty (`${CLAUDE_PLUGIN_ROOT}/scripts/`)
 
