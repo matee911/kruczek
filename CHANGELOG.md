@@ -5,6 +5,8 @@ wersjonowanie wg [SemVer](https://semver.org/lang/pl/).
 
 ## [Unreleased]
 
+## [0.6.0] — 2026-09-25
+
 ### Dodane
 - **`eurlex.sh`** — pobieranie dokumentów z EUR-Lex po numerze CELEX: `html` i `pdf`, dowolna
   z 24 wersji językowych UE (domyślnie PL), zapis do pliku z SHA-256, URL-em i datą pobrania.
