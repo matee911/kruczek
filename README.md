@@ -171,7 +171,7 @@ rejestracja przez Profil Zaufany) — reszta działa bez rejestracji.
 | Źródło | Co daje | Dostęp |
 |---|---|---|
 | [API ELI Sejmu](https://api.sejm.gov.pl/eli/) | Dz.U. i M.P., teksty ujednolicone, status aktu, nowelizacje | pełne API |
-| [EUR-Lex](https://eur-lex.europa.eu) | prawo UE, wersje skonsolidowane PL | HTTP |
+| [EUR-Lex](https://eur-lex.europa.eu) | prawo UE i orzecznictwo TSUE po numerze CELEX, HTML/PDF we wszystkich językach UE | HTTP |
 | [SAOS](https://www.saos.org.pl) | orzeczenia sądów powszechnych, SN, NSA, TK | pełne API |
 | [Portal Orzeczeń UODO](https://orzeczenia.uodo.gov.pl) | decyzje Prezesa UODO, pełnotekstowo | pełne API |
 | [CBOSA](https://orzeczenia.nsa.gov.pl) | orzeczenia NSA i WSA | dokument po ID |

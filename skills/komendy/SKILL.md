@@ -42,7 +42,7 @@ a jeśli z rozmowy wynika konkretna potrzeba — wskaż jedną, właściwą pozy
 |---|---|---|
 | `konwencje-teczki` | przy każdej pracy na plikach sprawy — zasady archiwum, nazewnictwa, chronologii | dziedziczy |
 | `redagowanie-pism` | gdy powstaje pismo — struktura, ton, cytowanie, częste błędy | dziedziczy |
-| `zrodla-prawa` | gdy potrzebny tekst przepisu — API ELI Sejmu, EUR-Lex | dziedziczy |
+| `zrodla-prawa` | gdy potrzebny tekst przepisu — API ELI Sejmu, EUR-Lex (`eurlex.sh`) | dziedziczy |
 | `zrodla-orzecznictwa` | gdy potrzebne orzeczenie lub decyzja organu | dziedziczy |
 | `zrodla-rejestry` | gdy trzeba ustalić dane drugiej strony lub domeny | dziedziczy |
 | `analiza-eml` | gdy w sprawie pojawia się plik `.eml` lub pytanie o spam | haiku |
@@ -78,6 +78,7 @@ a jeśli z rozmowy wynika konkretna potrzeba — wskaż jedną, właściwą pozy
 | `eml_forensics.py` | pełna analiza `.eml` → raport markdown |
 | `manifest.py` | sumy kontrolne, manifest, weryfikacja spójności |
 | `eli.sh` | API ELI Sejmu: teksty ujednolicone, status aktu, nowelizacje |
+| `eurlex.sh` | EUR-Lex: HTML/PDF po numerze CELEX (akty UE, wyroki TSUE), dowolna wersja językowa |
 | `orzecznictwo.sh` | SAOS, UODO, CBOSA, SN, Dziennik Urzędowy UKE |
 | `podmiot.sh` | biała lista VAT, KRS, RDAP, przekierowania |
 | `dns.sh` | rekordy DNS, SPF/DKIM/DMARC, porównanie infrastruktury domen |

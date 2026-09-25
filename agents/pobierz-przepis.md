@@ -31,9 +31,13 @@ redakcyjnych. Scal łamania wierszy i dzielenie wyrazów, **nie zmieniając tre�
 
 ## Prawo UE — EUR-Lex
 
-`https://eur-lex.europa.eu/legal-content/PL/TXT/HTML/?uri=CELEX:0<rok>R<numer>-<RRRRMMDD>`
-(RODO: `CELEX:02016R0679-20160504`). Pobieraj **przez WebFetch** — curl dostaje anty-bota.
-Alternatywa dla curla: `curl -L -H "Accept-Language: pol" https://publications.europa.eu/resource/celex/3<CELEX>`.
+```
+${CLAUDE_PLUGIN_ROOT}/scripts/eurlex.sh html <CELEX> [język] [plik]
+${CLAUDE_PLUGIN_ROOT}/scripts/eurlex.sh pdf  <CELEX> [język] [plik]
+```
+RODO skonsolidowane: `02016R0679-20160504`; wyrok TSUE C-618/10: `62010CJ0618`. Język domyślnie PL.
+Kod wyjścia 2 z komunikatem o AWS WAF = czasowa blokada anty-botowa; nie obchodzisz jej —
+odczekaj kilka minut i ponów, potem WebFetch, na końcu skill `fallback-przegladarka`.
 
 **Nie cytuj RODO z lexlege.pl, privacy-regulation.eu ani odo24.pl** — reprodukują tekst sprzed
 sprostowania z 2018 r.
