@@ -70,6 +70,10 @@ ${CLAUDE_PLUGIN_ROOT}/scripts/eml_forensics.py <plik> --outdir <sprawa>/ARCHIWUM
 ```
 Zleć subagentowi `analizuj-eml` (haiku).
 
+Jeśli wiadomość **sama jest oświadczeniem woli** (zawarcie, zmiana, wypowiedzenie, odstąpienie,
+potwierdzenie umowy zawartej przez telefon) — zleć też `sprawdz-forme` (sonnet): e-mail to
+najwyżej forma dokumentowa, a część czynności wymaga więcej.
+
 Wyciągnij domeny z nagłówków (From, Reply-To, Return-Path, Received):
 - Dla każdej **nowej** domeny (nie widzianej wcześniej w sprawie) → wywołaj `/kruczek:archiwa <domena>`
 - Wygeneruj zapytania Gmail → zleć `/kruczek:gmail` z domenami z nagłówków
@@ -87,6 +91,17 @@ ${CLAUDE_PLUGIN_ROOT}/scripts/metadane.sh <plik>
 Jeśli nazwa lub treść zawiera „regulamin", „OWU", „wzorzec", „ogólne warunki" — **niezależnie od źródła**:
 zleć subagentowi `sprawdz-klauzule` (sonnet).
 
+Jeśli to **umowa, aneks, porozumienie, wypowiedzenie, odstąpienie, pełnomocnictwo, cesja,
+poręczenie** albo inne oświadczenie woli — **niezależnie od tego, czy od drugiej strony, czy
+od użytkownika** — zleć subagentowi `sprawdz-forme` (sonnet). Sprawdza, jakiej formy i podpisu
+czynność wymagała, jaką zachowano (w tym `pdfsig` dla podpisów elektronicznych) i wskazuje
+formę nieodpowiednią.
+
+### Plik podpisu `.xml` / `.xades` / `.sig` obok dokumentu
+
+Skopiuj **razem** z podpisanym dokumentem (bez niego podpis jest nieweryfikowalny) i zleć
+`sprawdz-forme` dla pary.
+
 ### Zrzut strony (`.html` / `.mhtml` / obraz z URL w nazwie)
 
 Wyciągnij URL z nazwy pliku lub pytaj.
@@ -95,7 +110,9 @@ Wyciągnij URL z nazwy pliku lub pytaj.
 
 ### Obraz / skan bez URL
 
-Zleć subagentowi `transkrybuj` (sonnet).
+Zleć subagentowi `transkrybuj` (sonnet). Jeśli skan przedstawia umowę lub oświadczenie woli —
+po transkrypcji zleć `sprawdz-forme`: skan dowodzi istnienia podpisanego oryginału, ale sam
+nim nie jest.
 
 ## 6. URL w treści pliku → natychmiast archiwizuj
 
@@ -150,6 +167,7 @@ Przy każdym typie pliku — zaproponuj co mogłoby uzupełnić dowód:
 | `.eml` | „Czy masz autoresponder potwierdzający odbiór tej wiadomości?" |
 | faktura / potwierdzenie płatności | „Czy masz wyciąg bankowy potwierdzający obciążenie?" |
 | regulamin / OWU | „Czy masz poprzednią wersję tego dokumentu do porównania?" |
+| umowa / oświadczenie ze skanem podpisu | „Gdzie jest oryginał z podpisem własnoręcznym? Masz plik z podpisem elektronicznym zamiast PDF-a ze skanem?" |
 | zrzut ekranu | „Czy zrobiłeś zrzut 'przed' i 'po' zmianie?" |
 | nagranie | „Czy masz potwierdzenie mailowe lub SMS nawiązujące do tej rozmowy?" |
 
@@ -163,7 +181,7 @@ Jeden wiersz: data i godzina **zdarzenia** (nie dodania), opis, odesłanie do pl
 Plik:       <nazwa>
 SHA-256:    <hash>
 Wykryto:    <typ>
-Wywołano:   <co uruchomiono — archiwa? metadane? forensyk? sprawdz-klauzule?>
+Wywołano:   <co uruchomiono — archiwa? metadane? forensyk? sprawdz-klauzule? sprawdz-forme?>
 Pewność:    dowód
 ⚠ Brakuje: <sugestia jeśli jest>
 ```
