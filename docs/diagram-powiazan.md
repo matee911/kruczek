@@ -23,7 +23,7 @@ Dane do zmapowania (z /kruczek:komendy):
 KOMENDY i co wyzwalają:
 - /nowy-projekt → skill:nowy-projekt → skrypt:init-projekt.sh
 - /nowa-sprawa → skill:nowa-sprawa, skill:konwencje-teczki → skrypt:nowa-sprawa.sh
-- /dowod → skill:dowod, skill:konwencje-teczki → agent:archiwizuj, agent:transkrybuj → skrypt:manifest.py, skrypt:eml_forensics.py
+- /dowod → skill:dowod, skill:konwencje-teczki → agent:archiwizuj, agent:transkrybuj, agent:sprawdz-forme → skrypt:manifest.py, skrypt:eml_forensics.py
 - /chronologia → skill:chronologia → agent:dopisz-chronologie
 - /status → skill:status
 - /baza-wiedzy → skill:baza-wiedzy, skill:zrodla-prawa, skill:zrodla-orzecznictwa
@@ -104,6 +104,7 @@ flowchart LR
     ag_forensyk[/analizuj-eml/]
     ag_ustalacz[/ustal-strone/]
     ag_kontroler[/sprawdz-zalaczniki/]
+    ag_forma[/sprawdz-forme/]
     ag_redaktor[/napisz-pismo/]
     ag_zrodlo[/zrodlo-prawa/]
     ag_researcher[/szukaj-orzeczen/]
@@ -127,7 +128,7 @@ flowchart LR
 
   cmd_init --> sk_init --> sc_init
   cmd_nowa --> sk_nowa & sk_konwencje --> sc_nowa
-  cmd_dowod --> sk_dowod & sk_konwencje --> ag_archiwista & ag_transkryber
+  cmd_dowod --> sk_dowod & sk_konwencje --> ag_archiwista & ag_transkryber & ag_forma
   ag_archiwista --> sc_manifest
   ag_transkryber --> sc_eml
   cmd_chron --> sk_chron --> ag_kronikarz

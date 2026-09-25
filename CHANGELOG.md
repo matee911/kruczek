@@ -5,6 +5,24 @@ wersjonowanie wg [SemVer](https://semver.org/lang/pl/).
 
 ## [Unreleased]
 
+## [0.7.0] — 2026-09-26
+
+### Dodane
+- **Subagent `sprawdz-forme`** — weryfikacja formy czynności prawnych w materiałach sprawy:
+  jakiej formy i podpisu wymagała czynność (dokumentowa, pisemna, elektroniczna z podpisem
+  kwalifikowanym, akt notarialny), jaką faktycznie zachowano i czy forma jest nieodpowiednia —
+  ze skutkiem wg rygoru (nieważność, ograniczenia dowodowe z art. 74 k.c. z wyjątkami dla
+  konsumenta i między przedsiębiorcami, skutek szczególny, nieskuteczność z art. 20 ust. 2 u.p.k.).
+  Sprawdza oświadczenia obu stron, także użytkownika. Tabela wymogów ustawowych (k.c., u.p.k.,
+  ustawa o kredycie konsumenckim, Pke, ustawa o ochronie praw lokatorów, k.p.) i skutków podpisu
+  zaufanego, osobistego i kwalifikowanego sprawdzona w tekstach ujednoliconych ELI i na EUR-Lex
+- Techniczna weryfikacja podpisów elektronicznych przez `pdfsig` (podpisujący, czas, integralność
+  — „Not total document signed" = dopisano coś po podpisie) oraz odczyt XAdES. Status
+  „kwalifikowany" nie jest zgadywany z nazwy wystawcy
+- `/kruczek:dowod` wywołuje `sprawdz-forme` przy umowach, aneksach, wypowiedzeniach, odstąpieniach,
+  pełnomocnictwach, e-mailach będących oświadczeniem woli i skanach umów; pliki podpisu
+  (`.xml`/`.xades`/`.sig`) archiwizowane razem z dokumentem
+
 ## [0.6.0] — 2026-09-25
 
 ### Dodane
