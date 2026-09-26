@@ -61,7 +61,7 @@
 
 | Pytanie | Odpowiedź |
 |---|---|
-| Listy papierowe wysyłam | <sam z poczty / Envelo / e-Doręczenia> |
+| Listy papierowe wysyłam | <sam z poczty / Envelo / e-Doręczenia> — e-Doręczenia tylko do organów; do firm prywatnych e-mail + polecony (e-Doręczenia do firm są płatne i mało kto z nich korzysta) |
 | Mam podpis kwalifikowany | <tak / nie> — najszersza moc prawna, równoważny odręcznemu wszędzie |
 | Mam Profil Zaufany | <tak / nie> |
 | Mam podpis zaufany (przez Profil Zaufany) | <tak / nie> — równoważny odręcznemu **tylko wobec administracji publicznej** (ustawa o informatyzacji, 2005), NIE w umowach z firmami prywatnymi ani w postępowaniach karnych — nie stosuj do pism do podmiotów prywatnych |

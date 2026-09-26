@@ -176,6 +176,11 @@ Wypełnij: co wysyłasz i czym, o co chodzi w trzech zdaniach, **co realnie moż
 (tabela scenariuszy z prawdopodobieństwem, korzyścią i kosztem), co trzeba uzupełnić przed wysyłką,
 jaki podpis i dlaczego, mocne punkty sprawy i — najważniejsze — **gdzie jesteśmy słabi**.
 
+Wypełnij też **„Dane do wysyłki”** dla każdego kanału, którym pismo pójdzie — tak, żeby
+użytkownik tylko przekleił: e-Doręczenia → adres ADE adresata, tytuł i krótki opis do formularza;
+Envelo → tytuł roboczy i adresat; e-mail → Do, DW, temat i gotowa treść. Przy e-Doręczeniach
+**nie każ podpisywać PDF-u** (skill `redagowanie-pism`, sekcja „Podpis”).
+
 Bądź uczciwy co do tego, czego pismo nie osiągnie. Kara administracyjna trafia do budżetu państwa,
 nie do nadawcy. Postępowanie potrafi trwać dwa lata. Jeśli koszt przewyższa stawkę i jedyną
 korzyścią jest satysfakcja — napisz to wprost.
@@ -191,5 +196,5 @@ TLDR.md zostaje w katalogu wysyłki i **nie jest wysyłany**.
 
 ## 11. Zamelduj
 
-Krótko: gdzie leży PDF i TLDR.md, ile stron, **co zostało do uzupełnienia**, jak i dokąd wysłać,
-jaki jest termin kontrolny. Nie streszczaj treści pisma — użytkownik ma TL;DR.
+Krótko: gdzie leży PDF i TLDR.md, ile stron, **co zostało do uzupełnienia**, jak i dokąd wysłać
+(z danymi do wysyłki z TL;DR: tytuł/opis, Do/DW, temat), jaki jest termin kontrolny. Nie streszczaj treści pisma — użytkownik ma TL;DR.

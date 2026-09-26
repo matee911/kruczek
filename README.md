@@ -154,7 +154,8 @@ hierarchii `I.` → `1.` → `1)` → `a)` → `–`, z ciągłą numeracją ust
 
 **Podpis dobierany świadomie.** Do firmy mailem podpis bywa zbędny (forma dokumentowa,
 art. 77² k.c.), do sądu pocztą jest obowiązkowy (art. 126 § 1 pkt 6 k.p.c., brak = zwrot pisma),
-do urzędu elektronicznie potrzebny jest kwalifikowany, zaufany albo osobisty. Plugin mówi, który
+przez e-Doręczenia — do urzędu czy do firmy — zbędny, bo nadawcę identyfikuje adres do doręczeń
+elektronicznych (art. 63 § 3a k.p.a., art. 2 pkt 1 u.d.e.). Plugin mówi, który
 wariant i dlaczego, i zostawia w PDF wyraźne miejsce na podpis odręczny, gdy jest potrzebny.
 
 **Osobny TL;DR dla Ciebie.** Obok pisma powstaje `TLDR.md`, którego się nie wysyła: co wysyłasz
