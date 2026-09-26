@@ -23,6 +23,11 @@ wersjonowanie wg [SemVer](https://semver.org/lang/pl/).
   pełnomocnictwach, e-mailach będących oświadczeniem woli i skanach umów; pliki podpisu
   (`.xml`/`.xades`/`.sig`) archiwizowane razem z dokumentem
 
+### Zmienione
+- `redagowanie-pism` §7 — wyjątek dla podpisu zaufanego wobec operatora telekomunikacyjnego
+  (art. 20ae ust. 2a ustawy o informatyzacji): działa wyłącznie przy potwierdzeniu danych abonenta
+  (art. 296 ust. 3 pkt 2 lit. e Pke) i za zgodą obu stron, nie jako podpis pod umową
+
 ## [0.6.0] — 2026-09-25
 
 ### Dodane
