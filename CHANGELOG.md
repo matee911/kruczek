@@ -27,6 +27,8 @@ wersjonowanie wg [SemVer](https://semver.org/lang/pl/).
 - `redagowanie-pism` §7 — wyjątek dla podpisu zaufanego wobec operatora telekomunikacyjnego
   (art. 20ae ust. 2a ustawy o informatyzacji): działa wyłącznie przy potwierdzeniu danych abonenta
   (art. 296 ust. 3 pkt 2 lit. e Pke) i za zgodą obu stron, nie jako podpis pod umową
+- `redagowanie-pism` §7 — podpis osobisty wobec podmiotu niepublicznego równoważny własnoręcznemu,
+  jeżeli obie strony wyrażą zgodę (art. 12d ust. 2 ustawy o dowodach osobistych)
 
 ## [0.6.0] — 2026-09-25
 
