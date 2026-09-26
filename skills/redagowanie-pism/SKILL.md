@@ -200,6 +200,12 @@ własnoręczny — sąd potraktuje to jako brak formalny.
 o informatyzacji: równoważny podpisowi własnoręcznemu — ale zakres ustawy to relacje z podmiotami
 realizującymi zadania publiczne. W umowie z firmą podpis zaufany nie spełnia formy pisemnej.
 
+Jedyny wyjątek wobec podmiotu prywatnego — **operator telekomunikacyjny, i to wąsko**
+(art. 20ae ust. 2a tej ustawy): podpis zaufany wywołuje skutek tylko w zakresie art. 296 ust. 3
+pkt 2 lit. e Prawa komunikacji elektronicznej, czyli przy **potwierdzeniu danych abonenta**,
+zanim operator zacznie świadczyć usługi — i tylko wtedy, gdy obie strony wyrażą na to zgodę.
+Nie czyni go podpisem pod umową ani pod reklamacją czy wypowiedzeniem.
+
 **Podpis kwalifikowany działa wszędzie** — art. 25 ust. 2 eIDAS, równoważny podpisowi własnoręcznemu;
 jedyny, który spełnia formę elektroniczną z art. 78¹ k.c.
 
