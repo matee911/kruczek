@@ -5,6 +5,27 @@ wersjonowanie wg [SemVer](https://semver.org/lang/pl/).
 
 ## [Unreleased]
 
+## [0.8.0] — 2026-09-26
+
+### Dodane
+- TL;DR pisma ma sekcję **„Dane do wysyłki”** do przeklejenia: e-Doręczenia (ADE adresata,
+  tytuł i krótki opis do formularza), Envelo (tytuł roboczy, adresat), e-mail (Do, DW, temat,
+  gotowa treść). Skill `pismo` wypełnia ją i podaje w meldunku
+
+### Poprawione
+- `redagowanie-pism` §7 — pismo wysyłane e-Doręczeniami **nie wymaga podpisu**: do organu
+  (art. 63 § 3 i 3a k.p.a., dawny § 3b uchylony — t.j. Dz.U. 2025 poz. 1691), do firmy
+  (nadawcę identyfikuje adres do doręczeń elektronicznych, art. 2 pkt 1 u.d.e. — t.j. Dz.U. 2026
+  poz. 3). Usunięto błędny wymóg podpisu kwalifikowanego/zaufanego/osobistego dla skargi
+  elektronicznej do organu. Podpis kwalifikowany tylko gdy czynność wymaga formy pisemnej
+- Szablon `pismo.html` (wariant D instrukcji podpisu) i `tldr.md` zgodnie z powyższym
+
+### Zmienione
+- `redagowanie-pism` §8 — do firm prywatnych **nie proponujemy e-Doręczeń** (płatne, mało kto
+  z nich korzysta), chyba że użytkownik sam o nie poprosi. Domyślnie e-mail (art. 61 § 2 k.c.)
+  + polecony za potwierdzeniem odbioru przez Envelo albo pocztę. Szablony `tldr.md`
+  i `dane-nadawcy.md` zgodnie z tym
+
 ## [0.7.0] — 2026-09-26
 
 ### Dodane

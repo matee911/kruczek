@@ -185,12 +185,18 @@ To pytanie zadaj sobie **przy każdym piśmie**, bo odpowiedź zależy od kanał
 | Sytuacja | Czego trzeba | Podstawa |
 |---|---|---|
 | E-mail do przedsiębiorcy: reklamacja, wezwanie, odstąpienie, sprzeciw RODO | **Podpis niepotrzebny.** Wystarczy forma dokumentowa — dokument pozwalający ustalić osobę składającą oświadczenie | art. 77² k.c. |
+| e-Doręczenia do przedsiębiorcy | **Podpis niepotrzebny.** Nadawcę identyfikuje sam adres do doręczeń elektronicznych — forma dokumentowa spełniona | art. 2 pkt 1 u.d.e.; art. 77² k.c. |
 | Papier do przedsiębiorcy | **Podpis własnoręczny** długopisem. Prawnie zwykle niekonieczny, ale wzmacnia i utrudnia kwestionowanie | art. 78 § 1 k.c. |
 | Pismo procesowe do sądu wysłane pocztą | **Podpis własnoręczny OBOWIĄZKOWY** | art. 126 § 1 pkt 6 k.p.c. |
 | Pismo do sądu przez system teleinformatyczny / Portal Informacyjny | podpis kwalifikowany, zaufany albo osobisty | art. 126 § 5 k.p.c. |
 | Podanie / skarga do organu (UODO, UKE, UOKiK) — papier | **podpis własnoręczny** | art. 63 § 3 k.p.a. |
-| Skarga do organu elektronicznie | podpis **kwalifikowany, zaufany albo osobisty** | art. 63 k.p.a. |
+| Podanie / skarga do organu przez e-Doręczenia albo konto w systemie organu | **Podpis niepotrzebny.** Wymóg podpisu dotyczy tylko podania na piśmie i ustnego do protokołu; dawny § 3b (podpis elektroniczny) uchylono | art. 63 § 3 i 3a k.p.a. |
 | Umowa wymagająca formy pisemnej pod rygorem nieważności | podpis własnoręczny **albo kwalifikowany** | art. 78 i 78¹ k.c. |
+
+**e-Doręczenia to nie kanał, który trzeba „dopodpisać”.** Nie każ użytkownikowi podpisywać PDF-ów
+przed wysyłką e-Doręczeniami — ani do firmy, ani do organu. Wyjątek to czynność wymagająca formy
+pisemnej (np. wypowiedzenie umowy z rygorem formy pisemnej): wtedy PDF musi mieć **podpis
+kwalifikowany** (art. 78¹ k.c.), bo sama wysyłka e-Doręczeniami daje tylko formę dokumentową.
 
 **Skan podpisu wklejony w PDF:** wystarcza dla formy dokumentowej (e-mail do firmy), **nie wystarcza**
 dla formy pisemnej ani dla pisma procesowego. Wydruk ze wklejonym skanem to nie jest podpis
@@ -231,17 +237,18 @@ SN, postanowienie z 30.03.2017, V CZ 23/17: podpis zatwierdza treść, więc mus
 
 | Adresat | Kanał | Uwaga |
 |---|---|---|
-| Przedsiębiorca | list polecony **za potwierdzeniem odbioru** + równolegle e-mail | data doręczenia rozpoczyna bieg terminu i trzeba ją umieć wykazać |
+| Przedsiębiorca | **e-mail + list polecony za potwierdzeniem odbioru** (np. przez Envelo) na adres z CEIDG/KRS | e-mail: oświadczenie złożone z chwilą wprowadzenia do skrzynki adresata (art. 61 § 2 k.c.); polecony: data doręczenia rozpoczyna bieg terminu i trzeba ją umieć wykazać |
 | Sąd | biuro podawcze, poczta albo dedykowany system | **e-mail i ePUAP są bezskuteczne** — SN, postanowienie z 29.03.2023, III CZ 427/22 |
 | Organ administracji | e-Doręczenia, ePUAP, papier | **e-mail zostawia się bez rozpoznania** (art. 63 § 1 zd. 3 k.p.a.) |
 | UODO | papier na ul. Moniuszki 1A, 00-014 Warszawa, albo adres do e-Doręczeń UODO | e-mail nie służy do składania skarg |
 
-e-Doręczenia do przedsiębiorcy traktuj jako **kanał opcjonalny, nie domyślny** — baza adresów nie
-jest publicznie przeszukiwalna, a korespondencja prywatna–prywatna jest płatna. Domyślnie:
-polecony za potwierdzeniem odbioru na adres z CEIDG/KRS plus e-mail.
+**Do firm prywatnych nie proponuj e-Doręczeń** — korespondencja podmiot prywatny → podmiot prywatny
+jest płatna, a mało kto z nich korzysta. Domyślnie: e-mail + polecony za potwierdzeniem odbioru
+(Envelo albo poczta). Po e-Doręczenia do firmy sięgnij tylko, gdy użytkownik sam o to poprosi.
 
-Doręczenie oceniasz przez art. 61 § 1 k.c.: oświadczenie jest złożone, gdy doszło do adresata
-w taki sposób, że mógł zapoznać się z treścią.
+Doręczenie oceniasz przez art. 61 k.c.: oświadczenie jest złożone, gdy doszło do adresata
+w taki sposób, że mógł zapoznać się z treścią (§ 1), a w postaci elektronicznej — z chwilą
+wprowadzenia do środka komunikacji elektronicznej (§ 2).
 
 ---
 
