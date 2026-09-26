@@ -5427,18 +5427,16 @@ def declaration_crosschecks(
     # czym jest która kwota.
     if subject and content.strip():
         lowered = content.lower()
+        subject_words = re.findall(r"\w{5,}", subject.lower())
         missing_words = [
-            word
-            for word in dict.fromkeys(re.findall(r"\w{5,}", subject.lower()))
-            if word not in lowered
+            word for word in dict.fromkeys(subject_words) if word not in lowered
         ]
         if missing_words:
             out.append(
                 (
                     "Wyrazy z `Subject` nieobecne w treści",
                     ", ".join(missing_words[:8]),
-                    f"{len(missing_words)} z "
-                    f"{len(set(re.findall(r'\w{5,}', subject.lower())))}",
+                    f"{len(missing_words)} z {len(set(subject_words))}",
                 )
             )
 

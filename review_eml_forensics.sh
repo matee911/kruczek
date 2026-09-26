@@ -67,12 +67,12 @@ if ! command -v "$PYTHON" >/dev/null 2>&1; then
     exit 1
 fi
 
-# Skrypty używają składni PEP 695 (`type X = ...`) i `dataclass(slots=True)`,
-# więc wymagają Pythona 3.12+. Na starszym interpreterze padają SyntaxError-em,
-# który przy wyciszonym stderr wyglądał jak ciche zatrzymanie się skryptu.
-if ! "$PYTHON" -c 'import sys; sys.exit(0 if sys.version_info >= (3, 12) else 1)'; then
-    echo "❌ '$PYTHON' to $("$PYTHON" -V 2>&1) — potrzebny Python 3.12 lub nowszy."
-    echo "   Wskaż inny:  PYTHON=/ścieżka/do/python3.12 ./$(basename "$0")"
+# Skrypty wymagają Pythona 3.11+ (CI kompiluje je na 3.11). Na starszym interpreterze
+# padają SyntaxError-em, który przy wyciszonym stderr wyglądał jak ciche zatrzymanie
+# się skryptu.
+if ! "$PYTHON" -c 'import sys; sys.exit(0 if sys.version_info >= (3, 11) else 1)'; then
+    echo "❌ '$PYTHON' to $("$PYTHON" -V 2>&1) — potrzebny Python 3.11 lub nowszy."
+    echo "   Wskaż inny:  PYTHON=/ścieżka/do/python3.11 ./$(basename "$0")"
     exit 1
 fi
 
