@@ -206,6 +206,12 @@ pkt 2 lit. e Prawa komunikacji elektronicznej, czyli przy **potwierdzeniu danych
 zanim operator zacznie świadczyć usługi — i tylko wtedy, gdy obie strony wyrażą na to zgodę.
 Nie czyni go podpisem pod umową ani pod reklamacją czy wypowiedzeniem.
 
+**Podpis osobisty (e-dowód) sięga dalej niż zaufany.** Art. 12d ustawy o dowodach osobistych:
+wobec podmiotu publicznego równoważny podpisowi własnoręcznemu (ust. 1), wobec innego podmiotu —
+**jeżeli obie strony wyrażą na to zgodę** (ust. 2). Do firmy wysyłaj go tylko wtedy, gdy zgodę
+masz na piśmie (w umowie, regulaminie, korespondencji) — bez niej pismo ma najwyżej formę
+dokumentową, a gdy potrzebna jest pisemna, użyj podpisu kwalifikowanego albo odręcznego.
+
 **Podpis kwalifikowany działa wszędzie** — art. 25 ust. 2 eIDAS, równoważny podpisowi własnoręcznemu;
 jedyny, który spełnia formę elektroniczną z art. 78¹ k.c.
 
