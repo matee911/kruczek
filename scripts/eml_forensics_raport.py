@@ -61,7 +61,7 @@ from eml_forensics_logika import (
     unusual_characters,
 )
 
-type WriteLine = Callable[[str], None]
+WriteLine = Callable[[str], None]
 
 #: Strefa czasowa odbiorcy. Stały offset +2 był błędem: dla wiadomości z okresu
 #: zimowego (CET = UTC+1) raport podawał czas lokalny przesunięty o godzinę —
@@ -2558,9 +2558,10 @@ def write_content_section(
         # była długość sprzed podziału, więc czytelnik nie odtwarzał liczby
         # z dwóch liczb wydrukowanych obok niej.
         combined = len(own) + len(quoted)
+        own_non_blank = len(re.sub(r"\s", "", own))
         W(
             f"Treść własna nadawcy: **{len(own)}** znaków "
-            f"(**{len(re.sub(r'\s', '', own))}** niebędących białymi). "
+            f"(**{own_non_blank}** niebędących białymi). "
             f"Cytat wcześniejszej korespondencji: **{len(quoted)}** znaków "
             f"(**{100 * len(quoted) // max(1, combined)}%** sumy obu części).\n"
         )

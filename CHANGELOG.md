@@ -5,6 +5,16 @@ wersjonowanie wg [SemVer](https://semver.org/lang/pl/).
 
 ## [Unreleased]
 
+## [0.7.1] — 2026-09-26
+
+### Poprawione
+- `eml_forensics.py` nie uruchamiał się na Pythonie 3.11 (`SyntaxError`): backslash w wyrażeniu
+  f-stringu (`eml_forensics_logika.py`, `eml_forensics_raport.py`) i alias `type X = ...`
+  (PEP 695) to składnia dopiero z 3.12. Zastąpione konstrukcjami zgodnymi z 3.11
+- `review_eml_forensics.sh` wymaga Pythona 3.11+ zamiast 3.12+
+- CI: nowy job `python-min` — kompilacja wszystkich skryptów i testy na Pythonie 3.11,
+  żeby składnia z nowszych wersji nie wracała
+
 ## [0.7.0] — 2026-09-26
 
 ### Dodane
