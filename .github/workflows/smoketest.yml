@@ -47,6 +47,22 @@ jobs:
           fi
           echo "OK — wszystkie skrypty CLI mają +x"
 
+  python-min:
+    # Najstarszy wspierany Python. Składnia z 3.12 (backslash w wyrażeniu f-stringu,
+    # `type X = ...`) przechodziła na jobach z nowszym interpreterem, a u użytkownika
+    # z 3.11 eml_forensics.py padał SyntaxError-em przy starcie.
+    needs: check-permissions
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Kompilacja wszystkich skryptów
+        run: python -m compileall -q scripts
+      - name: Testy (unittest + doctesty, odkrywane)
+        run: python scripts/run_tests.py
+
   smoketest-ubuntu:
     needs: check-permissions
     runs-on: ubuntu-latest
