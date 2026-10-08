@@ -33,7 +33,10 @@ def pelna_sprawa() -> Sprawa:
         zdarzenia=[Zdarzenie("z1", D(2026, 10, 8), "nadanie", "wezwanie", "firma", ["ARCHIWUM/a.pdf"])],
         terminy=[Termin("t1", "wyznaczony w piśmie", "z1", "14d", D(2026, 10, 22), "firma", True),
                  Termin("t2", "pouczenie w decyzji", "z1", "14d", D(2026, 10, 22), "firma", False, "moj")],
-        zadania=[Zadanie("a1", "sprawdź odpowiedź", D(2026, 10, 23), None, "firma", "sprawdz-odpowiedz", "t1", None)],
+        zadania=[
+            Zadanie("a1", "sprawdź odpowiedź", D(2026, 10, 23), None, "firma", "sprawdz-odpowiedz", "t1", None),
+            Zadanie("a2", "zrobione z datami", D(2026, 10, 20), D(2026, 10, 30), "firma", None, None, D(2026, 10, 25)),
+        ],
         dowody=[Dowod("ARCHIWUM/a.pdf", "f" * 64, D(2026, 10, 8))],
     )
 
@@ -45,6 +48,24 @@ def test_round_trip_przez_slownik():
     odtworzona = z_slownika(do_slownika(sprawa))
     # Assert
     assert odtworzona == sprawa
+
+
+@pytest.mark.parametrize(
+    ("lista", "pole", "zla_wartosc"),
+    [
+        ("zdarzenia", "typ", "kogos"),
+        ("terminy", "czyj", "kogos"),
+        ("uczestnicy", "rola", "kogos"),
+        ("pisma", "stan", "kogos"),
+    ],
+)
+def test_nieznana_wartosc_enumu_przy_odczycie_to_blad(lista, pole, zla_wartosc):
+    # Arrange
+    dane = do_slownika(pelna_sprawa())
+    dane[lista][0][pole] = zla_wartosc
+    # Act / Assert
+    with pytest.raises(ValueError, match=pole):
+        z_slownika(dane)
 
 
 def test_daty_w_slowniku_jako_iso():
