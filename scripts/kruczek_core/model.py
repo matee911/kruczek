@@ -19,6 +19,9 @@ TYPY_ZDARZEN = ("nadanie", "doreczenie", "odpowiedz", "wplyw", "fakt", "telefon"
 # Zdarzenia, które zawsze dotyczą korespondencji z konkretnym podmiotem.
 ZDARZENIA_WATKU = ("nadanie", "doreczenie", "odpowiedz", "wplyw")
 ZDARZENIA_PRZYCHODZACE = ("odpowiedz", "wplyw")
+CZYJ_TERMINU = ("adresata", "moj")
+ROLE_UCZESTNIKOW = ("opiekun", "klientka")
+STANY_PISMA = ("szkic", "recenzja", "wyslane")
 
 
 class BladSprawy(Exception):
@@ -159,10 +162,28 @@ def _data(tekst: str | None) -> dt.date | None:
     return None if tekst is None else dt.date.fromisoformat(tekst)
 
 
+def _dozwolona(pole: str, wartosc: str, dozwolone: tuple[str, ...]) -> None:
+    if wartosc not in dozwolone:
+        raise ValueError(
+            f"{pole}: nieznana wartość {wartosc!r} (dozwolone: {', '.join(dozwolone)})"
+        )
+
+
+def _sprawdz_wartosci(sprawa: Sprawa) -> None:
+    for z in sprawa.zdarzenia:
+        _dozwolona("typ", z.typ, TYPY_ZDARZEN)
+    for t in sprawa.terminy:
+        _dozwolona("czyj", t.czyj, CZYJ_TERMINU)
+    for u in sprawa.uczestnicy:
+        _dozwolona("rola", u.rola, ROLE_UCZESTNIKOW)
+    for p in sprawa.pisma:
+        _dozwolona("stan", p.stan, STANY_PISMA)
+
+
 def z_slownika(d: dict[str, Any]) -> Sprawa:
-    """Odwrotność do_slownika. Nieznany klucz albo zła data → TypeError/ValueError/KeyError
-    (repozytorium zamienia je na BladSprawy z nazwą pliku)."""
-    return Sprawa(
+    """Odwrotność do_slownika. Nieznany klucz, zła data albo nieznana wartość enumu →
+    TypeError/ValueError/KeyError (repozytorium zamienia je na BladSprawy z nazwą pliku)."""
+    sprawa = Sprawa(
         id=d["id"],
         tytul=d["tytul"],
         wlasciciel=d["wlasciciel"],
@@ -189,3 +210,5 @@ def z_slownika(d: dict[str, Any]) -> Sprawa:
         ],
         dowody=[Dowod(**{**w, "dodano": _data(w["dodano"])}) for w in d.get("dowody", [])],
     )
+    _sprawdz_wartosci(sprawa)
+    return sprawa
