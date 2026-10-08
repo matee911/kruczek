@@ -44,9 +44,11 @@ w bieżącym katalogu albo zapytaj.
 ## 2. Wykryj duplikat
 
 ```bash
-${CLAUDE_PLUGIN_ROOT}/scripts/manifest.py sumy <sprawa>
+sha256sum <plik>
+${CLAUDE_PLUGIN_ROOT}/scripts/manifest.py skan <sprawa>
 ```
-Sprawdź czy SHA-256 nowego pliku już istnieje w manifeście.
+Sprawdź, czy SHA-256 nowego pliku występuje w tabeli ze `skan`. Ten krok tylko czyta —
+**nie uruchamiaj tu `sumy`**, bo to zapis do `SHA256SUMS.txt`, a plik jeszcze nie jest w archiwum.
 Jeśli duplikat: „Ten plik już jest w archiwum jako [nazwa]. Dodać mimo to?"
 
 ## 3. Nazwij zgodnie z konwencją
@@ -155,6 +157,11 @@ Nagłówek wersji tekstowej (obowiązkowy):
 ${CLAUDE_PLUGIN_ROOT}/scripts/manifest.py sumy  <sprawa>
 ${CLAUDE_PLUGIN_ROOT}/scripts/manifest.py wstaw <sprawa>/index.md <sprawa>
 ```
+
+`sumy` tylko dopisuje nowe pliki — istniejących wpisów w `SHA256SUMS.txt` nie zmienia.
+Jeśli zgłosi `NIEZGODNA SUMA` albo `BRAK PLIKU` (exit 1), zatrzymaj się i powiedz o tym
+użytkownikowi: dowód w archiwum zmienił się po zaewidencjonowaniu. Nie poprawiaj
+`SHA256SUMS.txt` ręcznie.
 
 W tabeli opisowej nad manifestem (`index.md` sekcja 4) dopisz: nazwa pliku + jedno zdanie co to jest i co dowodzi.
 

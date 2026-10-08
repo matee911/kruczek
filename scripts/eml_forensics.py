@@ -486,12 +486,17 @@ def build_report(eml_path: Path, outdir: Path) -> tuple[str, Path]:
     write_spam_headers_section(extract_spam_headers(msg), W)
 
     from_domain = next((a.domain for a in addresses.get("From", []) if a.domain), None)
-    mailfrom = None
-    for header in auth_headers:
-        for method in header.methods:
-            if "smtp.mailfrom" in method.props:
-                mailfrom = method.props["smtp.mailfrom"]
-                break
+    # Pierwszy pasujący nagłówek, nie ostatni: najwyższy Authentication-Results
+    # dopisał serwer odbiorcy, niższe przyszły z wiadomością i mogą być podrobione.
+    mailfrom = next(
+        (
+            method.props["smtp.mailfrom"]
+            for header in auth_headers
+            for method in header.methods
+            if "smtp.mailfrom" in method.props
+        ),
+        None,
+    )
     mailfrom_domain = mailfrom.rsplit("@", 1)[-1].lower() if mailfrom else None
     if mailfrom_domain is None:
         mailfrom_domain = next(

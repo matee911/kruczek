@@ -218,7 +218,12 @@ def main():
             ["pdffonts", a.pdf], capture_output=True, text=True, check=False
         ).stdout
         nie = parse_unembedded_fonts(out)
-        if nie:
+        if nie is None:
+            o(
+                "nie udało się sprawdzić fontów (nieczytelne wyjście pdffonts) — "
+                "sprawdź osadzenie ręcznie: pdffonts <plik>.pdf"
+            )
+        elif nie:
             b(
                 f"Fonty nieosadzone w PDF: {', '.join(nie)} — Envelo i e-Doręczenia odrzucą plik"
             )

@@ -119,6 +119,62 @@ class TestMainSumy(unittest.TestCase):
             self.assertTrue(p.exists())
             self.assertIn("a.txt", p.read_text())
 
+    def test_nie_nadpisuje_sumy_podmienionego_pliku(self):
+        """Ponowne `sumy` po podmianie dowodu nie może zatrzeć śladu podmiany."""
+        with tempfile.TemporaryDirectory() as tmp:
+            # Arrange
+            Path(tmp, "a.txt").write_bytes(b"a")
+            uruchom(["sumy", tmp])
+            p = Path(tmp, "SHA256SUMS.txt")
+            przed = p.read_text()
+            Path(tmp, "a.txt").write_bytes(b"podmienione")
+
+            # Act
+            out, kod = uruchom(["sumy", tmp])
+
+            # Assert
+            self.assertEqual(kod, 1)
+            self.assertIn("NIEZGODNA SUMA: a.txt", out)
+            self.assertEqual(p.read_text(), przed)
+            _out, kod_sprawdz = uruchom(["sprawdz", tmp])
+            self.assertEqual(kod_sprawdz, 1)
+
+    def test_dopisuje_nowe_pliki_bez_zmiany_istniejacych_wpisow(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            # Arrange
+            Path(tmp, "b.txt").write_bytes(b"b")
+            uruchom(["sumy", tmp])
+            p = Path(tmp, "SHA256SUMS.txt")
+            przed = p.read_text()
+            Path(tmp, "a.txt").write_bytes(b"a")
+
+            # Act
+            out, kod = uruchom(["sumy", tmp])
+
+            # Assert
+            self.assertEqual(kod, 0)
+            po = p.read_text()
+            self.assertTrue(po.startswith(przed))
+            self.assertIn("  a.txt\n", po[len(przed) :])
+            self.assertRegex(out, r"Nowych plików dopisanych do .*: 1\n")
+
+    def test_zachowuje_wpis_brakujacego_pliku(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            # Arrange
+            Path(tmp, "a.txt").write_bytes(b"a")
+            uruchom(["sumy", tmp])
+            p = Path(tmp, "SHA256SUMS.txt")
+            przed = p.read_text()
+            os.remove(os.path.join(tmp, "a.txt"))
+
+            # Act
+            out, kod = uruchom(["sumy", tmp])
+
+            # Assert
+            self.assertEqual(kod, 1)
+            self.assertIn("BRAK PLIKU: a.txt", out)
+            self.assertEqual(p.read_text(), przed)
+
 
 class TestMainSprawdz(unittest.TestCase):
     def test_ok_gdy_zgodne(self):

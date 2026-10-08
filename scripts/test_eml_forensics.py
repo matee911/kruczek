@@ -502,6 +502,26 @@ class TestZakresIKompletnosc(unittest.TestCase):
         self.assertFalse(alignment.spf_aligned)
         self.assertTrue(alignment.dkim_aligned)
 
+    def test_wyrownanie_spf_z_pierwszego_naglowka_a_nie_podrobionego(self):
+        """„Domena koperty z ostatniego pasującego nagłówka — ten mógł dopisać nadawca.
+
+        Najwyższy Authentication-Results dopisuje serwer odbiorcy; niższe przyszły
+        razem z wiadomością i mogą być podrobione.
+        """
+        # Arrange
+        raw = build(
+            "From: nadawca@przyklad.pl\n"
+            "Authentication-Results: mx.odbiorca.pl; spf=pass smtp.mailfrom=bounce@obcy.example\n"
+            "Authentication-Results: mx.podrobiony.pl; spf=pass smtp.mailfrom=nadawca@przyklad.pl"
+        )
+
+        # Act
+        report = analyze(raw)
+
+        # Assert
+        self.assertIn("| SPF `smtp.mailfrom` | `obcy.example` |", report)
+        self.assertIn("**SPF nie jest wyrównany**", report)
+
     def test_domeny_zbierane_ze_wszystkich_rol(self):
         """„Pomija msysmt.pl (host MTA), google.com (ARC), matee.net (odbiorca)."""
         raw = build(
