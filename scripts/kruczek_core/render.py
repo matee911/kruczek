@@ -8,7 +8,7 @@ strategia, notatki) zostaje nietknięte.
 from __future__ import annotations
 
 from kruczek_core.dni_wolne import Kalendarz
-from kruczek_core.model import Sprawa
+from kruczek_core.model import BladSprawy, Sprawa
 
 BLOKI = ("chronologia", "terminy", "zadania")
 _NAGLOWKI = {"chronologia": "Chronologia", "terminy": "Terminy", "zadania": "Zadania"}
@@ -56,15 +56,21 @@ def _zadania(s: Sprawa) -> str:
     return "\n".join(linie)
 
 
+def _wstaw(tekst: str, blok: str, nowy: str) -> str:
+    start, koniec = f"<!-- kruczek:{blok} -->", f"<!-- /kruczek:{blok} -->"
+    ile_start, ile_koniec = tekst.count(start), tekst.count(koniec)
+    if ile_start == 0 and ile_koniec == 0:
+        return tekst.rstrip("\n") + f"\n\n## {_NAGLOWKI[blok]} (generowane — nie edytuj ręcznie)\n\n{nowy}\n"
+    if ile_start == 1 and ile_koniec == 1 and tekst.index(start) < tekst.index(koniec):
+        przed, reszta = tekst.split(start, 1)
+        _, po = reszta.split(koniec, 1)
+        return przed + nowy + po
+    raise BladSprawy(f"index.md: uszkodzone znaczniki bloku {blok} — popraw ręcznie")
+
+
 def renderuj(tekst: str, sprawa: Sprawa, kalendarz: Kalendarz) -> str:
     tresci = {"chronologia": _chronologia(sprawa), "terminy": _terminy(sprawa, kalendarz), "zadania": _zadania(sprawa)}
     for blok in BLOKI:
-        start, koniec = f"<!-- kruczek:{blok} -->", f"<!-- /kruczek:{blok} -->"
-        nowy = f"{start}\n{tresci[blok]}\n{koniec}"
-        if start in tekst and koniec in tekst:
-            przed, reszta = tekst.split(start, 1)
-            _, po = reszta.split(koniec, 1)
-            tekst = przed + nowy + po
-        else:
-            tekst = tekst.rstrip("\n") + f"\n\n## {_NAGLOWKI[blok]} (generowane — nie edytuj ręcznie)\n\n{nowy}\n"
+        nowy = f"<!-- kruczek:{blok} -->\n{tresci[blok]}\n<!-- /kruczek:{blok} -->"
+        tekst = _wstaw(tekst, blok, nowy)
     return tekst
