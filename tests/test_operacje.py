@@ -203,7 +203,7 @@ def test_wyjatek_po_mutacji_wycofuje_zapis(katalog, monkeypatch):
 
     rewizja = wczytaj(katalog).rewizja
 
-    def zepsuta_zastosuj(*_args):
+    def zepsuta_zastosuj(*_args, **_kwargs):
         raise RuntimeError("awaria po dopisaniu zdarzenia")
 
     monkeypatch.setattr(operacje, "zastosuj", zepsuta_zastosuj)
@@ -233,3 +233,17 @@ def test_zly_termin_to_blad_sprawy_i_nic_nie_zapisane(katalog, kalendarz, dlugos
                         termin=SpecTerminu(dlugosc, podstawa))
     s = wczytaj(katalog)
     assert s.rewizja == rewizja and s.zdarzenia == [] and s.terminy == []
+
+
+def test_niejednoznaczne_doreczenie_nic_nie_zapisuje_a_ze_wskazaniem_przechodzi(katalog):
+    # Arrange — dwa pisma czekają naraz
+    spec = SpecTerminu("14d", "x")
+    dodaj_zdarzenie(katalog, "nadanie", D(2026, 10, 1), Kalendarz(), DZIS, watek="firma", termin=spec)
+    dodaj_zdarzenie(katalog, "nadanie", D(2026, 10, 8), Kalendarz(), DZIS, watek="firma", termin=spec)
+    rewizja = wczytaj(katalog).rewizja
+    # Act / Assert
+    with pytest.raises(BladSprawy, match="--dotyczy"):
+        dodaj_zdarzenie(katalog, "doreczenie", D(2026, 10, 9), Kalendarz(), DZIS, watek="firma")
+    assert wczytaj(katalog).rewizja == rewizja
+    dodaj_zdarzenie(katalog, "doreczenie", D(2026, 10, 9), Kalendarz(), DZIS, watek="firma", dotyczy=" z2 ")
+    assert wczytaj(katalog).terminy[1].od_zdarzenia == "z3"
