@@ -16,3 +16,7 @@ htmlcov/
 
 # Materiał dowodowy (.eml + raporty) — nigdy do repo.
 do_not_commit/
+
+# środowisko uv i cache pytesta
+.venv/
+.pytest_cache/

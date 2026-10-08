@@ -27,6 +27,10 @@ jobs:
           set -euo pipefail
           MISSING=0
           for f in $(git ls-files 'scripts/*.sh' 'scripts/*.py'); do
+            case "$f" in
+              # pakiet importowany przez teczka.py, nie CLI
+              scripts/kruczek_core/*) continue ;;
+            esac
             case "$(basename "$f")" in
               # celowo bez +x: nie do bezpośredniego uruchamiania (source/import, nie CLI)
               lib.sh|utils.py|kontrola_logika.py) continue ;;
@@ -62,6 +66,20 @@ jobs:
         run: python -m compileall -q scripts
       - name: Testy (unittest + doctesty, odkrywane)
         run: python scripts/run_tests.py
+
+  pytest:
+    # Testy rdzenia teczki (scripts/kruczek_core) — pytest i holidays tylko tutaj,
+    # przez uv; stare testy dalej idą przez scripts/run_tests.py bez zależności.
+    needs: check-permissions
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ['3.11', '3.14']
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10
+      - name: pytest (kruczek_core + teczka.py)
+        run: uv run --python ${{ matrix.python }} pytest
 
   smoketest-ubuntu:
     needs: check-permissions
