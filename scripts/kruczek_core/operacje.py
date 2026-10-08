@@ -1,0 +1,92 @@
+"""Operacje na teczce — jedyna droga zapisu dla CLI, strony i MCP (spec §6).
+
+Walidacja wejścia jest tutaj, nie w CLI: strona i MCP dostaną te same komunikaty.
+"""
+
+from __future__ import annotations
+
+import datetime as dt
+import uuid
+from collections.abc import Sequence
+from pathlib import Path
+
+from kruczek_core.dni_wolne import Kalendarz
+from kruczek_core.model import (
+    TYPY_ZDARZEN,
+    ZDARZENIA_PRZYCHODZACE,
+    ZDARZENIA_WATKU,
+    BladSprawy,
+    Sprawa,
+    Uczestnik,
+    Watek,
+    Zadanie,
+    Zdarzenie,
+    kolejne_id,
+)
+from kruczek_core.reguly import SpecTerminu, przelicz, zastosuj
+from kruczek_core.repozytorium import zapisz_nowa, zmien
+
+
+def nowa_sprawa(katalog: Path, tytul: str, strona_przeciwna: str, wlasciciel: str) -> Sprawa:
+    sprawa = Sprawa(id=uuid.uuid4().hex, tytul=tytul, wlasciciel=wlasciciel, strona_przeciwna=strona_przeciwna,
+                    uczestnicy=[Uczestnik(wlasciciel, "opiekun")])
+    zapisz_nowa(katalog, sprawa)
+    return sprawa
+
+
+def dodaj_watek(katalog: Path, id: str, adresat: str) -> None:
+    def zmiana(s: Sprawa) -> None:
+        if any(w.id == id for w in s.watki):
+            raise BladSprawy(f"wątek {id!r} już istnieje")
+        s.watki.append(Watek(id, adresat))
+
+    zmien(katalog, zmiana)
+
+
+def dodaj_zdarzenie(katalog: Path, typ: str, data: dt.date, kalendarz: Kalendarz, dzis: dt.date, *,
+                    watek: str | None = None, opis: str = "", dowody: Sequence[str] = (),
+                    termin: SpecTerminu | None = None) -> list[str]:
+    if typ not in TYPY_ZDARZEN:
+        raise BladSprawy(f"nieznany typ zdarzenia {typ!r}; dozwolone: {', '.join(TYPY_ZDARZEN)}")
+    if data > dzis:
+        raise BladSprawy(f"data zdarzenia {data} jest w przyszłości — przyszłe rzeczy zapisz jako zadanie")
+    if typ in ZDARZENIA_WATKU and watek is None:
+        raise BladSprawy(f"zdarzenie {typ!r} wymaga wątku (--watek)")
+    if termin is not None and typ not in ("nadanie", *ZDARZENIA_PRZYCHODZACE):
+        raise BladSprawy("termin podaje się przy nadaniu (termin adresata) albo przy odpowiedzi/wpływie (Twój termin)")
+
+    def zmiana(s: Sprawa) -> list[str]:
+        if watek is not None:
+            s.znajdz_watek(watek)
+        z = Zdarzenie(kolejne_id("z", s.zdarzenia), data, typ, opis, watek, list(dowody))
+        s.zdarzenia.append(z)
+        return [f"zdarzenie {z.id}: {typ} {data.isoformat()}", *zastosuj(s, z, termin, kalendarz)]
+
+    return zmien(katalog, zmiana)
+
+
+def dodaj_zadanie(katalog: Path, opis: str, aktywne_od: dt.date, *, termin: dt.date | None = None,
+                  watek: str | None = None) -> Zadanie:
+    def zmiana(s: Sprawa) -> Zadanie:
+        if watek is not None:
+            s.znajdz_watek(watek)
+        zadanie = Zadanie(kolejne_id("a", s.zadania), opis, aktywne_od, termin=termin, watek=watek)
+        s.zadania.append(zadanie)
+        return zadanie
+
+    return zmien(katalog, zmiana)
+
+
+def oznacz_zrobione(katalog: Path, zadanie_id: str, dzis: dt.date) -> Zadanie:
+    def zmiana(s: Sprawa) -> Zadanie:
+        zadanie = s.znajdz_zadanie(zadanie_id)
+        if zadanie.zrobione is not None:
+            raise BladSprawy(f"zadanie {zadanie_id} już zrobione ({zadanie.zrobione})")
+        zadanie.zrobione = dzis
+        return zadanie
+
+    return zmien(katalog, zmiana)
+
+
+def przelicz_sprawe(katalog: Path, kalendarz: Kalendarz) -> list[str]:
+    return zmien(katalog, lambda s: przelicz(s, kalendarz))
