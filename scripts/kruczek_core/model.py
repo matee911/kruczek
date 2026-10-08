@@ -83,6 +83,7 @@ class Zadanie:
     regula: str | None = None  # reguła, która utworzyła zadanie; None = ręczne
     termin_id: str | None = None
     zrobione: dt.date | None = None
+    zdarzenie_id: str | None = None  # id zdarzenia, które utworzyło zadanie (reguły); None = ręczne
 
 
 @dataclass
