@@ -105,3 +105,111 @@ def test_oznacz_zrobione_dwa_razy_to_blad(katalog):
     # Act / Assert
     with pytest.raises(BladSprawy, match="już zrobione"):
         oznacz_zrobione(katalog, zadanie.id, DZIS)
+
+
+@pytest.mark.parametrize(
+    ("pole", "nazwa"),
+    [("tytul", "tytuł"), ("strona_przeciwna", "strona przeciwna"), ("wlasciciel", "właściciel")],
+)
+def test_nowa_sprawa_pusty_pole_odrzucone_i_nic_nie_zapisane(tmp_path, pole, nazwa):
+    # Arrange
+    k = tmp_path / "pusta"
+    k.mkdir()
+    dane = {"tytul": "Spamer", "strona_przeciwna": "X sp. z o.o.", "wlasciciel": "matee", pole: "  "}
+    # Act / Assert
+    with pytest.raises(BladSprawy, match=f"{nazwa} nie może być pusty"):
+        nowa_sprawa(k, dane["tytul"], dane["strona_przeciwna"], dane["wlasciciel"])
+    assert not (k / "sprawa.json").exists()
+
+
+def test_dodaj_watek_pusty_id_odrzucony(katalog):
+    # Act / Assert
+    with pytest.raises(BladSprawy, match="id wątku nie może być pusty"):
+        dodaj_watek(katalog, "  ", "X sp. z o.o.")
+
+
+def test_dodaj_watek_pusty_adresat_odrzucony(katalog):
+    # Act / Assert
+    with pytest.raises(BladSprawy, match="adresat nie może być pusty"):
+        dodaj_watek(katalog, "inny", "")
+
+
+def test_dodaj_watek_przycina_wartosci(tmp_path):
+    # Arrange
+    k = tmp_path / "przycinanie"
+    k.mkdir()
+    nowa_sprawa(k, "Spamer", "X sp. z o.o.", "matee")
+    # Act
+    dodaj_watek(k, " firma ", " X ")
+    # Assert
+    (w,) = wczytaj(k).watki
+    assert (w.id, w.adresat) == ("firma", "X")
+
+
+def test_dodaj_zadanie_pusty_opis_odrzucony(katalog):
+    # Act / Assert
+    with pytest.raises(BladSprawy, match="opis nie może być pusty"):
+        dodaj_zadanie(katalog, "", D(2026, 10, 1))
+    assert wczytaj(katalog).zadania == []
+
+
+def test_dodaj_zadanie_termin_wczesniej_niz_aktywne_od_odrzucony(katalog):
+    # Act / Assert
+    with pytest.raises(BladSprawy, match="wcześniej niż aktywne od"):
+        dodaj_zadanie(katalog, "x", D(2026, 10, 10), termin=D(2026, 10, 9))
+    assert wczytaj(katalog).zadania == []
+
+
+def test_dodaj_watek_w_nieistniejacym_katalogu_to_blad_sprawy(tmp_path):
+    # Act / Assert
+    with pytest.raises(BladSprawy, match="nie istnieje"):
+        dodaj_watek(tmp_path / "brak", "firma", "X")
+
+
+def test_nowa_sprawa_w_nieistniejacym_katalogu_to_blad_sprawy(tmp_path):
+    # Act / Assert
+    with pytest.raises(BladSprawy, match="nie istnieje"):
+        nowa_sprawa(tmp_path / "brak", "Spamer", "X", "matee")
+
+
+def test_dodaj_watek_drugi_raz_o_tym_samym_id_odrzucony(katalog):
+    # Act / Assert
+    with pytest.raises(BladSprawy, match="już istnieje"):
+        dodaj_watek(katalog, "firma", "X sp. z o.o.")
+
+
+def test_zdarzenie_bez_watku_nie_wspomina_cli(katalog):
+    # Act / Assert
+    with pytest.raises(BladSprawy) as e:
+        dodaj_zdarzenie(katalog, "nadanie", D(2026, 10, 8), Kalendarz(), DZIS)
+    assert "--watek" not in str(e.value)
+    assert "wymaga wątku" in str(e.value)
+
+
+def test_blad_w_zmianie_nic_nie_zapisuje_i_rewizja_bez_zmian(katalog):
+    # Arrange
+    rewizja = wczytaj(katalog).rewizja
+    # Act / Assert
+    with pytest.raises(BladSprawy, match="nie ma wątku 'uodo'"):
+        dodaj_zdarzenie(katalog, "odpowiedz", D(2026, 10, 8), Kalendarz(), DZIS, watek="uodo")
+    s = wczytaj(katalog)
+    assert s.zdarzenia == []
+    assert s.rewizja == rewizja
+
+
+def test_wyjatek_po_mutacji_wycofuje_zapis(katalog, monkeypatch):
+    # Arrange
+    import kruczek_core.operacje as operacje
+
+    rewizja = wczytaj(katalog).rewizja
+
+    def zepsuta_zastosuj(*_args):
+        raise RuntimeError("awaria po dopisaniu zdarzenia")
+
+    monkeypatch.setattr(operacje, "zastosuj", zepsuta_zastosuj)
+    # Act / Assert
+    with pytest.raises(RuntimeError):
+        dodaj_zdarzenie(katalog, "fakt", D(2026, 10, 8), Kalendarz(), DZIS)
+    s = wczytaj(katalog)
+    assert s.zdarzenia == []
+    assert s.rewizja == rewizja
