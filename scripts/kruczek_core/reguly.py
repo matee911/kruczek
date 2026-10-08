@@ -34,14 +34,30 @@ class SpecTerminu:
     podstawa: str
 
 
-def zastosuj(sprawa: Sprawa, zdarzenie: Zdarzenie, spec: SpecTerminu | None, kalendarz: Kalendarz) -> list[str]:
+def zastosuj(sprawa: Sprawa, zdarzenie: Zdarzenie, spec: SpecTerminu | None, kalendarz: Kalendarz,
+             dotyczy: str | None = None) -> list[str]:
+    """`dotyczy` — id nadania, którego dotyczy doręczenie albo odpowiedź. Potrzebne tylko wtedy,
+    gdy w wątku czeka naraz kilka Twoich pism; przy zwykłej korespondencji tam i z powrotem
+    czeka jedno i dopasowanie jest jednoznaczne."""
+    nadanie = _wskazane_nadanie(sprawa, zdarzenie, dotyczy) if dotyczy is not None else None
+    if zdarzenie.typ == "doreczenie":
+        return _po_doreczeniu(sprawa, zdarzenie, kalendarz, nadanie)
+    if zdarzenie.typ in ZDARZENIA_PRZYCHODZACE:
+        return _po_przychodzacym(sprawa, zdarzenie, spec, kalendarz, nadanie)
+    if nadanie is not None:
+        raise BladSprawy("--dotyczy podaje się tylko przy doręczeniu i piśmie przychodzącym")
     if zdarzenie.typ == "nadanie":
         return _po_nadaniu(sprawa, zdarzenie, spec, kalendarz)
-    if zdarzenie.typ == "doreczenie":
-        return _po_doreczeniu(sprawa, zdarzenie, kalendarz)
-    if zdarzenie.typ in ZDARZENIA_PRZYCHODZACE:
-        return _po_przychodzacym(sprawa, zdarzenie, spec, kalendarz)
     return []
+
+
+def _wskazane_nadanie(sprawa: Sprawa, z: Zdarzenie, dotyczy: str) -> Zdarzenie:
+    n = sprawa.znajdz_zdarzenie(dotyczy)
+    if n.typ != "nadanie" or n.watek != z.watek:
+        raise BladSprawy(f"{dotyczy} nie jest nadaniem w wątku {z.watek}")
+    if n.data > z.data:
+        raise BladSprawy(f"nadanie {dotyczy} ({n.data}) jest późniejsze niż {z.typ} ({z.data})")
+    return n
 
 
 def _nowe_zadanie(sprawa: Sprawa, opis: str, aktywne_od: dt.date, watek: str | None, regula: str,
@@ -72,22 +88,51 @@ def _po_nadaniu(sprawa: Sprawa, z: Zdarzenie, spec: SpecTerminu | None, kal: Kal
     return [f"termin {termin.id}: do {termin.data_konca.isoformat()} (szacunek — liczony od nadania)"]
 
 
-def _po_doreczeniu(sprawa: Sprawa, z: Zdarzenie, kal: Kalendarz) -> list[str]:
-    """Dopasowanie FIFO: doręczenie trafia do najstarszego niedoręczonego nadania w wątku,
-    które było wysłane nie później niż data doręczenia. Niedoręczone = sprawdzenie doręczenia
-    otwarte albo zamknięte tylko odpowiedzią (potwierdzenie EPO bywa wpisywane po odpowiedzi).
-    Walidacja przed jakąkolwiek zmianą."""
-    kandydaci = [(a, sprawa.znajdz_zdarzenie(a.zdarzenie_id))
-                 for a in sprawa.zadania
-                 if a.watek == z.watek and a.regula == REGULA_DORECZENIE and a.zdarzenie_id is not None
-                 and (a.zrobione is None or _zamkniete_odpowiedzia(sprawa, a))]
-    if not kandydaci:
-        return ["w wątku nie ma niedoręczonego nadania — nie ma terminu do przeliczenia; doręczenie zapisane bez przeliczania"]
-    pasujace = [(a, n) for a, n in kandydaci if n.data <= z.data]
-    if not pasujace:
-        najwczesniejsze = min(n.data for _, n in kandydaci)
-        raise BladSprawy(f"doręczenie {z.data} jest wcześniej niż nadanie {najwczesniejsze}")
-    zadanie, nadanie = min(pasujace, key=lambda para: _kolejnosc(sprawa, para[1]))
+def _sprawdzenia_doreczenia(sprawa: Sprawa, watek: str | None) -> list[tuple[Zadanie, Zdarzenie]]:
+    return [(a, sprawa.znajdz_zdarzenie(a.zdarzenie_id)) for a in sprawa.zadania
+            if a.watek == watek and a.regula == REGULA_DORECZENIE and a.zdarzenie_id is not None]
+
+
+def _kandydaci_doreczenia(sprawa: Sprawa, watek: str | None) -> list[tuple[Zadanie, Zdarzenie]]:
+    """Nadania, których doręczenia jeszcze nie wpisano. Sprawdzenie zamknięte odpowiedzią liczy
+    się tylko wtedy, gdy w chwili tej odpowiedzi czekało też inne pismo — wtedy potwierdzenie EPO
+    wpisane później może dotyczyć obu. Przy korespondencji tam i z powrotem (odpowiedź przyszła,
+    zanim wysłałeś kolejne pismo) stare pismo jest już załatwione."""
+    wszystkie = _sprawdzenia_doreczenia(sprawa, watek)
+    otwarte = [(a, n) for a, n in wszystkie if a.zrobione is None]
+    kandydaci = list(otwarte)
+    for a, n in wszystkie:
+        if a.zrobione is None or not _zamkniete_odpowiedzia(sprawa, a):
+            continue
+        odpowiedz = sprawa.znajdz_zdarzenie(a.zamkniete_przez)
+        if any(m.data <= odpowiedz.data for _, m in otwarte):
+            kandydaci.append((a, n))
+    return sorted(kandydaci, key=lambda para: _kolejnosc(sprawa, para[1]))
+
+
+def _po_doreczeniu(sprawa: Sprawa, z: Zdarzenie, kal: Kalendarz, wskazane: Zdarzenie | None) -> list[str]:
+    """Doręczenie trafia do jedynego czekającego nadania wysłanego nie później niż doręczenie.
+    Gdy pasuje kilka — kod nie zgaduje, tylko prosi o --dotyczy. Walidacja przed jakąkolwiek zmianą."""
+    if wskazane is not None:
+        pary = [(a, n) for a, n in _sprawdzenia_doreczenia(sprawa, z.watek) if n.id == wskazane.id]
+        if not pary:
+            raise BladSprawy(f"nadanie {wskazane.id} nie czeka na doręczenie")
+        zadanie, nadanie = pary[0]
+        if zadanie.zamkniete_przez and sprawa.znajdz_zdarzenie(zadanie.zamkniete_przez).typ == "doreczenie":
+            raise BladSprawy(f"nadanie {wskazane.id} ma już wpisane doręczenie {zadanie.zamkniete_przez}")
+    else:
+        kandydaci = _kandydaci_doreczenia(sprawa, z.watek)
+        if not kandydaci:
+            return ["w wątku nie ma niedoręczonego nadania — nie ma terminu do przeliczenia; doręczenie zapisane bez przeliczania"]
+        pasujace = [(a, n) for a, n in kandydaci if n.data <= z.data]
+        if not pasujace:
+            najwczesniejsze = min(n.data for _, n in kandydaci)
+            raise BladSprawy(f"doręczenie {z.data} jest wcześniej niż nadanie {najwczesniejsze}")
+        if len(pasujace) > 1:
+            lista = "; ".join(_opis_nadania(n) for _, n in pasujace)
+            raise BladSprawy(f"w wątku {z.watek} czeka kilka pism: {lista} — wskaż, którego dotyczy "
+                             f"doręczenie: --dotyczy <id>")
+        zadanie, nadanie = pasujace[0]
     if zadanie.zrobione is None:
         zadanie.zrobione = z.data
     zadanie.zamkniete_przez = z.id
@@ -119,9 +164,9 @@ def _opis_nadania(n: Zdarzenie) -> str:
     return f"{co} ({n.id}, {n.data.isoformat()})"
 
 
-def _zamknij_oczekiwanie(sprawa: Sprawa, z: Zdarzenie) -> list[str]:
-    """Odpowiedź zamyka oczekiwania tylko najstarszego nadania w wątku wysłanego nie później niż
-    odpowiedź (FIFO, jak przy doręczeniu). Oczekiwania pozostałych nadań zostają otwarte — to
+def _zamknij_oczekiwanie(sprawa: Sprawa, z: Zdarzenie, wskazane: Zdarzenie | None) -> list[str]:
+    """Odpowiedź zamyka oczekiwania wskazanego nadania, a bez wskazania — najstarszego w wątku
+    wysłanego nie później niż odpowiedź. Oczekiwania pozostałych nadań zostają otwarte — to
     bezpieczny kierunek błędu: użytkownik je widzi i zamknie ręcznie."""
     oczekujace: dict[str, list[Zadanie]] = {}
     for regula in (REGULA_ODPOWIEDZ, REGULA_DORECZENIE):
@@ -131,6 +176,10 @@ def _zamknij_oczekiwanie(sprawa: Sprawa, z: Zdarzenie) -> list[str]:
     nadania = sorted((sprawa.znajdz_zdarzenie(zid) for zid in oczekujace), key=lambda n: _kolejnosc(sprawa, n))
     komunikaty = []
     pasujace = [n for n in nadania if n.data <= z.data]
+    if wskazane is not None:
+        if wskazane.id not in oczekujace:
+            raise BladSprawy(f"nadanie {wskazane.id} nie czeka na odpowiedź")
+        pasujace = [wskazane]
     if pasujace:
         zamykane = pasujace[0]
         for a in oczekujace.pop(zamykane.id):
@@ -145,10 +194,11 @@ def _zamknij_oczekiwanie(sprawa: Sprawa, z: Zdarzenie) -> list[str]:
     return komunikaty
 
 
-def _po_przychodzacym(sprawa: Sprawa, z: Zdarzenie, spec: SpecTerminu | None, kal: Kalendarz) -> list[str]:
+def _po_przychodzacym(sprawa: Sprawa, z: Zdarzenie, spec: SpecTerminu | None, kal: Kalendarz,
+                      wskazane: Zdarzenie | None = None) -> list[str]:
     """Pismo doszło do Ciebie (odpowiedź albo wpływ). Data zdarzenia = data doręczenia do
     Ciebie, także zastępczego (awizo). Ze `spec` liczy TWÓJ termin — nie szacunek, bo datę znasz."""
-    komunikaty = _zamknij_oczekiwanie(sprawa, z)
+    komunikaty = _zamknij_oczekiwanie(sprawa, z, wskazane)
     adresat = sprawa.znajdz_watek(z.watek).adresat if z.watek else "nadawcy"
     co = "odpowiedź" if z.typ == "odpowiedz" else "pismo"
     if spec is None:

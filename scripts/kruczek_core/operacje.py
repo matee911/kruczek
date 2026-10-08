@@ -76,7 +76,7 @@ def dodaj_watek(katalog: Path, id: str, adresat: str) -> None:
 
 def dodaj_zdarzenie(katalog: Path, typ: str, data: dt.date, kalendarz: Kalendarz, dzis: dt.date, *,
                     watek: str | None = None, opis: str = "", dowody: Sequence[str] = (),
-                    termin: SpecTerminu | None = None) -> list[str]:
+                    termin: SpecTerminu | None = None, dotyczy: str | None = None) -> list[str]:
     if typ not in TYPY_ZDARZEN:
         raise BladSprawy(f"nieznany typ zdarzenia {typ!r}; dozwolone: {', '.join(TYPY_ZDARZEN)}")
     if data > dzis:
@@ -87,13 +87,15 @@ def dodaj_zdarzenie(katalog: Path, typ: str, data: dt.date, kalendarz: Kalendarz
         raise BladSprawy("termin podaje się przy nadaniu (termin adresata) albo przy odpowiedzi/wpływie (Twój termin)")
     if termin is not None:
         termin = _sprawdz_termin(termin, data, kalendarz)
+    if dotyczy is not None:
+        dotyczy = _niepusty("dotyczy", dotyczy)
 
     def zmiana(s: Sprawa) -> list[str]:
         if watek is not None:
             s.znajdz_watek(watek)
         z = Zdarzenie(kolejne_id("z", s.zdarzenia), data, typ, opis, watek, list(dowody))
         s.zdarzenia.append(z)
-        return [f"zdarzenie {z.id}: {typ} {data.isoformat()}", *zastosuj(s, z, termin, kalendarz)]
+        return [f"zdarzenie {z.id}: {typ} {data.isoformat()}", *zastosuj(s, z, termin, kalendarz, dotyczy=dotyczy)]
 
     return zmien(katalog, zmiana)
 

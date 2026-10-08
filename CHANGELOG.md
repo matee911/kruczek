@@ -18,6 +18,10 @@ wersjonowanie wg [SemVer](https://semver.org/lang/pl/).
   wolnych tylko dla urzędów. Termin od nadania oznaczony jako szacunek, przeliczany po doręczeniu.
 - **Twoje terminy** — przy piśmie, które doszło do Ciebie (`odpowiedz`, nowy typ `wplyw` — np. decyzja),
   termin liczony od daty doręczenia do Ciebie; zadanie z datą końca wypływa na górę „Teraz”.
+- **Wątek = korespondencja tam i z powrotem** — doręczenie i odpowiedź trafiają do pisma, które
+  czeka. Gdy czeka naraz kilka Twoich pism (np. ponaglenie przed odpowiedzią), kod nie zgaduje:
+  doręczenie wymaga `--dotyczy <id nadania>`, a odpowiedź bez wskazania zamyka najstarsze pismo
+  i wypisuje, co zostało otwarte.
 - **Poprawka błędnie wpisanego zdarzenia** (do czasu osobnej komendy): popraw ręcznie `sprawa.json`,
   potem `teczka.py przelicz <sprawa>`. `co-robic` nie ukrywa całego przeglądu, gdy jedna sprawa
   jest nieczytelna — wypisuje ją w sekcji BŁĘDY (kod wyjścia 1), a resztę pokazuje normalnie.
