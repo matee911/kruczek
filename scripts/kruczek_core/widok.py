@@ -1,7 +1,9 @@
 """Przegląd „co robić” — wyliczany, nie zapisywany (spec §4.2).
 
-Actionable = zadania z aktywne_od ≤ dziś i niezrobione. Piłka w wątku wynika
-z ostatniego zdarzenia korespondencji: nadanie/doręczenie → u adresata, odpowiedź/wpływ → moja.
+Actionable = zadania z aktywne_od ≤ dziś i niezrobione. Piłka w wątku wynika z OTWARTYCH
+zadań reguł, nie z ostatniego zdarzenia: jeśli w wątku jest otwarte zadanie sprawdzenia
+odpowiedzi albo doręczenia, piłka jest u adresata; w przeciwnym razie u mnie. „Czekam do”
+to najwcześniejszy termin adresata, którego zadanie odpowiedzi jest jeszcze otwarte.
 „Czekam” bierze tylko terminy adresata; Twoje terminy są datą zadania w „Teraz”.
 """
 
@@ -10,7 +12,8 @@ from __future__ import annotations
 import datetime as dt
 from dataclasses import dataclass
 
-from kruczek_core.model import ZDARZENIA_PRZYCHODZACE, ZDARZENIA_WATKU, Sprawa, Watek, Zadanie
+from kruczek_core.model import Sprawa, Watek, Zadanie
+from kruczek_core.reguly import REGULA_DORECZENIE, REGULA_ODPOWIEDZ
 
 
 @dataclass(frozen=True)
@@ -37,17 +40,18 @@ class Przeglad:
 
 def stan_watku(sprawa: Sprawa, watek_id: str) -> StanWatku:
     watek = sprawa.znajdz_watek(watek_id)
-    korespondencja = sorted(
-        (z for z in sprawa.zdarzenia if z.watek == watek_id and z.typ in ZDARZENIA_WATKU),
-        key=lambda z: z.data,
-    )
-    ostatnie = korespondencja[-1] if korespondencja else None
-    if ostatnie is None or ostatnie.typ in ZDARZENIA_PRZYCHODZACE:
+    otwarte = [a for a in sprawa.zadania if a.watek == watek_id and a.zrobione is None]
+    if not any(a.regula in (REGULA_ODPOWIEDZ, REGULA_DORECZENIE) for a in otwarte):
         return StanWatku(sprawa.tytul, watek, "moja", None, False)
-    terminy = [t for t in sprawa.terminy if t.watek == watek_id and t.czyj == "adresata"]
-    if not terminy:
+    czekajace = [
+        t for t in sprawa.terminy
+        if t.watek == watek_id and t.czyj == "adresata"
+        and any(a.termin_id == t.id and a.regula == REGULA_ODPOWIEDZ for a in otwarte)
+    ]
+    if not czekajace:
         return StanWatku(sprawa.tytul, watek, "adresata", None, False)
-    return StanWatku(sprawa.tytul, watek, "adresata", terminy[-1].data_konca, terminy[-1].szacunek)
+    najblizszy = min(czekajace, key=lambda t: t.data_konca)
+    return StanWatku(sprawa.tytul, watek, "adresata", najblizszy.data_konca, najblizszy.szacunek)
 
 
 def co_robic(sprawy: list[Sprawa], dzis: dt.date, horyzont_dni: int = 14) -> Przeglad:
