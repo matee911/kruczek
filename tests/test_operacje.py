@@ -3,13 +3,20 @@ import datetime as dt
 import pytest
 
 from kruczek_core.dni_wolne import Kalendarz
-from kruczek_core.model import BladSprawy
+from kruczek_core import operacje
+from kruczek_core.model import BladSprawy, Sprawa
 from kruczek_core.operacje import (
     dodaj_watek,
     dodaj_zadanie,
     dodaj_zdarzenie,
+    dopisz_watek,
+    dopisz_zadanie,
+    dopisz_zdarzenie,
     nowa_sprawa,
+    otworz_sprawe,
     oznacz_zrobione,
+    utworz_sprawe,
+    zamknij_sprawe,
 )
 from kruczek_core.reguly import SpecTerminu
 from kruczek_core.repozytorium import wczytaj
@@ -247,3 +254,84 @@ def test_niejednoznaczne_doreczenie_nic_nie_zapisuje_a_ze_wskazaniem_przechodzi(
     assert wczytaj(katalog).rewizja == rewizja
     dodaj_zdarzenie(katalog, "doreczenie", D(2026, 10, 9), Kalendarz(), DZIS, watek="firma", dotyczy=" z2 ")
     assert wczytaj(katalog).terminy[1].od_zdarzenia == "z3"
+
+
+def _pusta() -> Sprawa:
+    return Sprawa(id="s1", tytul="T", wlasciciel="opiekun1", strona_przeciwna="X")
+
+
+def test_dopisz_w_pamieci_bez_zapisu_na_dysk(monkeypatch):
+    # Arrange
+    def nie_wolno(*_a, **_k):
+        pytest.fail("dopisz_* nie może sięgać do dysku")
+
+    monkeypatch.setattr(operacje, "zmien", nie_wolno)
+    monkeypatch.setattr(operacje, "zapisz_nowa", nie_wolno)
+    s = _pusta()
+    # Act
+    dopisz_watek(s, "firma", "X sp. z o.o.")
+    komunikaty = dopisz_zdarzenie(s, "nadanie", D(2026, 10, 8), Kalendarz(), DZIS, watek="firma",
+                                  termin=SpecTerminu("14d", "wyznaczony w piśmie"))
+    zadanie = dopisz_zadanie(s, "snapshot", D(2026, 10, 22))
+    # Assert
+    assert [z.typ for z in s.zdarzenia] == ["nadanie"]
+    assert any("szacunek" in k for k in komunikaty)
+    assert zadanie.id in {a.id for a in s.zadania}
+
+
+def test_dopisz_zdarzenie_waliduje_jak_dodaj_zdarzenie():
+    # Arrange
+    s = _pusta()
+    # Act / Assert
+    with pytest.raises(BladSprawy, match="w przyszłości"):
+        dopisz_zdarzenie(s, "fakt", D(2026, 10, 21), Kalendarz(), DZIS)
+    assert s.zdarzenia == []
+
+
+def test_dopisz_zdarzenie_z_bledem_regul_wycofuje_zdarzenie():
+    # Arrange
+    s = _pusta()
+    dopisz_watek(s, "firma", "X sp. z o.o.")
+    for data in (D(2026, 10, 1), D(2026, 10, 2)):
+        dopisz_zdarzenie(s, "nadanie", data, Kalendarz(), DZIS, watek="firma")
+    # Act / Assert — dwa czekające nadania, brak dotyczy
+    with pytest.raises(BladSprawy):
+        dopisz_zdarzenie(s, "doreczenie", D(2026, 10, 5), Kalendarz(), DZIS, watek="firma")
+    assert [z.typ for z in s.zdarzenia] == ["nadanie", "nadanie"]
+
+
+def test_utworz_sprawe_waliduje_i_ustawia_opiekuna():
+    # Act
+    s = utworz_sprawe(" Spamer ", " X ", "opiekun1")
+    # Assert
+    assert (s.tytul, s.strona_przeciwna, len(s.id)) == ("Spamer", "X", 32)
+    assert [(u.osoba, u.rola) for u in s.uczestnicy] == [("opiekun1", "opiekun")]
+    with pytest.raises(BladSprawy, match="właściciel"):
+        utworz_sprawe("T", "X", " ")
+
+
+def test_zamknij_i_otworz_sprawe(katalog):
+    # Act
+    zamknij_sprawe(katalog, "ugoda")
+    zamknieta = wczytaj(katalog)
+    otworz_sprawe(katalog)
+    otwarta = wczytaj(katalog)
+    # Assert
+    assert (zamknieta.zamknieta, zamknieta.wynik) == (True, "ugoda")
+    assert (otwarta.zamknieta, otwarta.wynik) == (False, None)
+
+
+@pytest.mark.parametrize("wynik", ["", "wygrałem", "Ugoda"])
+def test_zamknij_z_nieznanym_wynikiem_odrzucone(katalog, wynik):
+    # Act / Assert
+    with pytest.raises(BladSprawy, match="wynik"):
+        zamknij_sprawe(katalog, wynik)
+    assert wczytaj(katalog).zamknieta is False
+
+
+def test_zamknij_zamknieta_odrzucone(katalog):
+    # Arrange
+    zamknij_sprawe(katalog, "wygrana")
+    # Act / Assert
+    with pytest.raises(BladSprawy, match="już zamknięta"):
+        zamknij_sprawe(katalog, "ugoda")

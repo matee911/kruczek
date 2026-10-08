@@ -291,3 +291,15 @@ def test_doreczenie_przy_dwoch_pismach_wymaga_dotyczy(projekt, capsys):
     # Assert
     assert kod == 1 and "--dotyczy" in err and "Traceback" not in err
     assert kod2 == 0 and "(od doręczenia)" in out2
+
+
+def test_zamknieta_sprawa_znika_z_przegladu(projekt, capsys):
+    # Arrange
+    sprawa = str(projekt / "spamer")
+    uruchom(capsys, "zadanie", sprawa, "coś", "--aktywne-od", "2026-10-01")
+    # Act
+    kod, out, _ = uruchom(capsys, "zamknij", sprawa, "--wynik", "wygrana")
+    _, przeglad, _ = uruchom(capsys, "co-robic", str(projekt))
+    # Assert
+    assert kod == 0 and "wygrana" in out
+    assert "coś" not in przeglad
