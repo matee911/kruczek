@@ -65,6 +65,8 @@ def wczytaj(katalog: Path) -> Sprawa:
 
 @contextmanager
 def _blokada(katalog: Path) -> Iterator[None]:
+    if not katalog.is_dir():
+        raise BladSprawy(f"{katalog}: katalog sprawy nie istnieje")
     with open(katalog / _BLOKADA, "a") as f:
         fcntl.flock(f, fcntl.LOCK_EX)
         try:
