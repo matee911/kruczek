@@ -25,9 +25,9 @@ def pelna_sprawa() -> Sprawa:
     return Sprawa(
         id="abc123",
         tytul="Spamer X",
-        wlasciciel="matee",
+        wlasciciel="opiekun1",
         strona_przeciwna="X sp. z o.o.",
-        uczestnicy=[Uczestnik("matee", "opiekun"), Uczestnik("Ola", "klientka")],
+        uczestnicy=[Uczestnik("opiekun1", "opiekun"), Uczestnik("osoba1", "klientka")],
         watki=[Watek("firma", "X sp. z o.o.")],
         pisma=[Pismo("p1", "firma", 1, "wyslane", "WYSYLKA/pismo.pdf")],
         zdarzenia=[Zdarzenie("z1", D(2026, 10, 8), "nadanie", "wezwanie", "firma", ["ARCHIWUM/a.pdf"])],

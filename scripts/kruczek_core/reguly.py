@@ -1,4 +1,4 @@
-"""Reguły „zdarzenie → terminy i zadania” (spec §4.2).
+"""Reguły „zdarzenie → terminy i zadania”.
 
 Terminy są dwojakie: adresata (do kiedy ma odpowiedzieć na Twoje nadanie) i TWOJE (do kiedy
 Ty musisz działać po piśmie, które doszło do Ciebie — np. odwołanie od decyzji). Przegapienie
@@ -99,23 +99,50 @@ def _po_doreczeniu(sprawa: Sprawa, z: Zdarzenie, kal: Kalendarz) -> list[str]:
     return [f"termin {termin.id}: do {termin.data_konca.isoformat()} (od doręczenia)"]
 
 
+def _opis_nadania(n: Zdarzenie) -> str:
+    return f"{n.opis} ({n.data.isoformat()})" if n.opis else f"nadanie z {n.data.isoformat()}"
+
+
+def _zamknij_oczekiwanie(sprawa: Sprawa, z: Zdarzenie) -> list[str]:
+    """Odpowiedź zamyka oczekiwania tylko najstarszego nadania w wątku wysłanego nie później niż
+    odpowiedź (FIFO, jak przy doręczeniu). Oczekiwania pozostałych nadań zostają otwarte — to
+    bezpieczny kierunek błędu: użytkownik je widzi i zamknie ręcznie."""
+    oczekujace: dict[str, list[Zadanie]] = {}
+    for regula in (REGULA_ODPOWIEDZ, REGULA_DORECZENIE):
+        for a in _otwarte(sprawa, z.watek, regula):
+            if a.zdarzenie_id is not None:
+                oczekujace.setdefault(a.zdarzenie_id, []).append(a)
+    nadania = sorted((sprawa.znajdz_zdarzenie(zid) for zid in oczekujace), key=lambda n: n.data)
+    komunikaty = []
+    pasujace = [n for n in nadania if n.data <= z.data]
+    if pasujace:
+        zamykane = pasujace[0]
+        for a in oczekujace.pop(zamykane.id):
+            a.zrobione = z.data
+        komunikaty.append(f"odpowiedź zamyka oczekiwanie na: {_opis_nadania(zamykane)}")
+    for n in nadania:
+        if n.id in oczekujace:
+            ids = ", ".join(a.id for a in oczekujace[n.id])
+            komunikaty.append(f"w wątku {z.watek} nadal czekasz na odpowiedź na: {_opis_nadania(n)} — "
+                              f"zamknij ręcznie (zrobione {ids}), jeśli ta odpowiedź dotyczy też ich")
+    return komunikaty
+
+
 def _po_przychodzacym(sprawa: Sprawa, z: Zdarzenie, spec: SpecTerminu | None, kal: Kalendarz) -> list[str]:
     """Pismo doszło do Ciebie (odpowiedź albo wpływ). Data zdarzenia = data doręczenia do
     Ciebie, także zastępczego (awizo). Ze `spec` liczy TWÓJ termin — nie szacunek, bo datę znasz."""
-    for regula in (REGULA_ODPOWIEDZ, REGULA_DORECZENIE):
-        for a in _otwarte(sprawa, z.watek, regula):
-            a.zrobione = z.data
+    komunikaty = _zamknij_oczekiwanie(sprawa, z)
     adresat = sprawa.znajdz_watek(z.watek).adresat if z.watek else "nadawcy"
     co = "odpowiedź" if z.typ == "odpowiedz" else "pismo"
     if spec is None:
         zadanie = _nowe_zadanie(sprawa, f"przeanalizuj {co} od {adresat}", z.data, z.watek, REGULA_ANALIZA, z.id)
-        return [f"zadanie {zadanie.id}: {zadanie.opis}"]
+        return [*komunikaty, f"zadanie {zadanie.id}: {zadanie.opis}"]
     termin = Termin(kolejne_id("t", sprawa.terminy), spec.podstawa, z.id, spec.dlugosc,
                     koniec_terminu(z.data, spec.dlugosc, kal), watek=z.watek, czyj="moj")
     sprawa.terminy.append(termin)
     zadanie = _nowe_zadanie(sprawa, f"przeanalizuj {co} od {adresat} i działaj", z.data, z.watek, REGULA_ANALIZA,
                             z.id, termin.id, termin.data_konca)
-    return [f"Twój termin {termin.id}: do {termin.data_konca.isoformat()} ({spec.podstawa})",
+    return [*komunikaty, f"Twój termin {termin.id}: do {termin.data_konca.isoformat()} ({spec.podstawa})",
             f"zadanie {zadanie.id}: {zadanie.opis}"]
 
 

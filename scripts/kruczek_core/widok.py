@@ -1,4 +1,4 @@
-"""Przegląd „co robić” — wyliczany, nie zapisywany (spec §4.2).
+"""Przegląd „co robić” — wyliczany, nie zapisywany.
 
 Actionable = zadania z aktywne_od ≤ dziś i niezrobione. Piłka w wątku wynika z OTWARTYCH
 zadań reguł, nie z ostatniego zdarzenia: jeśli w wątku jest otwarte zadanie sprawdzenia

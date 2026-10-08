@@ -7,7 +7,7 @@ Obok listy z ustawy są dni wolne JEDNORAZOWE, ustanawiane osobnymi aktami: plik
 dni_wolne_jednorazowe.json w pluginie plus .kruczek/dni-wolne.json w projekcie
 użytkownika. Dzień „tylko dla urzędów” (rozporządzenie PRM) nie jest dniem „uznanym
 ustawowo za wolny od pracy” w rozumieniu art. 115 k.c. — nie przesuwa terminu, daje
-tylko ostrzeżenie. To ocena, nie pewnik (spec §5.2).
+tylko ostrzeżenie. To ocena, nie pewnik.
 
 Lata przed 2000 nie są obsługiwane.
 """
