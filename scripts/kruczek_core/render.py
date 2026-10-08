@@ -1,4 +1,4 @@
-"""Bloki index.md generowane z sprawa.json (spec §4.4).
+"""Bloki index.md generowane z sprawa.json.
 
 Treść między znacznikami <!-- kruczek:<blok> --> … <!-- /kruczek:<blok> --> jest
 nadpisywana przy każdym renderowaniu. Wszystko poza znacznikami (stan faktyczny,

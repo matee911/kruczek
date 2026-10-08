@@ -1,4 +1,4 @@
-"""Model danych sprawy — źródło prawdy w sprawa.json (spec §4).
+"""Model danych sprawy — źródło prawdy w sprawa.json.
 
 Status sprawy i wątku NIE jest tu zapisany: wylicza go widok.py ze zdarzeń, terminów
 i zadań, żeby nie rozjeżdżał się z rzeczywistością.
@@ -91,7 +91,7 @@ class Dowod:
     sciezka: str
     sha256: str
     dodano: dt.date
-    wrazliwy: bool = True  # domyślnie nie opuszcza maszyny opiekuna (spec §3)
+    wrazliwy: bool = True  # domyślnie nie opuszcza maszyny opiekuna
     do_udostepnienia: bool = False
 
 

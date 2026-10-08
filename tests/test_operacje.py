@@ -22,7 +22,7 @@ DZIS = D(2026, 10, 20)
 def katalog(tmp_path):
     k = tmp_path / "spamer"
     k.mkdir()
-    nowa_sprawa(k, "Spamer", "X sp. z o.o.", "matee")
+    nowa_sprawa(k, "Spamer", "X sp. z o.o.", "opiekun1")
     dodaj_watek(k, "firma", "X sp. z o.o.")
     return k
 
@@ -32,7 +32,7 @@ def test_nowa_sprawa_ma_stale_id_i_opiekuna(katalog):
     s = wczytaj(katalog)
     # Assert
     assert len(s.id) == 32
-    assert [(u.osoba, u.rola) for u in s.uczestnicy] == [("matee", "opiekun")]
+    assert [(u.osoba, u.rola) for u in s.uczestnicy] == [("opiekun1", "opiekun")]
 
 
 def test_dodaj_zdarzenie_nadanie_zapisuje_i_stosuje_reguly(katalog):
@@ -115,7 +115,7 @@ def test_nowa_sprawa_pusty_pole_odrzucone_i_nic_nie_zapisane(tmp_path, pole, naz
     # Arrange
     k = tmp_path / "pusta"
     k.mkdir()
-    dane = {"tytul": "Spamer", "strona_przeciwna": "X sp. z o.o.", "wlasciciel": "matee", pole: "  "}
+    dane = {"tytul": "Spamer", "strona_przeciwna": "X sp. z o.o.", "wlasciciel": "opiekun1", pole: "  "}
     # Act / Assert
     with pytest.raises(BladSprawy, match=f"{nazwa} nie może być pusty"):
         nowa_sprawa(k, dane["tytul"], dane["strona_przeciwna"], dane["wlasciciel"])
@@ -138,7 +138,7 @@ def test_dodaj_watek_przycina_wartosci(tmp_path):
     # Arrange
     k = tmp_path / "przycinanie"
     k.mkdir()
-    nowa_sprawa(k, "Spamer", "X sp. z o.o.", "matee")
+    nowa_sprawa(k, "Spamer", "X sp. z o.o.", "opiekun1")
     # Act
     dodaj_watek(k, " firma ", " X ")
     # Assert
@@ -169,7 +169,7 @@ def test_dodaj_watek_w_nieistniejacym_katalogu_to_blad_sprawy(tmp_path):
 def test_nowa_sprawa_w_nieistniejacym_katalogu_to_blad_sprawy(tmp_path):
     # Act / Assert
     with pytest.raises(BladSprawy, match="nie istnieje"):
-        nowa_sprawa(tmp_path / "brak", "Spamer", "X", "matee")
+        nowa_sprawa(tmp_path / "brak", "Spamer", "X", "opiekun1")
 
 
 def test_dodaj_watek_drugi_raz_o_tym_samym_id_odrzucony(katalog):
@@ -213,3 +213,23 @@ def test_wyjatek_po_mutacji_wycofuje_zapis(katalog, monkeypatch):
     s = wczytaj(katalog)
     assert s.zdarzenia == []
     assert s.rewizja == rewizja
+
+
+@pytest.mark.parametrize(
+    "dlugosc, data, podstawa, fragment",
+    [
+        ("14 dni", D(2026, 10, 8), "x", "nieznana długość terminu"),
+        ("99999r", D(2026, 10, 8), "x", "poza obsługiwanym zakresem"),
+        ("14d", D(1999, 12, 1), "x", "poza obsługiwanym zakresem"),
+        ("14d", D(2026, 10, 8), "  ", "podstawa"),
+    ],
+)
+def test_zly_termin_to_blad_sprawy_i_nic_nie_zapisane(katalog, kalendarz, dlugosc, data, podstawa, fragment):
+    # Arrange
+    rewizja = wczytaj(katalog).rewizja
+    # Act / Assert
+    with pytest.raises(BladSprawy, match=fragment):
+        dodaj_zdarzenie(katalog, "nadanie", data, kalendarz, DZIS, watek="firma",
+                        termin=SpecTerminu(dlugosc, podstawa))
+    s = wczytaj(katalog)
+    assert s.rewizja == rewizja and s.zdarzenia == [] and s.terminy == []
