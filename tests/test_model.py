@@ -34,7 +34,7 @@ def pelna_sprawa() -> Sprawa:
         terminy=[Termin("t1", "wyznaczony w piśmie", "z1", "14d", D(2026, 10, 22), "firma", True),
                  Termin("t2", "pouczenie w decyzji", "z1", "14d", D(2026, 10, 22), "firma", False, "moj")],
         zadania=[
-            Zadanie("a1", "sprawdź odpowiedź", D(2026, 10, 23), None, "firma", "sprawdz-odpowiedz", "t1", None),
+            Zadanie("a1", "sprawdź odpowiedź", D(2026, 10, 23), None, "firma", "sprawdz-odpowiedz", "t1", None, "z1"),
             Zadanie("a2", "zrobione z datami", D(2026, 10, 20), D(2026, 10, 30), "firma", None, None, D(2026, 10, 25)),
         ],
         dowody=[Dowod("ARCHIWUM/a.pdf", "f" * 64, D(2026, 10, 8))],

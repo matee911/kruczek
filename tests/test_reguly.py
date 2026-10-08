@@ -73,6 +73,50 @@ def test_doreczenie_przed_nadaniem_odrzucone():
     # Act / Assert
     with pytest.raises(BladSprawy, match="wcześniej niż nadanie"):
         dodaj(s, "z2", D(2026, 10, 7), "doreczenie")
+    (t,) = s.terminy
+    assert (t.data_konca, t.szacunek, t.od_zdarzenia) == (D(2026, 10, 22), True, "z1")
+
+
+def test_nadanie_bez_terminu_domykane_doreczeniem():
+    # Arrange
+    s = sprawa_z_watkiem()
+    dodaj(s, "z1", D(2026, 10, 8), "nadanie")
+    # Act
+    dodaj(s, "z2", D(2026, 10, 12), "doreczenie")
+    # Assert
+    (a,) = s.zadania
+    assert (a.regula, a.zrobione) == (REGULA_DORECZENIE, D(2026, 10, 12))
+
+
+def test_dwa_nadania_doreczenie_dopasowane_fifo():
+    # Arrange
+    s = sprawa_z_watkiem()
+    dodaj(s, "z1", D(2026, 10, 1), "nadanie", SPEC)
+    dodaj(s, "z2", D(2026, 10, 8), "nadanie", SPEC)
+    # Act
+    dodaj(s, "z3", D(2026, 10, 9), "doreczenie")
+    # Assert
+    t1, t2 = s.terminy
+    assert (t1.data_konca, t1.szacunek, t1.od_zdarzenia) == (D(2026, 10, 23), False, "z3")
+    assert (t2.data_konca, t2.szacunek, t2.od_zdarzenia) == (D(2026, 10, 22), True, "z2")
+    # Act
+    dodaj(s, "z4", D(2026, 10, 12), "doreczenie")
+    # Assert
+    assert (t2.data_konca, t2.szacunek, t2.od_zdarzenia) == (D(2026, 10, 26), False, "z4")
+    assert (t1.data_konca, t1.szacunek, t1.od_zdarzenia) == (D(2026, 10, 23), False, "z3")
+
+
+def test_doreczenie_przed_drugim_nadaniem_pasuje_do_pierwszego():
+    # Arrange
+    s = sprawa_z_watkiem()
+    dodaj(s, "z1", D(2026, 10, 1), "nadanie", SPEC)
+    dodaj(s, "z2", D(2026, 10, 8), "nadanie", SPEC)
+    # Act
+    dodaj(s, "z3", D(2026, 10, 5), "doreczenie")
+    # Assert
+    t1, t2 = s.terminy
+    assert (t1.data_konca, t1.szacunek, t1.od_zdarzenia) == (D(2026, 10, 19), False, "z3")
+    assert (t2.data_konca, t2.szacunek) == (D(2026, 10, 22), True)
 
 
 def test_doreczenie_bez_terminu_nie_wybucha():
