@@ -1,7 +1,7 @@
 """Repozytorium plikowe: sprawa.json w katalogu sprawy (spec §4.4, §6).
 
 Zapis zawsze pod blokadą (fcntl.flock na .sprawa.lock) i atomowo (plik tymczasowy
-+ os.replace), z licznikiem `rewizja`. Dzięki temu CLI, strona i MCP mogą pisać tę
++ fsync + os.replace; przy błędzie plik tymczasowy jest usuwany), z licznikiem `rewizja`. Dzięki temu CLI, strona i MCP mogą pisać tę
 samą sprawę równolegle bez gubienia zmian, a przerwany zapis nie zostawia uciętego JSON-a.
 """
 
@@ -41,16 +41,23 @@ def wczytaj(katalog: Path) -> Sprawa:
         dane = json.loads(plik.read_text(encoding="utf-8"))
     except json.JSONDecodeError as e:
         raise BladSprawy(f"{plik}: uszkodzony JSON (linia {e.lineno}): {e.msg}") from e
+    except UnicodeDecodeError as e:
+        raise BladSprawy(f"{plik}: plik nie jest poprawnym UTF-8 (bajt {e.start})") from e
+    except OSError as e:
+        raise BladSprawy(f"{plik}: nie można odczytać pliku: {e.strerror or e}") from e
     wersja = dane.get("schema_version") if isinstance(dane, dict) else None
-    if not isinstance(wersja, int):
-        raise BladSprawy(f"{plik}: brak schema_version")
+    if not isinstance(wersja, int) or isinstance(wersja, bool) or wersja < 1:
+        raise BladSprawy(f"{plik}: brak lub zła schema_version")
     if wersja > SCHEMA_VERSION:
         raise BladSprawy(
             f"{plik}: format w wersji {wersja}, ten kruczek zna najwyżej {SCHEMA_VERSION} — zaktualizuj plugin"
         )
-    for v in range(wersja, SCHEMA_VERSION):
-        dane = MIGRACJE[v](dane)
     try:
+        for v in range(wersja, SCHEMA_VERSION):
+            migracja = MIGRACJE.get(v)
+            if migracja is None:
+                raise BladSprawy(f"{plik}: brak migracji z wersji {v} do {v + 1}")
+            dane = migracja(dane)
         return z_slownika(dane)
     except (KeyError, TypeError, ValueError) as e:
         raise BladSprawy(f"{plik}: niepoprawne dane: {e}") from e
@@ -69,8 +76,16 @@ def _blokada(katalog: Path) -> Iterator[None]:
 def _zapisz_atomowo(katalog: Path, sprawa: Sprawa) -> None:
     plik = katalog / PLIK_SPRAWY
     tmp = katalog / f".{PLIK_SPRAWY}.{os.getpid()}.tmp"
-    tmp.write_text(json.dumps(do_slownika(sprawa), ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    os.replace(tmp, plik)
+    tresc = json.dumps(do_slownika(sprawa), ensure_ascii=False, indent=2) + "\n"
+    try:
+        with open(tmp, "w", encoding="utf-8") as f:
+            f.write(tresc)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp, plik)
+    except BaseException:
+        tmp.unlink(missing_ok=True)
+        raise
 
 
 def zapisz_nowa(katalog: Path, sprawa: Sprawa) -> None:
@@ -109,6 +124,18 @@ class ListaSpraw:
     stary_format: list[Path]  # index.md „# SPRAWA:” bez sprawa.json — do migracji
 
 
+def _to_stary_format(index: Path) -> bool:
+    """Pierwsza niepusta linia index.md to „# SPRAWA:” (BOM i puste linie na początku nie przeszkadzają)."""
+    try:
+        tekst = index.read_text(encoding="utf-8-sig", errors="replace")
+    except OSError:
+        return False
+    for linia in tekst.splitlines():
+        if linia.strip():
+            return linia.startswith("# SPRAWA:")
+    return False
+
+
 def lista_spraw(projekt: Path) -> ListaSpraw:
     sprawy, stare = [], []
     for k in sorted(p for p in projekt.iterdir() if p.is_dir()):
@@ -116,6 +143,6 @@ def lista_spraw(projekt: Path) -> ListaSpraw:
             continue
         if (k / PLIK_SPRAWY).exists():
             sprawy.append(k)
-        elif (k / "index.md").exists() and (k / "index.md").read_text(encoding="utf-8").startswith("# SPRAWA:"):
+        elif _to_stary_format(k / "index.md"):
             stare.append(k)
     return ListaSpraw(sprawy, stare)

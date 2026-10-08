@@ -152,3 +152,95 @@ def test_lista_spraw_rozroznia_stary_format_i_pomija_katalogi_projektu(tmp_path)
     # Assert
     assert [p.name for p in lista.sprawy] == ["nowa-sprawa"]
     assert [p.name for p in lista.stary_format] == ["stara-sprawa"]
+
+
+def test_bajty_spoza_utf8_to_czytelny_blad(tmp_path):
+    # Arrange
+    (tmp_path / PLIK_SPRAWY).write_bytes(b'{"id": "\xff\xfe"}')
+    # Act / Assert
+    with pytest.raises(BladSprawy, match="sprawa.json"):
+        wczytaj(tmp_path)
+
+
+def test_nieczytelny_plik_to_czytelny_blad(tmp_path):
+    # Arrange
+    (tmp_path / PLIK_SPRAWY).mkdir()
+    # Act / Assert
+    with pytest.raises(BladSprawy, match="sprawa.json"):
+        wczytaj(tmp_path)
+
+
+@pytest.mark.parametrize("wersja", [0, True, "1", -1])
+def test_zla_schema_version_to_czytelny_blad(tmp_path, wersja):
+    # Arrange
+    katalog = nowa(tmp_path)
+    dane = json.loads((katalog / PLIK_SPRAWY).read_text(encoding="utf-8"))
+    dane["schema_version"] = wersja
+    (katalog / PLIK_SPRAWY).write_text(json.dumps(dane), encoding="utf-8")
+    # Act / Assert
+    with pytest.raises(BladSprawy, match="schema_version"):
+        wczytaj(katalog)
+
+
+def test_migracja_jest_stosowana(tmp_path, monkeypatch):
+    # Arrange
+    katalog = nowa(tmp_path)
+    monkeypatch.setattr("kruczek_core.repozytorium.SCHEMA_VERSION", 2)
+    monkeypatch.setattr(
+        "kruczek_core.repozytorium.MIGRACJE",
+        {1: lambda d: {**d, "schema_version": 2, "tytul": d["tytul"] + " (zmigrowane)"}},
+    )
+    # Act
+    sprawa = wczytaj(katalog)
+    # Assert
+    assert sprawa.tytul.endswith("(zmigrowane)")
+
+
+def test_brak_kroku_migracji_i_wyjatek_w_migracji_to_czytelny_blad(tmp_path, monkeypatch):
+    # Arrange
+    katalog = nowa(tmp_path)
+    monkeypatch.setattr("kruczek_core.repozytorium.SCHEMA_VERSION", 2)
+    monkeypatch.setattr("kruczek_core.repozytorium.MIGRACJE", {})
+    # Act / Assert
+    with pytest.raises(BladSprawy, match="migracj"):
+        wczytaj(katalog)
+    monkeypatch.setattr("kruczek_core.repozytorium.MIGRACJE", {1: lambda d: d["nie_ma"]})
+    with pytest.raises(BladSprawy, match="niepoprawne dane"):
+        wczytaj(katalog)
+
+
+@pytest.mark.parametrize(
+    "zawartosc",
+    [
+        "﻿# SPRAWA: X\n".encode("utf-8"),
+        b"\xef\xbb\xbf# SPRAWA: X\n",
+        b"\n\n# SPRAWA: X\n",
+        b"# SPRAWA: X\n\xff\n",
+    ],
+)
+def test_lista_spraw_stary_format_odporna_na_bom_pusta_linie_i_zle_bajty(tmp_path, zawartosc):
+    # Arrange
+    stara = tmp_path / "stara"
+    stara.mkdir()
+    (stara / "index.md").write_bytes(zawartosc)
+    # Act
+    lista = lista_spraw(tmp_path)
+    # Assert
+    assert [p.name for p in lista.stary_format] == ["stara"]
+
+
+def test_nieudany_replace_nie_zostawia_tmp_i_nie_psuje_sprawy(tmp_path, monkeypatch):
+    # Arrange
+    katalog = nowa(tmp_path)
+
+    def zepsuty(*a, **k):
+        raise OSError("dysk")
+
+    monkeypatch.setattr("kruczek_core.repozytorium.os.replace", zepsuty)
+    # Act
+    with pytest.raises(OSError):
+        zmien(katalog, lambda s: s.watki.clear())
+    monkeypatch.undo()
+    # Assert
+    assert [p.name for p in katalog.iterdir() if p.name.endswith(".tmp")] == []
+    assert wczytaj(katalog).rewizja == 0
