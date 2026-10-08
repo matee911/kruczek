@@ -45,9 +45,9 @@ def zastosuj(sprawa: Sprawa, zdarzenie: Zdarzenie, spec: SpecTerminu | None, kal
 
 
 def _nowe_zadanie(sprawa: Sprawa, opis: str, aktywne_od: dt.date, watek: str | None, regula: str,
-                  termin_id: str | None = None, termin: dt.date | None = None) -> Zadanie:
+                  zdarzenie_id: str, termin_id: str | None = None, termin: dt.date | None = None) -> Zadanie:
     zadanie = Zadanie(kolejne_id("a", sprawa.zadania), opis, aktywne_od, termin=termin, watek=watek,
-                      regula=regula, termin_id=termin_id)
+                      regula=regula, termin_id=termin_id, zdarzenie_id=zdarzenie_id)
     sprawa.zadania.append(zadanie)
     return zadanie
 
@@ -59,35 +59,43 @@ def _otwarte(sprawa: Sprawa, watek: str | None, regula: str) -> list[Zadanie]:
 def _po_nadaniu(sprawa: Sprawa, z: Zdarzenie, spec: SpecTerminu | None, kal: Kalendarz) -> list[str]:
     adresat = sprawa.znajdz_watek(z.watek).adresat if z.watek else "adresat"
     if spec is None:
-        _nowe_zadanie(sprawa, "sprawdź datę doręczenia (EPO / Envelo)", z.data + _DZIEN, z.watek, REGULA_DORECZENIE)
+        _nowe_zadanie(sprawa, "sprawdź datę doręczenia (EPO / Envelo)", z.data + _DZIEN, z.watek,
+                      REGULA_DORECZENIE, z.id)
         return ["nadanie bez terminu na odpowiedź — nie ma na co czekać; podaj --termin, jeśli pismo go wyznacza"]
     termin = Termin(kolejne_id("t", sprawa.terminy), spec.podstawa, z.id, spec.dlugosc,
                     koniec_terminu(z.data, spec.dlugosc, kal), watek=z.watek, szacunek=True)
     sprawa.terminy.append(termin)
     _nowe_zadanie(sprawa, "sprawdź datę doręczenia (EPO / Envelo)", z.data + _DZIEN, z.watek,
-                  REGULA_DORECZENIE, termin.id)
+                  REGULA_DORECZENIE, z.id, termin.id)
     _nowe_zadanie(sprawa, f"sprawdź, czy {adresat} odpowiedział", termin.data_konca + _DZIEN, z.watek,
-                  REGULA_ODPOWIEDZ, termin.id)
+                  REGULA_ODPOWIEDZ, z.id, termin.id)
     return [f"termin {termin.id}: do {termin.data_konca.isoformat()} (szacunek — liczony od nadania)"]
 
 
 def _po_doreczeniu(sprawa: Sprawa, z: Zdarzenie, kal: Kalendarz) -> list[str]:
-    szacunkowe = [t for t in sprawa.terminy if t.watek == z.watek and t.szacunek and t.czyj == "adresata"]
-    if not szacunkowe:
-        return ["w wątku nie ma terminu liczonego od nadania — doręczenie zapisane bez przeliczania"]
-    termin = szacunkowe[-1]
-    nadanie = sprawa.znajdz_zdarzenie(termin.od_zdarzenia)
-    if z.data < nadanie.data:
-        raise BladSprawy(f"doręczenie {z.data} jest wcześniej niż nadanie {nadanie.data}")
+    """Dopasowanie FIFO: doręczenie trafia do najstarszego niedoręczonego nadania w wątku,
+    które było wysłane nie później niż data doręczenia. Walidacja przed jakąkolwiek zmianą."""
+    kandydaci = [(a, sprawa.znajdz_zdarzenie(a.zdarzenie_id))
+                 for a in sprawa.zadania
+                 if a.watek == z.watek and a.regula == REGULA_DORECZENIE and a.zrobione is None
+                 and a.zdarzenie_id is not None]
+    if not kandydaci:
+        return ["w wątku nie ma niedoręczonego nadania — nie ma terminu do przeliczenia; doręczenie zapisane bez przeliczania"]
+    pasujace = [(a, n) for a, n in kandydaci if n.data <= z.data]
+    if not pasujace:
+        najwczesniejsze = min(n.data for _, n in kandydaci)
+        raise BladSprawy(f"doręczenie {z.data} jest wcześniej niż nadanie {najwczesniejsze}")
+    zadanie, nadanie = min(pasujace, key=lambda para: para[1].data)
+    zadanie.zrobione = z.data
+    if zadanie.termin_id is None:
+        return [f"doręczenie nadania {nadanie.id} zapisane"]
+    termin = next(t for t in sprawa.terminy if t.id == zadanie.termin_id)
     termin.od_zdarzenia = z.id
     termin.data_konca = koniec_terminu(z.data, termin.dlugosc, kal)
     termin.szacunek = False
     for a in sprawa.zadania:
-        if a.termin_id == termin.id and a.zrobione is None:
-            if a.regula == REGULA_DORECZENIE:
-                a.zrobione = z.data
-            elif a.regula == REGULA_ODPOWIEDZ:
-                a.aktywne_od = termin.data_konca + _DZIEN
+        if a.termin_id == termin.id and a.regula == REGULA_ODPOWIEDZ and a.zrobione is None:
+            a.aktywne_od = termin.data_konca + _DZIEN
     return [f"termin {termin.id}: do {termin.data_konca.isoformat()} (od doręczenia)"]
 
 
@@ -100,13 +108,13 @@ def _po_przychodzacym(sprawa: Sprawa, z: Zdarzenie, spec: SpecTerminu | None, ka
     adresat = sprawa.znajdz_watek(z.watek).adresat if z.watek else "nadawcy"
     co = "odpowiedź" if z.typ == "odpowiedz" else "pismo"
     if spec is None:
-        zadanie = _nowe_zadanie(sprawa, f"przeanalizuj {co} od {adresat}", z.data, z.watek, REGULA_ANALIZA)
+        zadanie = _nowe_zadanie(sprawa, f"przeanalizuj {co} od {adresat}", z.data, z.watek, REGULA_ANALIZA, z.id)
         return [f"zadanie {zadanie.id}: {zadanie.opis}"]
     termin = Termin(kolejne_id("t", sprawa.terminy), spec.podstawa, z.id, spec.dlugosc,
                     koniec_terminu(z.data, spec.dlugosc, kal), watek=z.watek, czyj="moj")
     sprawa.terminy.append(termin)
     zadanie = _nowe_zadanie(sprawa, f"przeanalizuj {co} od {adresat} i działaj", z.data, z.watek, REGULA_ANALIZA,
-                            termin.id, termin.data_konca)
+                            z.id, termin.id, termin.data_konca)
     return [f"Twój termin {termin.id}: do {termin.data_konca.isoformat()} ({spec.podstawa})",
             f"zadanie {zadanie.id}: {zadanie.opis}"]
 
