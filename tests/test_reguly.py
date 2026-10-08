@@ -22,10 +22,10 @@ def sprawa_z_watkiem() -> Sprawa:
     return Sprawa(id="s1", tytul="T", wlasciciel="w", strona_przeciwna="X", watki=[Watek("firma", "X sp. z o.o.")])
 
 
-def dodaj(sprawa, id, data, typ, spec=None, kalendarz=Kalendarz()):
+def dodaj(sprawa, id, data, typ, spec=None, kalendarz=Kalendarz(), dotyczy=None):
     z = Zdarzenie(id, data, typ, watek="firma")
     sprawa.zdarzenia.append(z)
-    return zastosuj(sprawa, z, spec, kalendarz)
+    return zastosuj(sprawa, z, spec, kalendarz, dotyczy=dotyczy)
 
 
 def test_nadanie_tworzy_szacunkowy_termin_i_dwa_zadania():
@@ -89,13 +89,24 @@ def test_nadanie_bez_terminu_domykane_doreczeniem():
     assert (a.regula, a.zrobione) == (REGULA_DORECZENIE, D(2026, 10, 12))
 
 
-def test_dwa_nadania_doreczenie_dopasowane_fifo():
+def test_dwa_czekajace_nadania_doreczenie_bez_wskazania_odrzucone():
+    # Arrange — dwa pisma czekają naraz; kod nie zgaduje, którego dotyczy doręczenie
+    s = sprawa_z_watkiem()
+    dodaj(s, "z1", D(2026, 10, 1), "nadanie", SPEC)
+    dodaj(s, "z2", D(2026, 10, 8), "nadanie", SPEC)
+    # Act / Assert
+    with pytest.raises(BladSprawy, match=r"z1.*z2.*--dotyczy"):
+        dodaj(s, "z3", D(2026, 10, 9), "doreczenie")
+    assert all(t.szacunek for t in s.terminy)
+
+
+def test_dwa_nadania_doreczenie_ze_wskazaniem_potem_jedyne_czekajace():
     # Arrange
     s = sprawa_z_watkiem()
     dodaj(s, "z1", D(2026, 10, 1), "nadanie", SPEC)
     dodaj(s, "z2", D(2026, 10, 8), "nadanie", SPEC)
     # Act
-    dodaj(s, "z3", D(2026, 10, 9), "doreczenie")
+    dodaj(s, "z3", D(2026, 10, 9), "doreczenie", dotyczy="z1")
     # Assert
     t1, t2 = s.terminy
     assert (t1.data_konca, t1.szacunek, t1.od_zdarzenia) == (D(2026, 10, 23), False, "z3")
@@ -259,12 +270,21 @@ def test_spoznione_doreczenie_po_odpowiedzi_trafia_do_nadania_zamknietego_odpowi
     assert (t2.od_zdarzenia, t2.szacunek) == ("z2", True)
 
 
-def test_doreczenie_pierwszego_nadania_nie_przelicza_drugiego_po_odpowiedzi():
-    # Arrange — doręczenie z datą po drugim nadaniu, ale dotyczy najstarszego (FIFO)
+def test_po_odpowiedzi_doreczenie_niejednoznaczne_wymaga_wskazania():
+    # Arrange — z1 i z2 czekały naraz, odpowiedź zamknęła z1; doręczenie 10-09 pasuje do obu
+    s = sprawa_z_watkiem()
+    _dwa_nadania_i_odpowiedz(s)
+    # Act / Assert
+    with pytest.raises(BladSprawy, match="--dotyczy"):
+        dodaj(s, "z4", D(2026, 10, 9), "doreczenie")
+
+
+def test_doreczenie_pierwszego_nadania_ze_wskazaniem_nie_przelicza_drugiego():
+    # Arrange
     s = sprawa_z_watkiem()
     _dwa_nadania_i_odpowiedz(s)
     # Act
-    dodaj(s, "z4", D(2026, 10, 9), "doreczenie")
+    dodaj(s, "z4", D(2026, 10, 9), "doreczenie", dotyczy="z1")
     # Assert
     t1, t2 = s.terminy
     assert t1.od_zdarzenia == "z4"
@@ -284,3 +304,45 @@ def test_nadania_tego_samego_dnia_zamykane_w_kolejnosci_wpisania():
     otwarte = {a.zdarzenie_id for a in s.zadania if a.zrobione is None and a.regula != REGULA_ANALIZA}
     assert otwarte == {"z2"}
     assert any("z2" in k and "nadal" in k for k in komunikaty)
+
+
+def test_korespondencja_tam_i_z_powrotem_doreczenie_trafia_do_biezacego_pisma():
+    # Arrange — pismo, odpowiedź, kontra; doręczenia pierwszego pisma nikt nie wpisał
+    s = sprawa_z_watkiem()
+    dodaj(s, "z1", D(2026, 10, 1), "nadanie", SPEC)
+    dodaj(s, "z2", D(2026, 10, 10), "odpowiedz")
+    dodaj(s, "z3", D(2026, 10, 12), "nadanie", SPEC)
+    # Act
+    dodaj(s, "z4", D(2026, 10, 14), "doreczenie")
+    # Assert
+    t1, t2 = s.terminy
+    assert (t2.od_zdarzenia, t2.szacunek, t2.data_konca) == ("z4", False, D(2026, 10, 28))
+    assert t1.od_zdarzenia == "z1"
+
+
+def test_odpowiedz_ze_wskazaniem_zamyka_wskazane_nadanie():
+    # Arrange
+    s = sprawa_z_watkiem()
+    dodaj(s, "z1", D(2026, 10, 1), "nadanie", SPEC)
+    dodaj(s, "z2", D(2026, 10, 8), "nadanie", SPEC)
+    # Act
+    dodaj(s, "z3", D(2026, 10, 15), "odpowiedz", dotyczy="z2")
+    # Assert
+    otwarte = {a.zdarzenie_id for a in s.zadania if a.zrobione is None and a.regula == REGULA_ODPOWIEDZ}
+    assert otwarte == {"z1"}
+
+
+@pytest.mark.parametrize(
+    "dotyczy, komunikat",
+    [("z9", "z9"), ("z0", "nie jest nadaniem"), ("z2", "późniejsze")],
+    ids=["nieznane", "nie-nadanie", "pozniejsze-niz-zdarzenie"],
+)
+def test_wskazanie_nadania_walidowane(dotyczy, komunikat):
+    # Arrange
+    s = sprawa_z_watkiem()
+    s.zdarzenia.append(Zdarzenie("z0", D(2026, 9, 30), "fakt", watek="firma"))
+    dodaj(s, "z1", D(2026, 10, 1), "nadanie", SPEC)
+    dodaj(s, "z2", D(2026, 10, 20), "nadanie", SPEC)
+    # Act / Assert
+    with pytest.raises(BladSprawy, match=komunikat):
+        dodaj(s, "z3", D(2026, 10, 9), "doreczenie", dotyczy=dotyczy)

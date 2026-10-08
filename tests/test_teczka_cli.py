@@ -275,3 +275,19 @@ def test_pomoc_typu_wyjasnia_kierunek(capsys):
     # Assert
     out = capsys.readouterr().out
     assert "wplyw" in out and "doreczenie" in out and "adresat odpisał Tobie" in out
+
+
+def test_doreczenie_przy_dwoch_pismach_wymaga_dotyczy(projekt, capsys):
+    # Arrange
+    sprawa = str(projekt / "spamer")
+    for data in ("2026-10-01", "2026-10-08"):
+        uruchom(capsys, "zdarzenie", sprawa, "--typ", "nadanie", "--data", data, "--watek", "firma",
+                "--termin", "14d", "--podstawa", "x")
+    # Act
+    kod, _, err = uruchom(capsys, "zdarzenie", sprawa, "--typ", "doreczenie", "--data", "2026-10-09",
+                          "--watek", "firma")
+    kod2, out2, _ = uruchom(capsys, "zdarzenie", sprawa, "--typ", "doreczenie", "--data", "2026-10-09",
+                            "--watek", "firma", "--dotyczy", "z1")
+    # Assert
+    assert kod == 1 and "--dotyczy" in err and "Traceback" not in err
+    assert kod2 == 0 and "(od doręczenia)" in out2

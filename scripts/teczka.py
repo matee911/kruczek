@@ -5,7 +5,7 @@ Podkomendy:
   nowa <sprawa> --tytul T --strona S [--wlasciciel W]   załóż sprawa.json
   watek <sprawa> <id> --adresat A                      dodaj wątek korespondencji
   zdarzenie <sprawa> --typ T [--data D] [--watek W] [--opis O] [--dowod P ...]
-            [--termin 14d --podstawa P]                dopisz zdarzenie (reguły tworzą zadania);
+            [--termin 14d --podstawa P] [--dotyczy zN]  dopisz zdarzenie (reguły tworzą zadania);
                                                        --termin przy nadaniu = termin adresata,
                                                        przy odpowiedz/wplyw = Twój termin
   zadanie <sprawa> <opis> [--aktywne-od D|+Nd] [--termin D|+Nd] [--watek W]
@@ -98,6 +98,8 @@ def _parser() -> argparse.ArgumentParser:
     s.add_argument("--termin", help="14d, 2t, 1m, 1r — przy nadaniu: termin adresata; przy odpowiedz/wplyw: "
                                     "TWÓJ termin liczony od --data (dzień doręczenia do Ciebie, także po awizo)")
     s.add_argument("--podstawa", help="podstawa terminu, np. „art. 7 ust. 1 u.r.”")
+    s.add_argument("--dotyczy", help="id Twojego nadania, którego dotyczy doręczenie/odpowiedź — potrzebne "
+                                     "tylko, gdy w wątku czeka naraz kilka pism")
 
     s = sub.add_parser("zadanie", help="dodaj zadanie")
     s.add_argument("sprawa", type=Path)
@@ -187,7 +189,8 @@ def _wykonaj(a: argparse.Namespace, dzis: dt.date) -> int:
         spec = SpecTerminu(a.termin, a.podstawa) if a.termin else None
         data = parsuj_date(a.data, dzis) if a.data else dzis
         for k in dodaj_zdarzenie(a.sprawa, a.typ, data, wczytaj_kalendarz(_projekt(a.sprawa)), dzis,
-                                 watek=a.watek, opis=a.opis, dowody=a.dowod, termin=spec):
+                                 watek=a.watek, opis=a.opis, dowody=a.dowod, termin=spec,
+                                 dotyczy=a.dotyczy):
             print(k)
     elif a.komenda == "zadanie":
         termin = parsuj_date(a.termin, dzis) if a.termin else None
