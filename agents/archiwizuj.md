@@ -15,7 +15,7 @@ Skrypt sam chodzi rekurencyjnie i pomija `index.md` oraz `SHA256SUMS.txt`.
 
 ```
 ${CLAUDE_PLUGIN_ROOT}/scripts/manifest.py skan    <sprawa>              # tabela plików z sumami na stdout
-${CLAUDE_PLUGIN_ROOT}/scripts/manifest.py sumy    <sprawa>              # zapisz/odśwież SHA256SUMS.txt
+${CLAUDE_PLUGIN_ROOT}/scripts/manifest.py sumy    <sprawa>              # dopisz nowe pliki do SHA256SUMS.txt; niezgodne sumy zgłasza, nie nadpisuje (exit 1)
 ${CLAUDE_PLUGIN_ROOT}/scripts/manifest.py sprawdz <sprawa>              # weryfikacja spójności (exit 1 = problem)
 ${CLAUDE_PLUGIN_ROOT}/scripts/manifest.py wstaw   <sprawa>/index.md <sprawa>  # wstaw/podmień blok manifestu w index.md
 ```

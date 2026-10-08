@@ -357,6 +357,24 @@ class TestPrintMailRequirements(KontrolaPismaTestCase):
         self.assertEqual(code, 1)
         self.assertIn("Fonty nieosadzone w PDF: Arial", stdout)
 
+    def test_unreadable_pdffonts_output_is_a_warning_not_ok(self):
+        """None z parse_unembedded_fonts to „nie sprawdzono”, nie „wszystko osadzone”."""
+        # Arrange
+        nieczytelne_wyjscie = ""
+
+        # Act
+        stdout, code = self._run(
+            PISMO_OK,
+            which_map={"pdffonts": "/usr/bin/pdffonts"},
+            pdffonts_output=nieczytelne_wyjscie,
+        )
+
+        # Assert
+        self.assertEqual(code, 0)
+        self.assertIn("nie udało się sprawdzić fontów", stdout)
+        self.assertIn("OSTRZEŻENIA", stdout)
+        self.assertNotIn("OK — kontrola mechaniczna bez zastrzeżeń", stdout)
+
 
 class TestSignature(KontrolaPismaTestCase):
     def test_warns_when_signature_block_missing(self):

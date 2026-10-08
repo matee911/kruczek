@@ -33,6 +33,8 @@ Po każdej zmianie w `ARCHIWUM/`:
 manifest.py sumy  <sprawa>
 manifest.py wstaw <sprawa>/index.md <sprawa>
 ```
+`sumy` tylko dopisuje nowe pliki. Wpisu, którego suma się zmieniła, nie nadpisuje — zgłasza
+niezgodność (exit 1), żeby ślad podmiany dowodu nie zniknął.
 Manifest w `index.md` jest generowany między znacznikami `<!-- KRUCZEK:MANIFEST:START/END -->`
 — nie edytuj go ręcznie. Opisy plików prowadź w osobnej tabeli **nad** manifestem.
 
