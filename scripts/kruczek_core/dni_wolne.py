@@ -20,6 +20,8 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 
+from kruczek_core.model import BladSprawy
+
 PIERWSZY_ROK = 2000
 JEDNORAZOWE_PLUGIN = Path(__file__).with_name("dni_wolne_jednorazowe.json")
 PLIK_PROJEKTU = Path(".kruczek") / "dni-wolne.json"
@@ -94,11 +96,14 @@ class DzienJednorazowy:
 def wczytaj_jednorazowe(sciezka: Path) -> list[DzienJednorazowy]:
     if not sciezka.exists():
         return []
-    dane = json.loads(sciezka.read_text(encoding="utf-8"))
-    return [
-        DzienJednorazowy(dt.date.fromisoformat(w["data"]), w["podstawa"], w.get("tylko_urzedy", False))
-        for w in dane
-    ]
+    try:
+        dane = json.loads(sciezka.read_text(encoding="utf-8"))
+        return [
+            DzienJednorazowy(dt.date.fromisoformat(w["data"]), w["podstawa"], w.get("tylko_urzedy", False))
+            for w in dane
+        ]
+    except (json.JSONDecodeError, UnicodeDecodeError, KeyError, TypeError, ValueError) as e:
+        raise BladSprawy(f"{sciezka}: uszkodzony plik dni wolnych — {e}") from e
 
 
 def zapisz_jednorazowy(sciezka: Path, dzien: DzienJednorazowy) -> None:

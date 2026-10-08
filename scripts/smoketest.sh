@@ -368,6 +368,21 @@ setup_dane() { cp "$SCRIPTS_DIR/../templates/dane-nadawcy.md" dane-nadawcy.md 2>
 smoke_cmd_fixture "dane_nadawcy_status.py" python3 "$DS" setup_dane dane-nadawcy.md
 
 echo
+echo "=== realne podkomendy (teczka.py) ==="
+T="$SCRIPTS_DIR/teczka.py"
+setup_teczka() {
+  python3 "$T" nowa sprawa --tytul "Test" --strona "Firma" >/dev/null
+  python3 "$T" watek sprawa firma --adresat "Firma" >/dev/null
+}
+smoke_cmd_fixture "teczka.py nowa"        python3 "$T" true nowa s2 --tytul X --strona Y
+smoke_cmd_fixture "teczka.py zdarzenie"   python3 "$T" setup_teczka zdarzenie sprawa --typ nadanie --watek firma --termin 14d --podstawa test
+smoke_cmd_fixture "teczka.py zadanie"     python3 "$T" setup_teczka zadanie sprawa "snapshot" --aktywne-od +14d
+smoke_cmd_fixture "teczka.py co-robic"    python3 "$T" setup_teczka co-robic .
+smoke_cmd_fixture "teczka.py renderuj"    python3 "$T" setup_teczka renderuj sprawa
+smoke_cmd_fixture "teczka.py przelicz"    python3 "$T" setup_teczka przelicz sprawa
+smoke_cmd_fixture "teczka.py dzien-wolny" python3 "$T" setup_teczka dzien-wolny 2030-01-02 --podstawa test --projekt .
+
+echo
 echo "=== realne podkomendy (nowa-sprawa.sh, gen-claude-md.sh, init-projekt.sh) ==="
 NS="$SCRIPTS_DIR/nowa-sprawa.sh"
 smoke_cmd "nowa-sprawa.sh z argumentami" bash "$NS" "Testowa Sp. z o.o." "test smoketestu" .

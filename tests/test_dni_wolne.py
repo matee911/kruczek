@@ -12,6 +12,7 @@ from kruczek_core.dni_wolne import (
     wielkanoc,
     zapisz_jednorazowy,
 )
+from kruczek_core.model import BladSprawy
 
 D = dt.date
 
@@ -112,3 +113,13 @@ def test_kalendarz_projektu_dokleja_dni_z_pliku_projektu(tmp_path):
     # Assert
     assert kal.czy_wolny(D(2030, 1, 2)) is True
     assert kal.czy_wolny(D(2018, 11, 12)) is True  # z pliku pluginu nadal działa
+
+
+@pytest.mark.parametrize("tresc", ["{", '[{"data": "2030-01-02"}]', '[{"data": "zła", "podstawa": "x"}]', '{"a": 1}'])
+def test_uszkodzony_plik_dni_wolnych_to_blad_sprawy(tmp_path, tresc):
+    # Arrange
+    plik = tmp_path / "dni-wolne.json"
+    plik.write_text(tresc, encoding="utf-8")
+    # Act / Assert
+    with pytest.raises(BladSprawy, match="uszkodzony plik dni wolnych"):
+        wczytaj_jednorazowe(plik)
