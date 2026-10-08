@@ -5,6 +5,25 @@ wersjonowanie wg [SemVer](https://semver.org/lang/pl/).
 
 ## [Unreleased]
 
+## [0.9.0] — 2026-10-08
+
+### Dodane
+- **`teczka.py` i pakiet `kruczek_core`** — dane sprawy w `sprawa.json` (wątki, pisma, zdarzenia,
+  terminy, zadania, dowody) zapisywane wyłącznie przez CLI: blokada, zapis atomowy, numer rewizji.
+  `teczka.py co-robic` pokazuje we wszystkich sprawach: co jest do zrobienia teraz, na co czekasz
+  i co wkrótce; sprawy w starym formacie wypisuje do migracji. Skille jeszcze z tego nie korzystają.
+- **Terminy liczone kodem** — art. 111, 112, 115 k.c., art. 57 § 1–4 k.p.a. (k.p.c. przez art. 165 § 1):
+  przesunięcie z soboty i dni wolnych z ustawy o dniach wolnych od pracy (t.j. Dz.U. 2025 poz. 296,
+  Wigilia od 2025), jednorazowe dni wolne ustanowione ustawą (12.11.2018), ostrzeżenie dla dni
+  wolnych tylko dla urzędów. Termin od nadania oznaczony jako szacunek, przeliczany po doręczeniu.
+- **Twoje terminy** — przy piśmie, które doszło do Ciebie (`odpowiedz`, nowy typ `wplyw` — np. decyzja),
+  termin liczony od daty doręczenia do Ciebie; zadanie z datą końca wypływa na górę „Teraz”.
+- Testy pytest (przez `uv`) z kalendarzem sprawdzanym niezależnie pakietem `holidays`; job CI na
+  Pythonie 3.11 i 3.14.
+
+### Zmienione
+- `manifest.py` pomija `sprawa.json` — to plik roboczy teczki, nie dowód.
+
 ## [0.8.2] — 2026-10-08
 
 ### Poprawione
