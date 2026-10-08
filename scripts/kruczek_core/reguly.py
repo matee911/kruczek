@@ -74,19 +74,23 @@ def _po_nadaniu(sprawa: Sprawa, z: Zdarzenie, spec: SpecTerminu | None, kal: Kal
 
 def _po_doreczeniu(sprawa: Sprawa, z: Zdarzenie, kal: Kalendarz) -> list[str]:
     """Dopasowanie FIFO: doręczenie trafia do najstarszego niedoręczonego nadania w wątku,
-    które było wysłane nie później niż data doręczenia. Walidacja przed jakąkolwiek zmianą."""
+    które było wysłane nie później niż data doręczenia. Niedoręczone = sprawdzenie doręczenia
+    otwarte albo zamknięte tylko odpowiedzią (potwierdzenie EPO bywa wpisywane po odpowiedzi).
+    Walidacja przed jakąkolwiek zmianą."""
     kandydaci = [(a, sprawa.znajdz_zdarzenie(a.zdarzenie_id))
                  for a in sprawa.zadania
-                 if a.watek == z.watek and a.regula == REGULA_DORECZENIE and a.zrobione is None
-                 and a.zdarzenie_id is not None]
+                 if a.watek == z.watek and a.regula == REGULA_DORECZENIE and a.zdarzenie_id is not None
+                 and (a.zrobione is None or _zamkniete_odpowiedzia(sprawa, a))]
     if not kandydaci:
         return ["w wątku nie ma niedoręczonego nadania — nie ma terminu do przeliczenia; doręczenie zapisane bez przeliczania"]
     pasujace = [(a, n) for a, n in kandydaci if n.data <= z.data]
     if not pasujace:
         najwczesniejsze = min(n.data for _, n in kandydaci)
         raise BladSprawy(f"doręczenie {z.data} jest wcześniej niż nadanie {najwczesniejsze}")
-    zadanie, nadanie = min(pasujace, key=lambda para: para[1].data)
-    zadanie.zrobione = z.data
+    zadanie, nadanie = min(pasujace, key=lambda para: _kolejnosc(sprawa, para[1]))
+    if zadanie.zrobione is None:
+        zadanie.zrobione = z.data
+    zadanie.zamkniete_przez = z.id
     if zadanie.termin_id is None:
         return [f"doręczenie nadania {nadanie.id} zapisane"]
     termin = next(t for t in sprawa.terminy if t.id == zadanie.termin_id)
@@ -99,8 +103,20 @@ def _po_doreczeniu(sprawa: Sprawa, z: Zdarzenie, kal: Kalendarz) -> list[str]:
     return [f"termin {termin.id}: do {termin.data_konca.isoformat()} (od doręczenia)"]
 
 
+def _zamkniete_odpowiedzia(sprawa: Sprawa, a: Zadanie) -> bool:
+    if a.zamkniete_przez is None:
+        return False
+    return sprawa.znajdz_zdarzenie(a.zamkniete_przez).typ in ZDARZENIA_PRZYCHODZACE
+
+
+def _kolejnosc(sprawa: Sprawa, n: Zdarzenie) -> tuple[dt.date, int]:
+    """FIFO: data nadania, przy tej samej dacie — kolejność wpisania."""
+    return n.data, sprawa.zdarzenia.index(n)
+
+
 def _opis_nadania(n: Zdarzenie) -> str:
-    return f"{n.opis} ({n.data.isoformat()})" if n.opis else f"nadanie z {n.data.isoformat()}"
+    co = n.opis or "nadanie"
+    return f"{co} ({n.id}, {n.data.isoformat()})"
 
 
 def _zamknij_oczekiwanie(sprawa: Sprawa, z: Zdarzenie) -> list[str]:
@@ -112,19 +128,20 @@ def _zamknij_oczekiwanie(sprawa: Sprawa, z: Zdarzenie) -> list[str]:
         for a in _otwarte(sprawa, z.watek, regula):
             if a.zdarzenie_id is not None:
                 oczekujace.setdefault(a.zdarzenie_id, []).append(a)
-    nadania = sorted((sprawa.znajdz_zdarzenie(zid) for zid in oczekujace), key=lambda n: n.data)
+    nadania = sorted((sprawa.znajdz_zdarzenie(zid) for zid in oczekujace), key=lambda n: _kolejnosc(sprawa, n))
     komunikaty = []
     pasujace = [n for n in nadania if n.data <= z.data]
     if pasujace:
         zamykane = pasujace[0]
         for a in oczekujace.pop(zamykane.id):
             a.zrobione = z.data
+            a.zamkniete_przez = z.id
         komunikaty.append(f"odpowiedź zamyka oczekiwanie na: {_opis_nadania(zamykane)}")
     for n in nadania:
         if n.id in oczekujace:
-            ids = ", ".join(a.id for a in oczekujace[n.id])
-            komunikaty.append(f"w wątku {z.watek} nadal czekasz na odpowiedź na: {_opis_nadania(n)} — "
-                              f"zamknij ręcznie (zrobione {ids}), jeśli ta odpowiedź dotyczy też ich")
+            ids = ", ".join(sorted(a.id for a in oczekujace[n.id]))
+            komunikaty.append(f"w wątku {z.watek} nadal otwarte: {_opis_nadania(n)} — jeśli ta odpowiedź "
+                              f"dotyczy też tego pisma, oznacz zadania {ids} jako zrobione (po jednym)")
     return komunikaty
 
 
