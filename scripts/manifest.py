@@ -3,7 +3,8 @@
 
 Podkomendy:
   skan   <katalog-sprawy>            wypisz tabelę markdown wszystkich plików (ścieżka, data, rozmiar, SHA-256)
-  sumy   <katalog-sprawy>            zapisz/odśwież SHA256SUMS.txt w katalogu
+  sumy   <katalog-sprawy>            dopisz nowe pliki do SHA256SUMS.txt; istniejących wpisów nie
+                                     zmienia — niezgodną sumę lub brak pliku zgłasza (exit 1)
   sprawdz <katalog-sprawy>           zweryfikuj pliki względem SHA256SUMS.txt oraz sum wpisanych w index.md
   wstaw  <index.md> <katalog-sprawy> podmień blok manifestu w index.md (między znacznikami)
 
@@ -159,12 +160,35 @@ def main():
         print(table(a.arg1))
 
     elif a.cmd == "sumy":
+        # Tylko dopisywanie. Istniejący wpis to wzorzec, z którym porównujemy dowód —
+        # nadpisanie go po podmianie pliku zatarłoby ślad podmiany.
         root = a.arg1
-        lines = [f"{r['sha']}  {r['rel']}" for r in rows(root)]
+        actual = {r["rel"]: r["sha"] for r in rows(root)}
         p = os.path.join(root, "SHA256SUMS.txt")
-        with open(p, "w", encoding="utf-8") as f:
-            f.write("\n".join(lines) + "\n")
-        print(f"Zapisano {p} ({len(lines)} plików)")
+        if not os.path.exists(p):
+            lines = [f"{sha}  {rel}" for rel, sha in actual.items()]
+            with open(p, "w", encoding="utf-8") as f:
+                f.write("\n".join(lines) + "\n")
+            print(f"Zapisano {p} ({len(lines)} plików)")
+            return
+        with open(p, encoding="utf-8") as f:
+            text = f.read()
+        diff = compare_manifest(actual, parse_sha256sums(text))
+        for rel in diff["missing"]:
+            print(f"BRAK PLIKU: {rel} (wpis zostaje w SHA256SUMS)")
+        for rel, sha_recorded, sha_actual in diff["mismatched"]:
+            print(
+                f"NIEZGODNA SUMA: {rel}\n  w SHA256SUMS: {sha_recorded}\n"
+                f"  faktyczna:    {sha_actual}\n"
+                f"  Nie nadpisuję wpisu — sprawdź, czy dowód nie został zmieniony."
+            )
+        if diff["new"]:
+            with open(p, "a", encoding="utf-8") as f:
+                if text and not text.endswith("\n"):
+                    f.write("\n")
+                f.write("".join(f"{actual[rel]}  {rel}\n" for rel in diff["new"]))
+        print(f"Nowych plików dopisanych do {p}: {len(diff['new'])}")
+        sys.exit(1 if (diff["missing"] or diff["mismatched"]) else 0)
 
     elif a.cmd == "sprawdz":
         root = a.arg1

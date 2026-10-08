@@ -46,11 +46,14 @@ for FILE in "$@"; do
       if has unzip; then
         CORE=$(unzip -p "$FILE" docProps/core.xml 2>/dev/null || echo "")
         if [ -n "$CORE" ]; then
-          _grep() { ggrep -oP "$@" 2>/dev/null || grep -oP "$@" 2>/dev/null || true; }
-          CREATE=$(echo "$CORE" | _grep '(?<=<dcterms:created[^>]*>)[^<]+' | head -1)
-          MODIFY=$(echo "$CORE" | _grep '(?<=<dcterms:modified[^>]*>)[^<]+' | head -1)
-          AUTHOR=$(echo "$CORE" | _grep '(?<=<dc:creator>)[^<]+' | head -1)
-          REVISIONS=$(echo "$CORE" | _grep '(?<=<cp:revision>)[^<]+' | head -1)
+          # sed zamiast grep -P: lookbehind zmiennej długości (`<dcterms:created[^>]*>`)
+          # PCRE odrzuca, a BSD grep na macOS nie ma -P wcale — błąd był wyciszony,
+          # więc daty z OOXML nigdy nie trafiały do tabeli.
+          _tag() { echo "$CORE" | sed -n "s/.*<$1[^>]*>\([^<]*\)<\/$1>.*/\1/p" | head -1; }
+          CREATE=$(_tag dcterms:created)
+          MODIFY=$(_tag dcterms:modified)
+          AUTHOR=$(_tag dc:creator)
+          REVISIONS=$(_tag cp:revision)
           META_DATE="${CREATE:-$MODIFY}"
           [ -n "$AUTHOR" ] && UWAGI+="Author:${AUTHOR} "
           [ -n "$REVISIONS" ] && [ "$REVISIONS" -le 2 ] 2>/dev/null && UWAGI+="⚠RevWersje:${REVISIONS} "
@@ -84,8 +87,9 @@ for FILE in "$@"; do
 
   # Wykryj rozbieżność daty z nazwy i metadanych
   if [ "$DATE_NAME" != "brak" ] && [ -n "$META_DATE" ] && [ "$META_DATE" != "?" ]; then
-    META_YEAR=$(echo "$META_DATE" | grep -oE '[0-9]{4}' | head -1)
-    NAME_YEAR=$(echo "$DATE_NAME" | grep -oE '[0-9]{4}' | head -1)
+    # `|| true`: grep bez trafienia (np. „brak”, „(brak exiftool)”) pod pipefail kończył skrypt
+    META_YEAR=$(echo "$META_DATE" | grep -oE '[0-9]{4}' | head -1 || true)
+    NAME_YEAR=$(echo "$DATE_NAME" | grep -oE '[0-9]{4}' | head -1 || true)
     [ -n "$META_YEAR" ] && [ -n "$NAME_YEAR" ] && [ "$META_YEAR" != "$NAME_YEAR" ] && \
       UWAGI+="⚠RozbieznosDat "
   fi

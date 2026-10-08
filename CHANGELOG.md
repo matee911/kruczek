@@ -5,6 +5,23 @@ wersjonowanie wg [SemVer](https://semver.org/lang/pl/).
 
 ## [Unreleased]
 
+## [0.8.2] — 2026-10-08
+
+### Poprawione
+- `manifest.py sumy` nie nadpisuje już `SHA256SUMS.txt` od nowa. Nowe pliki dopisuje,
+  istniejących wpisów nie zmienia; niezgodną sumę albo brak pliku zgłasza (exit 1). Wcześniej
+  ponowne `sumy` po podmianie dowodu zacierało ślad podmiany
+- Skill `dowod` wykrywa duplikat bez zapisu (`sha256sum` + `manifest.py skan`), zamiast
+  wołać `sumy` przed skopiowaniem pliku; przy niezgodności sum każe się zatrzymać
+- `eml_forensics.py` — domena `smtp.mailfrom` do wyrównania DMARC/SPF pochodzi z pierwszego
+  (najwyższego) nagłówka uwierzytelnienia, nie z ostatniego, który mógł podrobić nadawca
+- `metadane.sh` — daty utworzenia i modyfikacji, autor i liczba rewizji z plików
+  .docx/.xlsx/.pptx są odczytywane (`sed` zamiast `grep -P` z lookbehindem, który zawsze
+  zawodził po cichu). Porównanie roku z nazwy i z metadanych nie przerywa już skryptu,
+  gdy metadane nie zawierają roku
+- `kontrola_pisma.py` — nieczytelne wyjście `pdffonts` daje ostrzeżenie „nie udało się
+  sprawdzić fontów” zamiast „OK — kontrola mechaniczna bez zastrzeżeń”
+
 ## [0.8.1] — 2026-10-08
 
 ### Poprawione
