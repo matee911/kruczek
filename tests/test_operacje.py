@@ -1,0 +1,107 @@
+import datetime as dt
+
+import pytest
+
+from kruczek_core.dni_wolne import Kalendarz
+from kruczek_core.model import BladSprawy
+from kruczek_core.operacje import (
+    dodaj_watek,
+    dodaj_zadanie,
+    dodaj_zdarzenie,
+    nowa_sprawa,
+    oznacz_zrobione,
+)
+from kruczek_core.reguly import SpecTerminu
+from kruczek_core.repozytorium import wczytaj
+
+D = dt.date
+DZIS = D(2026, 10, 20)
+
+
+@pytest.fixture
+def katalog(tmp_path):
+    k = tmp_path / "spamer"
+    k.mkdir()
+    nowa_sprawa(k, "Spamer", "X sp. z o.o.", "matee")
+    dodaj_watek(k, "firma", "X sp. z o.o.")
+    return k
+
+
+def test_nowa_sprawa_ma_stale_id_i_opiekuna(katalog):
+    # Act
+    s = wczytaj(katalog)
+    # Assert
+    assert len(s.id) == 32
+    assert [(u.osoba, u.rola) for u in s.uczestnicy] == [("matee", "opiekun")]
+
+
+def test_dodaj_zdarzenie_nadanie_zapisuje_i_stosuje_reguly(katalog):
+    # Act
+    komunikaty = dodaj_zdarzenie(katalog, "nadanie", D(2026, 10, 8), Kalendarz(), DZIS,
+                                 watek="firma", termin=SpecTerminu("14d", "art. 7 u.r."))
+    # Assert
+    s = wczytaj(katalog)
+    assert [z.id for z in s.zdarzenia] == ["z1"]
+    assert len(s.terminy) == 1 and len(s.zadania) == 2
+    assert komunikaty[0] == "zdarzenie z1: nadanie 2026-10-08"
+    assert any("szacunek" in k for k in komunikaty)
+
+
+def test_zdarzenie_z_przyszlosci_odrzucone_i_nic_nie_zapisane(katalog):
+    # Act / Assert
+    with pytest.raises(BladSprawy, match="w przyszłości"):
+        dodaj_zdarzenie(katalog, "fakt", D(2026, 10, 21), Kalendarz(), DZIS)
+    assert wczytaj(katalog).zdarzenia == []
+
+
+def test_nieznany_typ_odrzucony(katalog):
+    # Act / Assert
+    with pytest.raises(BladSprawy, match="nieznany typ"):
+        dodaj_zdarzenie(katalog, "mail", D(2026, 10, 8), Kalendarz(), DZIS)
+
+
+def test_zdarzenie_korespondencji_wymaga_watku(katalog):
+    # Act / Assert
+    with pytest.raises(BladSprawy, match="wymaga wątku"):
+        dodaj_zdarzenie(katalog, "nadanie", D(2026, 10, 8), Kalendarz(), DZIS)
+
+
+def test_nieznany_watek_odrzucony(katalog):
+    # Act / Assert
+    with pytest.raises(BladSprawy, match="nie ma wątku 'uodo'"):
+        dodaj_zdarzenie(katalog, "odpowiedz", D(2026, 10, 8), Kalendarz(), DZIS, watek="uodo")
+
+
+def test_termin_nie_przy_fakcie(katalog):
+    # Act / Assert
+    with pytest.raises(BladSprawy, match="przy nadaniu"):
+        dodaj_zdarzenie(katalog, "fakt", D(2026, 10, 8), Kalendarz(), DZIS, termin=SpecTerminu("14d", "x"))
+
+
+def test_wplyw_z_terminem_zapisuje_moj_termin(katalog):
+    # Act
+    komunikaty = dodaj_zdarzenie(katalog, "wplyw", D(2026, 10, 12), Kalendarz(), DZIS,
+                                 watek="firma", termin=SpecTerminu("14d", "pouczenie w decyzji"))
+    # Assert
+    (t,) = wczytaj(katalog).terminy
+    assert (t.czyj, t.data_konca) == ("moj", D(2026, 10, 26))
+    assert any("Twój termin" in k for k in komunikaty)
+
+
+def test_zadanie_reczne_i_zrobione(katalog):
+    # Arrange
+    zadanie = dodaj_zadanie(katalog, "snapshot Web Archive", D(2026, 11, 3))
+    # Act
+    zrobione = oznacz_zrobione(katalog, zadanie.id, DZIS)
+    # Assert
+    assert zrobione.zrobione == DZIS
+    assert wczytaj(katalog).znajdz_zadanie(zadanie.id).zrobione == DZIS
+
+
+def test_oznacz_zrobione_dwa_razy_to_blad(katalog):
+    # Arrange
+    zadanie = dodaj_zadanie(katalog, "x", D(2026, 10, 1))
+    oznacz_zrobione(katalog, zadanie.id, DZIS)
+    # Act / Assert
+    with pytest.raises(BladSprawy, match="już zrobione"):
+        oznacz_zrobione(katalog, zadanie.id, DZIS)
