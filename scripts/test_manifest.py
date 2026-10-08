@@ -41,6 +41,14 @@ class TestWalk(unittest.TestCase):
             wynik = sorted(rel for _, rel in manifest.walk(tmp))
             self.assertEqual(wynik, ["a.txt", "b.txt"])
 
+    def test_pomija_sprawa_json(self):
+        """sprawa.json zmienia się przy każdym wpisie — to plik roboczy, nie dowód."""
+        with tempfile.TemporaryDirectory() as tmp:
+            Path(tmp, "sprawa.json").write_text("{}")
+            Path(tmp, "dowod.txt").write_text("x")
+            wynik = sorted(rel for _, rel in manifest.walk(tmp))
+            self.assertEqual(wynik, ["dowod.txt"])
+
     def test_pomija_skip_dirs_i_ukryte_pliki(self):
         with tempfile.TemporaryDirectory() as tmp:
             os.makedirs(os.path.join(tmp, ".git"))
