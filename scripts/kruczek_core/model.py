@@ -84,6 +84,7 @@ class Zadanie:
     termin_id: str | None = None
     zrobione: dt.date | None = None
     zdarzenie_id: str | None = None  # id zdarzenia, które utworzyło zadanie (reguły); None = ręczne
+    zamkniete_przez: str | None = None  # id zdarzenia, które zamknęło zadanie (reguły); None = ręcznie albo otwarte
 
 
 @dataclass

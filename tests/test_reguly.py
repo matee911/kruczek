@@ -225,7 +225,7 @@ def test_jedna_odpowiedz_zamyka_tylko_najstarsze_nadanie_w_watku():
     assert {(a.regula, a.zdarzenie_id) for a in otwarte} == {(REGULA_ODPOWIEDZ, "z2"), (REGULA_DORECZENIE, "z2")}
     zamkniete = [a for a in s.zadania if a.zrobione == D(2026, 10, 15)]
     assert {a.zdarzenie_id for a in zamkniete if a.regula != REGULA_ANALIZA} == {"z1"}
-    assert any("nadal czekasz na odpowiedź na" in k and "2026-10-08" in k for k in komunikaty)
+    assert any("nadal otwarte" in k and "z2, 2026-10-08" in k for k in komunikaty)
     assert stan_watku(s, "firma").pilka == "adresata"
 
 
@@ -239,3 +239,48 @@ def test_odpowiedz_nie_zamyka_nadania_pozniejszego_niz_odpowiedz():
     # Assert
     otwarte = {a.zdarzenie_id for a in s.zadania if a.zrobione is None and a.regula == REGULA_ODPOWIEDZ}
     assert otwarte == {"z2"}
+
+
+def _dwa_nadania_i_odpowiedz(s):
+    dodaj(s, "z1", D(2026, 10, 1), "nadanie", SPEC)
+    dodaj(s, "z2", D(2026, 10, 8), "nadanie", SpecTerminu("30d", "wezwanie"))
+    dodaj(s, "z3", D(2026, 10, 15), "odpowiedz")
+
+
+def test_spoznione_doreczenie_po_odpowiedzi_trafia_do_nadania_zamknietego_odpowiedzia():
+    # Arrange — odpowiedź zamknęła oczekiwania z1; potwierdzenie EPO dla z1 wpisane później
+    s = sprawa_z_watkiem()
+    _dwa_nadania_i_odpowiedz(s)
+    # Act
+    dodaj(s, "z4", D(2026, 10, 3), "doreczenie")
+    # Assert
+    t1, t2 = s.terminy
+    assert (t1.od_zdarzenia, t1.szacunek) == ("z4", False)
+    assert (t2.od_zdarzenia, t2.szacunek) == ("z2", True)
+
+
+def test_doreczenie_pierwszego_nadania_nie_przelicza_drugiego_po_odpowiedzi():
+    # Arrange — doręczenie z datą po drugim nadaniu, ale dotyczy najstarszego (FIFO)
+    s = sprawa_z_watkiem()
+    _dwa_nadania_i_odpowiedz(s)
+    # Act
+    dodaj(s, "z4", D(2026, 10, 9), "doreczenie")
+    # Assert
+    t1, t2 = s.terminy
+    assert t1.od_zdarzenia == "z4"
+    assert (t2.od_zdarzenia, t2.szacunek, t2.data_konca) == ("z2", True, D(2026, 11, 9))
+    otwarte = {a.zdarzenie_id for a in s.zadania if a.zrobione is None and a.regula == REGULA_DORECZENIE}
+    assert otwarte == {"z2"}
+
+
+def test_nadania_tego_samego_dnia_zamykane_w_kolejnosci_wpisania():
+    # Arrange
+    s = sprawa_z_watkiem()
+    dodaj(s, "z1", D(2026, 10, 8), "nadanie")
+    dodaj(s, "z2", D(2026, 10, 8), "nadanie", SPEC)
+    # Act
+    komunikaty = dodaj(s, "z3", D(2026, 10, 15), "odpowiedz")
+    # Assert
+    otwarte = {a.zdarzenie_id for a in s.zadania if a.zrobione is None and a.regula != REGULA_ANALIZA}
+    assert otwarte == {"z2"}
+    assert any("z2" in k and "nadal" in k for k in komunikaty)
