@@ -148,3 +148,130 @@ def test_uszkodzony_plik_dni_wolnych_kod_1_bez_tracebacku(projekt, capsys):
     assert kod == 1
     assert "uszkodzony plik dni wolnych" in err
     assert "Traceback" not in err
+
+
+def _zaloz_sprawe(capsys, projekt, nazwa, tytul):
+    uruchom(capsys, "nowa", str(projekt / nazwa), "--tytul", tytul, "--strona", "Y")
+    return projekt / nazwa
+
+
+def test_co_robic_z_folderu_sprawy_pokazuje_caly_projekt(projekt, capsys, monkeypatch):
+    # Arrange
+    spamer = projekt / "spamer"
+    inna = _zaloz_sprawe(capsys, projekt, "inna", "Inna")
+    uruchom(capsys, "zadanie", str(spamer), "zadanie spamera")
+    uruchom(capsys, "zadanie", str(inna), "zadanie innej")
+    monkeypatch.chdir(spamer)
+    # Act
+    kod, out, err = uruchom(capsys, "co-robic")
+    # Assert
+    assert kod == 0
+    assert "zadanie spamera" in out.split("CZEKAM")[0] and "zadanie innej" in out.split("CZEKAM")[0]
+    assert "uwaga:" in err and "folder sprawy" in err
+
+
+def test_dzien_wolny_z_folderu_sprawy_zapisuje_w_projekcie(projekt, capsys):
+    # Act
+    kod, out, err = uruchom(capsys, "dzien-wolny", "2026-11-13", "--podstawa", "Dz.U. 2026 poz. 1",
+                            "--projekt", str(projekt / "spamer"))
+    # Assert
+    assert kod == 0
+    assert (projekt / ".kruczek" / "dni-wolne.json").exists()
+    assert not (projekt / "spamer" / ".kruczek").exists()
+    assert "folder sprawy" in err
+    assert "zapisano dzień wolny 2026-11-13" in out
+
+
+def test_pusty_projekt_brak_spraw(tmp_path, capsys):
+    # Act
+    kod, out, _ = uruchom(capsys, "co-robic", str(tmp_path))
+    # Assert
+    assert kod == 0
+    assert f"brak spraw w {tmp_path}" in out
+    assert "TERAZ" not in out
+
+
+def test_uszkodzona_sprawa_nie_chowa_pozostalych(projekt, capsys):
+    # Arrange
+    inna = _zaloz_sprawe(capsys, projekt, "inna", "Inna")
+    uruchom(capsys, "zadanie", str(inna), "zadanie innej")
+    (projekt / "spamer" / "sprawa.json").write_text("{", encoding="utf-8")
+    # Act
+    kod, out, err = uruchom(capsys, "co-robic", str(projekt))
+    # Assert
+    assert kod == 1
+    assert "zadanie innej" in out.split("CZEKAM")[0]
+    assert "BŁĘDY" in out and "spamer: " in out.split("BŁĘDY")[1]
+    assert "uszkodzony JSON" in err and "Traceback" not in err
+
+
+def test_dzien_wolny_z_uszkodzona_sprawa_przelicza_pozostale(projekt, capsys):
+    # Arrange
+    inna = _zaloz_sprawe(capsys, projekt, "inna", "Inna")
+    uruchom(capsys, "watek", str(inna), "firma", "--adresat", "Y")
+    uruchom(capsys, "zdarzenie", str(inna), "--typ", "nadanie", "--data", "2026-10-08", "--watek", "firma",
+            "--termin", "14d", "--podstawa", "x")
+    (projekt / "spamer" / "sprawa.json").write_text("{", encoding="utf-8")
+    # Act
+    kod, out, _ = uruchom(capsys, "dzien-wolny", "2026-10-22", "--podstawa", "p", "--projekt", str(projekt))
+    # Assert
+    assert kod == 1
+    assert out.index("zapisano dzień wolny") < out.index("inna: t1: 2026-10-22 → 2026-10-23")
+    assert "BŁĘDY" in out
+
+
+@pytest.mark.parametrize("termin", ["14 dni", "99999r"])
+def test_zly_termin_kod_1_bez_tracebacku(projekt, capsys, termin):
+    # Act
+    kod, _, err = uruchom(capsys, "zdarzenie", str(projekt / "spamer"), "--typ", "nadanie", "--watek", "firma",
+                          "--termin", termin, "--podstawa", "x")
+    # Assert
+    assert kod == 1
+    assert "błąd:" in err and "Traceback" not in err
+
+
+def test_renderuj_index_nie_w_utf8_to_blad_sprawy(projekt, capsys):
+    # Arrange
+    (projekt / "spamer" / "index.md").write_bytes(b"# SPRAWA: \xff\xfe\n")
+    # Act
+    kod, _, err = uruchom(capsys, "renderuj", str(projekt / "spamer"))
+    # Assert
+    assert kod == 1
+    assert "index.md: nie jest w UTF-8" in err and "Traceback" not in err
+
+
+def test_renderuj_nie_zostawia_plikow_tymczasowych(projekt, capsys):
+    # Arrange
+    (projekt / "spamer" / "index.md").write_text("# SPRAWA: Spamer\n", encoding="utf-8")
+    # Act
+    uruchom(capsys, "renderuj", str(projekt / "spamer"))
+    # Assert
+    assert [p.name for p in (projekt / "spamer").glob(".*.tmp")] == []
+
+
+def test_stary_format_wskazuje_nowa_sprawe(projekt, capsys):
+    # Arrange
+    (projekt / "stara").mkdir()
+    (projekt / "stara" / "index.md").write_text("# Sprawa: Stara\n", encoding="utf-8")
+    # Act
+    _, out, _ = uruchom(capsys, "co-robic", str(projekt))
+    # Assert
+    assert "migracja w kolejnej wersji; nowa sprawa: teczka.py nowa" in out
+
+
+def test_bez_argumentow_wypisuje_pomoc_i_kod_2(capsys):
+    # Act
+    with pytest.raises(SystemExit) as e:
+        teczka.main([])
+    # Assert
+    assert e.value.code == 2
+    assert "usage:" in capsys.readouterr().out
+
+
+def test_pomoc_typu_wyjasnia_kierunek(capsys):
+    # Act
+    with pytest.raises(SystemExit):
+        teczka.main(["zdarzenie", "--help"])
+    # Assert
+    out = capsys.readouterr().out
+    assert "wplyw" in out and "doreczenie" in out and "adresat odpisał Tobie" in out

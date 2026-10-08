@@ -18,6 +18,9 @@ wersjonowanie wg [SemVer](https://semver.org/lang/pl/).
   wolnych tylko dla urzędów. Termin od nadania oznaczony jako szacunek, przeliczany po doręczeniu.
 - **Twoje terminy** — przy piśmie, które doszło do Ciebie (`odpowiedz`, nowy typ `wplyw` — np. decyzja),
   termin liczony od daty doręczenia do Ciebie; zadanie z datą końca wypływa na górę „Teraz”.
+- **Poprawka błędnie wpisanego zdarzenia** (do czasu osobnej komendy): popraw ręcznie `sprawa.json`,
+  potem `teczka.py przelicz <sprawa>`. `co-robic` nie ukrywa całego przeglądu, gdy jedna sprawa
+  jest nieczytelna — wypisuje ją w sekcji BŁĘDY (kod wyjścia 1), a resztę pokazuje normalnie.
 - Testy pytest (przez `uv`) z kalendarzem sprawdzanym niezależnie pakietem `holidays`; job CI na
   Pythonie 3.11 i 3.14.
 

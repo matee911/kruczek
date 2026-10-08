@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""teczka.py — jedyna droga zapisu danych sprawy (sprawa.json). Spec §6.
+"""teczka.py — jedyna droga zapisu danych sprawy (sprawa.json).
 
 Podkomendy:
   nowa <sprawa> --tytul T --strona S [--wlasciciel W]   załóż sprawa.json
@@ -40,7 +40,7 @@ from kruczek_core.operacje import (
 )
 from kruczek_core.reguly import SpecTerminu
 from kruczek_core.render import renderuj
-from kruczek_core.repozytorium import lista_spraw, wczytaj
+from kruczek_core.repozytorium import czy_folder_sprawy, lista_spraw, przetworz_tekst, wczytaj
 from kruczek_core.widok import Przeglad, co_robic
 
 _WZGLEDNA = re.compile(r"^\+(\d+)([dt])$")
@@ -62,6 +62,15 @@ def parsuj_date(tekst: str, dzis: dt.date) -> dt.date:
         raise BladSprawy(f"nieznana data {tekst!r} — podaj RRRR-MM-DD albo +14d / +2t") from None
 
 
+_TYPY_POMOC = """typy zdarzeń (kierunek):
+  nadanie     Ty wysyłasz pismo
+  doreczenie  Twoje pismo doszło do adresata
+  odpowiedz   adresat odpisał Tobie
+  wplyw       przyszło do Ciebie pismo/decyzja (Twój termin liczony od tej daty)
+  fakt, telefon, inne   notatka
+"""
+
+
 def _parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="teczka.py", description="Dane sprawy: zdarzenia, terminy, zadania.")
     p.add_argument("--dzis", help="data „dziś” (RRRR-MM-DD) — do testów")
@@ -78,9 +87,10 @@ def _parser() -> argparse.ArgumentParser:
     s.add_argument("id")
     s.add_argument("--adresat", required=True)
 
-    s = sub.add_parser("zdarzenie", help="dopisz zdarzenie")
+    s = sub.add_parser("zdarzenie", help="dopisz zdarzenie", epilog=_TYPY_POMOC,
+                       formatter_class=argparse.RawDescriptionHelpFormatter)
     s.add_argument("sprawa", type=Path)
-    s.add_argument("--typ", required=True, choices=TYPY_ZDARZEN)
+    s.add_argument("--typ", required=True, choices=TYPY_ZDARZEN, help="rodzaj zdarzenia (kierunek: patrz niżej)")
     s.add_argument("--data", help="RRRR-MM-DD, domyślnie dziś")
     s.add_argument("--watek")
     s.add_argument("--opis", default="")
@@ -141,12 +151,29 @@ def _wypisz(przeglad: Przeglad, stary_format: list[Path]) -> None:
     if not przeglad.wkrotce:
         print("  —")
     if stary_format:
-        print("STARY FORMAT (bez sprawa.json — uruchom migrację)")
+        print("STARY FORMAT (bez sprawa.json — migracja w kolejnej wersji; nowa sprawa: teczka.py nowa)")
         for k in stary_format:
             print(f"  {k.name}")
 
 
-def _wykonaj(a: argparse.Namespace, dzis: dt.date) -> None:
+def _projekt_z_argumentu(projekt: Path) -> Path:
+    """Folder sprawy podany zamiast projektu → jego rodzic (z uwagą na stderr)."""
+    if not czy_folder_sprawy(projekt):
+        return projekt
+    rodzic = projekt.resolve().parent
+    print(f"uwaga: {projekt.resolve()} to folder sprawy — pokazuję cały projekt {rodzic}", file=sys.stderr)
+    return rodzic
+
+
+def _wypisz_bledy(bledy: list[tuple[Path, str]]) -> int:
+    print("BŁĘDY")
+    for k, komunikat in bledy:
+        print(f"  {k.name}: {komunikat}")
+        print(f"błąd: {komunikat}", file=sys.stderr)
+    return 1
+
+
+def _wykonaj(a: argparse.Namespace, dzis: dt.date) -> int:
     if a.komenda == "nowa":
         a.sprawa.mkdir(parents=True, exist_ok=True)
         s = nowa_sprawa(a.sprawa, a.tytul, a.strona, a.wlasciciel)
@@ -170,34 +197,59 @@ def _wykonaj(a: argparse.Namespace, dzis: dt.date) -> None:
         z = oznacz_zrobione(a.sprawa, a.id, dzis)
         print(f"zrobione {z.id}: {z.opis}")
     elif a.komenda == "co-robic":
-        lista = lista_spraw(a.projekt)
-        _wypisz(co_robic([wczytaj(k) for k in lista.sprawy], dzis), lista.stary_format)
+        projekt = _projekt_z_argumentu(a.projekt)
+        lista = lista_spraw(projekt)
+        if not lista.sprawy and not lista.stary_format:
+            print(f"brak spraw w {projekt}")
+            return 0
+        sprawy, bledy = [], []
+        for k in lista.sprawy:
+            try:
+                sprawy.append(wczytaj(k))
+            except BladSprawy as e:
+                bledy.append((k, str(e)))
+        _wypisz(co_robic(sprawy, dzis), lista.stary_format)
+        if bledy:
+            return _wypisz_bledy(bledy)
     elif a.komenda == "renderuj":
-        index = a.sprawa / "index.md"
-        tekst = index.read_text(encoding="utf-8") if index.exists() else ""
-        index.write_text(renderuj(tekst, wczytaj(a.sprawa), wczytaj_kalendarz(_projekt(a.sprawa))), encoding="utf-8")
+        kalendarz = wczytaj_kalendarz(_projekt(a.sprawa))
+        index = przetworz_tekst(a.sprawa, "index.md", lambda tekst: renderuj(tekst, wczytaj(a.sprawa), kalendarz))
         print(f"odświeżono {index}")
     elif a.komenda == "dzien-wolny":
-        zapisz_jednorazowy(a.projekt / PLIK_PROJEKTU,
-                           DzienJednorazowy(parsuj_date(a.data, dzis), a.podstawa, a.tylko_urzedy))
-        kalendarz = wczytaj_kalendarz(a.projekt)
-        for k in lista_spraw(a.projekt).sprawy:
-            for zmiana in przelicz_sprawe(k, kalendarz):
-                print(f"{k.name}: {zmiana}")
+        projekt = _projekt_z_argumentu(a.projekt)
+        data = parsuj_date(a.data, dzis)
+        plik = projekt / PLIK_PROJEKTU
+        zapisz_jednorazowy(plik, DzienJednorazowy(data, a.podstawa, a.tylko_urzedy))
+        print(f"zapisano dzień wolny {data.isoformat()} w {plik}")
+        kalendarz = wczytaj_kalendarz(projekt)
+        bledy = []
+        for k in lista_spraw(projekt).sprawy:
+            try:
+                for zmiana in przelicz_sprawe(k, kalendarz):
+                    print(f"{k.name}: {zmiana}")
+            except BladSprawy as e:
+                bledy.append((k, str(e)))
+        if bledy:
+            return _wypisz_bledy(bledy)
     elif a.komenda == "przelicz":
         for zmiana in przelicz_sprawe(a.sprawa, wczytaj_kalendarz(_projekt(a.sprawa))) or ["bez zmian"]:
             print(zmiana)
+    return 0
 
 
 def main(argv: list[str] | None = None) -> int:
-    a = _parser().parse_args(argv)
+    parser = _parser()
+    argv = sys.argv[1:] if argv is None else argv
+    if not argv:
+        parser.print_help()
+        raise SystemExit(2)
+    a = parser.parse_args(argv)
     try:
         dzis = parsuj_date(a.dzis, dt.date.today()) if a.dzis else dt.date.today()
-        _wykonaj(a, dzis)
+        return _wykonaj(a, dzis)
     except (BladSprawy, OSError) as e:
         print(f"błąd: {e}", file=sys.stderr)
         return 1
-    return 0
 
 
 if __name__ == "__main__":
