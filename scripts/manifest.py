@@ -26,8 +26,9 @@ from utils import sha256_file as sha256
 SKIP_DIRS = {".git", "__pycache__", ".DS_Store", "node_modules", ".obsidian"}
 # index.md nie wchodzi do manifestu: manifest jest w nim zapisywany, więc jego suma
 # zmieniałaby się przy każdym zapisie (odwołanie cykliczne). To plik roboczy sprawy,
-# nie dowód. SHA256SUMS.txt z tego samego powodu.
-SKIP_FILES = {"SHA256SUMS.txt", "index.md"}
+# nie dowód. SHA256SUMS.txt z tego samego powodu, a sprawa.json (dane teczki pisane
+# przez teczka.py) zmienia się przy każdym zdarzeniu.
+SKIP_FILES = {"SHA256SUMS.txt", "index.md", "sprawa.json"}
 START = "<!-- KRUCZEK:MANIFEST:START -->"
 END = "<!-- KRUCZEK:MANIFEST:END -->"
 
