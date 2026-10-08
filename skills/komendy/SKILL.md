@@ -87,5 +87,6 @@ a jeśli z rozmowy wynika konkretna potrzeba — wskaż jedną, właściwą pozy
 | `kontrola_pisma.py` | mechaniczna kontrola spójności gotowego pisma |
 | `archiwa.sh` | Wayback Machine CDX, Save Page Now, diff snapshotów |
 | `metadane.sh` | zbiorcza tabela metadanych PDF/DOCX/XLSX/obrazów z flagami rozbieżności |
+| `teczka.py` | dane sprawy w `sprawa.json`: zdarzenia, terminy, zadania; `co-robic` dla wszystkich spraw |
 
 Wszystkie skrypty wypisują pomoc po uruchomieniu bez argumentów.
