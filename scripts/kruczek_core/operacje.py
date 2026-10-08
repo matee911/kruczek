@@ -27,7 +27,17 @@ from kruczek_core.reguly import SpecTerminu, przelicz, zastosuj
 from kruczek_core.repozytorium import zapisz_nowa, zmien
 
 
+def _niepusty(nazwa: str, wartosc: str) -> str:
+    czysta = wartosc.strip()
+    if not czysta:
+        raise BladSprawy(f"{nazwa} nie może być pusty")
+    return czysta
+
+
 def nowa_sprawa(katalog: Path, tytul: str, strona_przeciwna: str, wlasciciel: str) -> Sprawa:
+    tytul = _niepusty("tytuł", tytul)
+    strona_przeciwna = _niepusty("strona przeciwna", strona_przeciwna)
+    wlasciciel = _niepusty("właściciel", wlasciciel)
     sprawa = Sprawa(id=uuid.uuid4().hex, tytul=tytul, wlasciciel=wlasciciel, strona_przeciwna=strona_przeciwna,
                     uczestnicy=[Uczestnik(wlasciciel, "opiekun")])
     zapisz_nowa(katalog, sprawa)
@@ -35,6 +45,9 @@ def nowa_sprawa(katalog: Path, tytul: str, strona_przeciwna: str, wlasciciel: st
 
 
 def dodaj_watek(katalog: Path, id: str, adresat: str) -> None:
+    id = _niepusty("id wątku", id)
+    adresat = _niepusty("adresat", adresat)
+
     def zmiana(s: Sprawa) -> None:
         if any(w.id == id for w in s.watki):
             raise BladSprawy(f"wątek {id!r} już istnieje")
@@ -51,7 +64,7 @@ def dodaj_zdarzenie(katalog: Path, typ: str, data: dt.date, kalendarz: Kalendarz
     if data > dzis:
         raise BladSprawy(f"data zdarzenia {data} jest w przyszłości — przyszłe rzeczy zapisz jako zadanie")
     if typ in ZDARZENIA_WATKU and watek is None:
-        raise BladSprawy(f"zdarzenie {typ!r} wymaga wątku (--watek)")
+        raise BladSprawy(f"zdarzenie {typ!r} wymaga wątku")
     if termin is not None and typ not in ("nadanie", *ZDARZENIA_PRZYCHODZACE):
         raise BladSprawy("termin podaje się przy nadaniu (termin adresata) albo przy odpowiedzi/wpływie (Twój termin)")
 
@@ -67,6 +80,10 @@ def dodaj_zdarzenie(katalog: Path, typ: str, data: dt.date, kalendarz: Kalendarz
 
 def dodaj_zadanie(katalog: Path, opis: str, aktywne_od: dt.date, *, termin: dt.date | None = None,
                   watek: str | None = None) -> Zadanie:
+    opis = _niepusty("opis", opis)
+    if termin is not None and termin < aktywne_od:
+        raise BladSprawy(f"termin zadania {termin} jest wcześniej niż aktywne od {aktywne_od}")
+
     def zmiana(s: Sprawa) -> Zadanie:
         if watek is not None:
             s.znajdz_watek(watek)
