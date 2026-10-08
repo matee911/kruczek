@@ -244,3 +244,20 @@ def test_nieudany_replace_nie_zostawia_tmp_i_nie_psuje_sprawy(tmp_path, monkeypa
     # Assert
     assert [p.name for p in katalog.iterdir() if p.name.endswith(".tmp")] == []
     assert wczytaj(katalog).rewizja == 0
+
+
+@pytest.mark.parametrize(
+    "zawartosc",
+    ["# Sprawa: x\n", "---\ntytul: x\n---\n", "", "Spamer\n=====\n"],
+)
+def test_stary_format_to_kazdy_folder_z_index_md_bez_sprawa_json(tmp_path, zawartosc):
+    # Arrange
+    stara = tmp_path / "stara"
+    stara.mkdir()
+    (stara / "index.md").write_text(zawartosc, encoding="utf-8")
+    (tmp_path / "bez-indexu").mkdir()
+    # Act
+    lista = lista_spraw(tmp_path)
+    # Assert
+    assert [p.name for p in lista.stary_format] == ["stara"]
+    assert lista.sprawy == []

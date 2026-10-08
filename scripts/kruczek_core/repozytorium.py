@@ -1,4 +1,4 @@
-"""Repozytorium plikowe: sprawa.json w katalogu sprawy (spec §4.4, §6).
+"""Repozytorium plikowe: sprawa.json w katalogu sprawy.
 
 Zapis zawsze pod blokadą (fcntl.flock na .sprawa.lock) i atomowo (plik tymczasowy
 + fsync + os.replace; przy błędzie plik tymczasowy jest usuwany), z licznikiem `rewizja`. Dzięki temu CLI, strona i MCP mogą pisać tę
@@ -75,10 +75,8 @@ def _blokada(katalog: Path) -> Iterator[None]:
             fcntl.flock(f, fcntl.LOCK_UN)
 
 
-def _zapisz_atomowo(katalog: Path, sprawa: Sprawa) -> None:
-    plik = katalog / PLIK_SPRAWY
-    tmp = katalog / f".{PLIK_SPRAWY}.{os.getpid()}.tmp"
-    tresc = json.dumps(do_slownika(sprawa), ensure_ascii=False, indent=2) + "\n"
+def _zapisz_tekst_atomowo(plik: Path, tresc: str) -> None:
+    tmp = plik.with_name(f".{plik.name}.{os.getpid()}.tmp")
     try:
         with open(tmp, "w", encoding="utf-8") as f:
             f.write(tresc)
@@ -88,6 +86,23 @@ def _zapisz_atomowo(katalog: Path, sprawa: Sprawa) -> None:
     except BaseException:
         tmp.unlink(missing_ok=True)
         raise
+
+
+def _zapisz_atomowo(katalog: Path, sprawa: Sprawa) -> None:
+    _zapisz_tekst_atomowo(katalog / PLIK_SPRAWY, json.dumps(do_slownika(sprawa), ensure_ascii=False, indent=2) + "\n")
+
+
+def przetworz_tekst(katalog: Path, nazwa: str, przetworz: Callable[[str], str]) -> Path:
+    """Plik tekstowy sprawy (np. index.md): odczyt → przetworzenie → zapis atomowy, pod tą samą
+    blokadą co sprawa.json. Brak pliku to pusty tekst; plik nie w UTF-8 to BladSprawy."""
+    plik = katalog / nazwa
+    with _blokada(katalog):
+        try:
+            tekst = plik.read_text(encoding="utf-8") if plik.exists() else ""
+        except UnicodeDecodeError:
+            raise BladSprawy(f"{nazwa}: nie jest w UTF-8") from None
+        _zapisz_tekst_atomowo(plik, przetworz(tekst))
+    return plik
 
 
 def zapisz_nowa(katalog: Path, sprawa: Sprawa) -> None:
@@ -123,13 +138,16 @@ def zmien(katalog: Path, zmiana: Callable[[Sprawa], T]) -> T:
 @dataclass(frozen=True)
 class ListaSpraw:
     sprawy: list[Path]
-    stary_format: list[Path]  # index.md „# SPRAWA:” bez sprawa.json — do migracji
+    stary_format: list[Path]  # index.md bez sprawa.json — do migracji
 
 
-def _to_stary_format(index: Path) -> bool:
-    """Pierwsza niepusta linia index.md to „# SPRAWA:” (BOM i puste linie na początku nie przeszkadzają)."""
+def czy_folder_sprawy(katalog: Path) -> bool:
+    """Folder ma sprawa.json albo index.md zaczynający się od „# SPRAWA:” (BOM i puste linie
+    na początku nie przeszkadzają) — czyli jest teczką sprawy, a nie projektem."""
+    if (katalog / PLIK_SPRAWY).exists():
+        return True
     try:
-        tekst = index.read_text(encoding="utf-8-sig", errors="replace")
+        tekst = (katalog / "index.md").read_text(encoding="utf-8-sig", errors="replace")
     except OSError:
         return False
     for linia in tekst.splitlines():
@@ -139,12 +157,14 @@ def _to_stary_format(index: Path) -> bool:
 
 
 def lista_spraw(projekt: Path) -> ListaSpraw:
+    """Każdy folder najwyższego poziomu z index.md i bez sprawa.json to stary format,
+    niezależnie od nagłówka — lepiej wypisać za dużo niż po cichu pominąć teczkę."""
     sprawy, stare = [], []
     for k in sorted(p for p in projekt.iterdir() if p.is_dir()):
         if k.name.startswith((".", "_")) or k.name in _NIE_SPRAWY:
             continue
         if (k / PLIK_SPRAWY).exists():
             sprawy.append(k)
-        elif _to_stary_format(k / "index.md"):
+        elif (k / "index.md").is_file():
             stare.append(k)
     return ListaSpraw(sprawy, stare)

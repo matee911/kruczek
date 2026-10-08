@@ -4,6 +4,7 @@ import pytest
 
 from kruczek_core.dni_wolne import DzienJednorazowy, Kalendarz
 from kruczek_core.model import BladSprawy, Sprawa, Watek, Zdarzenie
+from kruczek_core.widok import stan_watku
 from kruczek_core.reguly import (
     REGULA_ANALIZA,
     REGULA_DORECZENIE,
@@ -210,3 +211,31 @@ def test_przelicz_aktualizuje_date_zadania_przy_moim_terminie():
     przelicz(s, kal)
     # Assert
     assert s.zadania[0].termin == D(2030, 1, 3)
+
+
+def test_jedna_odpowiedz_zamyka_tylko_najstarsze_nadanie_w_watku():
+    # Arrange — reklamacja 14d (z1), potem wezwanie 30d (z2) w tym samym wątku
+    s = sprawa_z_watkiem()
+    dodaj(s, "z1", D(2026, 10, 1), "nadanie", SPEC)
+    dodaj(s, "z2", D(2026, 10, 8), "nadanie", SpecTerminu("30d", "wezwanie"))
+    # Act
+    komunikaty = dodaj(s, "z3", D(2026, 10, 15), "odpowiedz")
+    # Assert
+    otwarte = [a for a in s.zadania if a.zrobione is None and a.regula in (REGULA_ODPOWIEDZ, REGULA_DORECZENIE)]
+    assert {(a.regula, a.zdarzenie_id) for a in otwarte} == {(REGULA_ODPOWIEDZ, "z2"), (REGULA_DORECZENIE, "z2")}
+    zamkniete = [a for a in s.zadania if a.zrobione == D(2026, 10, 15)]
+    assert {a.zdarzenie_id for a in zamkniete if a.regula != REGULA_ANALIZA} == {"z1"}
+    assert any("nadal czekasz na odpowiedź na" in k and "2026-10-08" in k for k in komunikaty)
+    assert stan_watku(s, "firma").pilka == "adresata"
+
+
+def test_odpowiedz_nie_zamyka_nadania_pozniejszego_niz_odpowiedz():
+    # Arrange
+    s = sprawa_z_watkiem()
+    dodaj(s, "z1", D(2026, 10, 8), "nadanie", SPEC)
+    dodaj(s, "z2", D(2026, 10, 15), "nadanie", SPEC)
+    # Act
+    dodaj(s, "z3", D(2026, 10, 10), "odpowiedz")
+    # Assert
+    otwarte = {a.zdarzenie_id for a in s.zadania if a.zrobione is None and a.regula == REGULA_ODPOWIEDZ}
+    assert otwarte == {"z2"}
