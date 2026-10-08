@@ -10,6 +10,8 @@ Podkomendy:
                                                        przy odpowiedz/wplyw = Twój termin
   zadanie <sprawa> <opis> [--aktywne-od D|+Nd] [--termin D|+Nd] [--watek W]
   zrobione <sprawa> <id-zadania>
+  zamknij <sprawa> --wynik {wygrana,ugoda,porzucona}   zamknij sprawę (znika z przeglądu)
+  otworz <sprawa>                                      otwórz ponownie zamkniętą sprawę
   co-robic [projekt]                                   przegląd wszystkich spraw
   renderuj <sprawa>                                    odśwież bloki w index.md
   dzien-wolny <data> --podstawa P [--projekt K] [--tylko-urzedy]
@@ -29,14 +31,16 @@ import sys
 from pathlib import Path
 
 from kruczek_core.dni_wolne import PLIK_PROJEKTU, DzienJednorazowy, wczytaj_kalendarz, zapisz_jednorazowy
-from kruczek_core.model import TYPY_ZDARZEN, BladSprawy
+from kruczek_core.model import TYPY_ZDARZEN, WYNIKI_SPRAWY, BladSprawy
 from kruczek_core.operacje import (
     dodaj_watek,
     dodaj_zadanie,
     dodaj_zdarzenie,
     nowa_sprawa,
+    otworz_sprawe,
     oznacz_zrobione,
     przelicz_sprawe,
+    zamknij_sprawe,
 )
 from kruczek_core.reguly import SpecTerminu
 from kruczek_core.render import renderuj
@@ -111,6 +115,13 @@ def _parser() -> argparse.ArgumentParser:
     s = sub.add_parser("zrobione", help="oznacz zadanie jako zrobione")
     s.add_argument("sprawa", type=Path)
     s.add_argument("id")
+
+    s = sub.add_parser("zamknij", help="zamknij sprawę (znika z przeglądu)")
+    s.add_argument("sprawa", type=Path)
+    s.add_argument("--wynik", required=True, choices=WYNIKI_SPRAWY)
+
+    s = sub.add_parser("otworz", help="otwórz ponownie zamkniętą sprawę")
+    s.add_argument("sprawa", type=Path)
 
     s = sub.add_parser("co-robic", help="przegląd wszystkich spraw")
     s.add_argument("projekt", type=Path, nargs="?", default=Path("."))
@@ -199,6 +210,12 @@ def _wykonaj(a: argparse.Namespace, dzis: dt.date) -> int:
     elif a.komenda == "zrobione":
         z = oznacz_zrobione(a.sprawa, a.id, dzis)
         print(f"zrobione {z.id}: {z.opis}")
+    elif a.komenda == "zamknij":
+        zamknij_sprawe(a.sprawa, a.wynik)
+        print(f"zamknięto sprawę {a.sprawa.name} ({a.wynik})")
+    elif a.komenda == "otworz":
+        otworz_sprawe(a.sprawa)
+        print(f"otwarto sprawę {a.sprawa.name}")
     elif a.komenda == "co-robic":
         projekt = _projekt_z_argumentu(a.projekt)
         lista = lista_spraw(projekt)

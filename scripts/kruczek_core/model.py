@@ -22,6 +22,7 @@ ZDARZENIA_PRZYCHODZACE = ("odpowiedz", "wplyw")
 CZYJ_TERMINU = ("adresata", "moj")
 ROLE_UCZESTNIKOW = ("opiekun", "klientka")
 STANY_PISMA = ("szkic", "recenzja", "wyslane")
+WYNIKI_SPRAWY = ("wygrana", "ugoda", "porzucona")
 
 
 class BladSprawy(Exception):
