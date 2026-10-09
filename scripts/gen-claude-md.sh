@@ -65,7 +65,7 @@ $(cd "$ROOT" && find . -maxdepth 3 \
 - **_SZABLONY/dane-nadawcy.md** — dane nadawcy do pism (NIP, adres, e-mail, preferencje)
 - **KONWENCJE.md** — zasady prowadzenia archiwum, nazewnictwa, chronologii — przeczytaj przed każdą pracą na plikach
 
-Każda sprawa: \`<PODMIOT>/index.md\` (manifest, chronologia, ustalenia, TODO).
+Każda sprawa: \`<PODMIOT>/index.md\` (ustalenia, chronologia generowana) i \`sprawa.json\` (zdarzenia, terminy, zadania — tylko przez teczka.py).
 
 ## Zasady pracy
 
