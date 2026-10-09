@@ -115,6 +115,13 @@ Pilnuj terminów zawitych — one nie czekają na resztę planu.
 
 ## 5. Zapisz w teczce
 
-Uzupełnij sekcję „6. Ścieżka eskalacji" w `index.md` jak dotąd. Każdy krok z terminem zawitym zapisz
-jako zadanie: `teczka.py zadanie <sprawa> "<krok>: <organ, tryb>" --aktywne-od <dziś albo data startu> --termin <ostatni dzień>`
-(ostatni dzień z przepisu — nie znasz podstawy, zapytaj). Zaproponuj `/kruczek:pismo` dla pierwszego kroku.
+Uzupełnij sekcję „6. Ścieżka eskalacji" w `index.md` jak dotąd. Krok z terminem zawitym — koniec terminu
+liczy kod, nie Ty:
+- termin biegnie od pisma, które doszło do użytkownika (decyzja, odpowiedź, wezwanie) →
+  `teczka.py zdarzenie <sprawa> --typ wplyw --data <dzień doręczenia> --watek <w> --termin <długość> --podstawa "<przepis>"`
+  (kod przesuwa koniec z soboty i święta i przelicza po `dzien-wolny`). Pismo jest już wpisane bez terminu —
+  postępuj jak w `konwencje-teczki` („Twój termin”);
+- dokument podaje datę końca wprost (np. „do 30.11.2026”) →
+  `teczka.py zadanie <sprawa> "<krok>: <organ, tryb> — <podstawa>" --termin <ta data>`.
+
+Długość i podstawa z przepisu albo pisma — nie znasz podstawy, zapytaj. Zaproponuj `/kruczek:pismo` dla pierwszego kroku.
