@@ -361,3 +361,16 @@ def test_popraw_zle_dane_odrzucone_nic_nie_zapisane(katalog, zmiany, komunikat):
     with pytest.raises(BladSprawy, match=komunikat):
         popraw_zdarzenie(katalog, "z1", Kalendarz(), DZIS, **zmiany)
     assert wczytaj(katalog).rewizja == rewizja
+
+
+def test_popraw_date_doreczenia_przed_nadaniem_odrzucona_rewizja_bez_zmian(katalog):
+    # Arrange
+    dodaj_zdarzenie(katalog, "nadanie", D(2026, 10, 8), Kalendarz(), DZIS, watek="firma",
+                    termin=SpecTerminu("14d", "wyznaczony w piśmie"))
+    dodaj_zdarzenie(katalog, "doreczenie", D(2026, 10, 10), Kalendarz(), DZIS, watek="firma")
+    rewizja = wczytaj(katalog).rewizja
+    # Act / Assert
+    with pytest.raises(BladSprawy, match="z1"):
+        popraw_zdarzenie(katalog, "z2", Kalendarz(), DZIS, data=D(2026, 10, 7))
+    s = wczytaj(katalog)
+    assert s.rewizja == rewizja and s.znajdz_zdarzenie("z2").data == D(2026, 10, 10)
