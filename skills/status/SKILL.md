@@ -5,45 +5,31 @@ argument-hint: "[katalog projektu]"
 disable-model-invocation: true
 model: haiku
 effort: low
-allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/manifest.py sprawdz *) Bash(ls *) Bash(find *) Bash(date *) Read
+allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/teczka.py co-robic *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/manifest.py sprawdz *) Bash(ls *) Bash(date *) Read
 ---
 
 # Status spraw
 
-Katalog: `$1` (domyślnie bieżący).
+Katalog: `$1` (domyślnie bieżący). Zadanie mechaniczne — liczy kod, Ty porządkujesz.
 
-Zadanie mechaniczne — zbierz dane, posortuj, wypisz. Bez analizy prawnej.
+## 1. Przegląd
 
-## 1. Zbierz
+`${CLAUDE_PLUGIN_ROOT}/scripts/teczka.py co-robic <katalog albo .>` — zawsze podaj ścieżkę (`$1`, a gdy
+go brak, `.`).
+Kod 1 = sekcja `BŁĘDY` (nieczytelna sprawa) — reszta przeglądu i tak jest; wypisz błąd z nazwą pliku.
 
-Dla każdego katalogu sprawy (ten, który ma `index.md` z nagłówkiem `# SPRAWA:`):
-- pole **Status** i **Najbliższy termin** z tabeli nagłówkowej
-- ostatni wiersz **chronologii** (data ostatniego ruchu)
-- niezaznaczone pozycje **TODO**
-- czy istnieje katalog `*-DO_WYSYLKI` i czy pismo zostało nadane (szukaj w chronologii słowa
-  „nadanie" / „nadano" / numeru nadania)
+## 2. Spójność
 
-## 2. Sprawdź spójność
-
-Dla każdej sprawy uruchom:
-```
-${CLAUDE_PLUGIN_ROOT}/scripts/manifest.py sprawdz <sprawa>
-```
-Zgłoś każdą niezgodność sumy kontrolnej — to znaczy, że plik dowodowy został zmieniony po
-zaewidencjonowaniu, albo że manifest jest nieaktualny.
+Dla każdej sprawy z przeglądu: `${CLAUDE_PLUGIN_ROOT}/scripts/manifest.py sprawdz <sprawa>` —
+zgłoś każdą niezgodną sumę (plik zmieniony po zaewidencjonowaniu albo nieaktualny manifest).
 
 ## 3. Wypisz — w tej kolejności
 
-**🔴 Po terminie** — termin minął, brak reakcji w chronologii. Podaj, ile dni temu.
+**🔴 Po terminie** — pozycje z `PO TERMINIE`. **🟠 Teraz** — reszta `TERAZ`, z terminem na górze.
+**⏳ Czekam** — `CZEKAM` (data i „szacunek”, jeśli jest). **🗓 Wkrótce** — `WKRÓTCE`.
+**⚪ Bez ruchu** — `BEZ RUCHU`. **📦 Stary format** — `STARY FORMAT` → `/kruczek:migruj`.
+**⚠ Problemy techniczne** — `BŁĘDY`, niezgodne sumy.
 
-**🟠 W ciągu 7 dni** — najbliższe terminy.
-
-**⚪ Bez ruchu ponad 30 dni** — sprawy, w których nic się nie dzieje. Podaj datę ostatniego wpisu.
-
-**⚠ Problemy techniczne** — niezgodne sumy, brakujące pliki, dowody bez wersji tekstowej,
-zdarzenia bez dowodu.
-
-**Pozostałe** — jedna linia na sprawę.
-
-Na końcu **jedna** rekomendacja: która sprawa wymaga uwagi najpilniej i jaka komenda ją posunie.
-Jeśli wszystko jest w porządku — powiedz to w jednym zdaniu, bez rozwlekania.
+Każda pozycja z nazwą folderu i id zadania, żeby dało się odpisać `teczka.py zrobione <folder> <id>`.
+Na końcu **jedna** rekomendacja: co najpilniejsze i jaka komenda to posunie. Wszystko w porządku —
+jedno zdanie.

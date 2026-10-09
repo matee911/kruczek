@@ -5,7 +5,7 @@ argument-hint: "[nazwa podmiotu] [przedmiot sprawy]"
 disable-model-invocation: true
 model: sonnet
 effort: medium
-allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/nowa-sprawa.sh *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/podmiot.sh *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/dns.sh *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/archiwa.sh *) Read Write Edit
+allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/nowa-sprawa.sh *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/podmiot.sh *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/dns.sh *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/archiwa.sh *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/teczka.py *) Read Write Edit
 ---
 
 # Nowa sprawa
@@ -26,7 +26,7 @@ i nie zakładaj, że jest taki sam jak w poprzedniej sprawie. Opcje:
 - **przedsiębiorca** — wymaga NIP i pełnego brzmienia firmy (sekcja „moja działalność
   gospodarcza" w `dane-nadawcy.md`)
 - **w imieniu innej osoby** — nadawcą pisma jest ta osoba, nie użytkownik; potrzebne jej dane
-  i **pełnomocnictwo** jako załącznik. Dopisz to do TODO sprawy.
+  i **pełnomocnictwo** jako załącznik. Po założeniu teczki (krok 2) dopisz zadanie: `teczka.py zadanie <sprawa> "Pełnomocnictwo od <osoba>"`.
 
 Wybór wpisz do wiersza **Występuję jako** w nagłówku `index.md` sprawy (krok 2). Jeśli
 odpowiednia tożsamość nie jest jeszcze wypełniona w `_SZABLONY/dane-nadawcy.md` — odeślij
@@ -46,8 +46,10 @@ Załóż sprawę, a materiał wciągnij przez `/kruczek:dowod`.
 ${CLAUDE_PLUGIN_ROOT}/scripts/nowa-sprawa.sh "<nazwa>" "<przedmiot>" <katalog-projektu>
 ```
 
-Skrypt tworzy `ARCHIWUM/`, `ROBOCZE/` i `index.md` ze szkieletem: chronologia, ustalenia,
-hipotezy, podstawa prawna, manifest, TODO, eskalacja.
+Skrypt tworzy `ARCHIWUM/`, `ROBOCZE/`, `sprawa.json` i `index.md`. W `index.md` są sekcje wolnego
+tekstu (ustalenia, hipotezy, podstawa prawna, manifest, eskalacja) oraz generowane bloki chronologii,
+terminów i zadań; zadania startowe są w `sprawa.json` (blok „Zadania”) — skrypt już je dodał, nie twórz ich
+ponownie. Protokół zapisu: skill `konwencje-teczki`, „Zapis do teczki — teczka.py”.
 
 ## 3. Ustal dane rejestrowe drugiej strony
 
@@ -69,7 +71,7 @@ Ustalenie tożsamości bywa samodzielnym celem pierwszego pisma.
 
 Zajrzyj do `BAZA_WIEDZY/index.md`. Jeśli są tam już przepisy pasujące do tego typu sprawy —
 wypisz je w sekcji „Podstawa prawna" `index.md` sprawy jako punkt wyjścia. Jeśli baza jest pusta
-w tym zakresie, zaznacz to w TODO. **Nie rób teraz researchu prawnego** — to zadanie na etapie pisma.
+w tym zakresie, zapisz zadanie: `teczka.py zadanie <sprawa> "Uzupełnić BAZĘ WIEDZY: <zakres>"`. **Nie rób teraz researchu prawnego** — to zadanie na etapie pisma.
 
 ## 5. Kanały kontaktu — tabelka gotowa do pisma
 
@@ -138,7 +140,7 @@ z `_SZABLONY/dane-nadawcy.md`; gdy dane nadawcy są jeszcze puste, poprzestań n
 
 ## 9. Dopisz sprawę do rejestru
 
-Dodaj wiersz do tabeli „Sprawy" w `index.md` projektu.
+Dodaj wiersz do tabeli „Sprawy" w `index.md` projektu, w formacie `| | <podmiot> | <przedmiot> | <data> |`.
 
 ## 10. Podsumuj
 

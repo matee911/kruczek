@@ -5,7 +5,7 @@ argument-hint: "[katalog sprawy]"
 disable-model-invocation: true
 model: opus
 effort: high
-allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/eli.sh *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/orzecznictwo.sh *) Bash(date *) Read Write Edit
+allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/eli.sh *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/orzecznictwo.sh *) Bash(date *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/teczka.py *) Read Write Edit
 ---
 
 # Plan eskalacji
@@ -14,7 +14,9 @@ Sprawa: `$ARGUMENTS`
 
 ## 1. Ustal, gdzie naprawdę jesteśmy
 
-Z `index.md`: co wysłano, kiedy doręczono, jaki był termin, czy minął, co odpowiedziano.
+Zapis do teczki idzie przez `teczka.py` — protokół w skillu `konwencje-teczki` („Zapis do teczki — teczka.py”). Sprawa w starym formacie (jest `index.md`, nie ma `sprawa.json`) — zatrzymaj się i zaproponuj `/kruczek:migruj <sprawa>`.
+
+Z bloków „Chronologia” i „Terminy” w `index.md` (generowane z `sprawa.json`): co wysłano, kiedy doręczono, jaki był termin, czy minął, co odpowiedziano.
 Sprawdź dzisiejszą datę (`date +%F`) i policz. Jeśli termin **jeszcze nie minął** — powiedz to
 i nie planuj eskalacji na zapas.
 
@@ -113,5 +115,6 @@ Pilnuj terminów zawitych — one nie czekają na resztę planu.
 
 ## 5. Zapisz w teczce
 
-Uzupełnij sekcję „6. Ścieżka eskalacji" w `index.md`, dopisz terminy do chronologii jako przyszłe
-wiersze, dopisz zadania do TODO. Zaproponuj `/kruczek:pismo` dla pierwszego kroku.
+Uzupełnij sekcję „6. Ścieżka eskalacji" w `index.md` jak dotąd. Każdy krok z terminem zawitym zapisz
+jako zadanie: `teczka.py zadanie <sprawa> "<krok>: <organ, tryb>" --aktywne-od <dziś albo data startu> --termin <ostatni dzień>`
+(ostatni dzień z przepisu — nie znasz podstawy, zapytaj). Zaproponuj `/kruczek:pismo` dla pierwszego kroku.
