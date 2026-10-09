@@ -1,4 +1,7 @@
-#!/usr/bin/env python3
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.11"
+# ///
 """run_tests.py — jeden punkt wejścia do wszystkich testów kruczka.
 
 Odkrywa testy zamiast wymieniać je z nazwy. Powód: dopóki CI wołało konkretne pliki,

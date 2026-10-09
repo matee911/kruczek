@@ -3,7 +3,7 @@
 # Wyjście: 0 = wszystko OK, 1 = brakuje czegoś wymaganego.
 set -euo pipefail
 
-REQUIRED=(curl jq python3)
+REQUIRED=(curl jq python3 uv)
 OPTIONAL_PDF=(weasyprint wkhtmltopdf)
 # Chrome/Chromium sprawdzane osobno (has_chrome) — na macOS to .app, nie binarka w PATH
 # ggrep (macOS) — GNU grep z obsługą -P (PCRE); na Linux zwykły grep już ma -P
@@ -127,6 +127,7 @@ if [ "${#missing_required[@]}" -gt 0 ] || ! $pdf_found || [ "${#missing_optional
       for cmd in "${to_install[@]}"; do
         case "$cmd" in
           python3)     apt_pkgs+=(python3) ;;
+          uv)          echo "  uv: curl -LsSf https://astral.sh/uv/install.sh | sh   (https://docs.astral.sh/uv/)" ;;
           pdftotext|pdfinfo) apt_pkgs+=(poppler-utils) ;;
           tesseract)   apt_pkgs+=(tesseract-ocr tesseract-ocr-pol) ;;
           p7zip)       apt_pkgs+=(p7zip-full) ;;
