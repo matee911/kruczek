@@ -8,7 +8,8 @@ user-invocable: false
 # Konwencje teczki sprawy
 
 Zasady teczki (archiwum, nazwy, sumy, wersje tekstowe, chronologia, wysyłka, hipotezy): przeczytaj
-`${CLAUDE_PLUGIN_ROOT}/templates/KONWENCJE.md`. W projekcie te same zasady są w `KONWENCJE.md`.
+`${CLAUDE_PLUGIN_ROOT}/templates/KONWENCJE.md`. Ten wzorzec w pluginie ma pierwszeństwo: jeśli kopia
+`KONWENCJE.md` w projekcie się od niego różni, obowiązuje wzorzec, a kopię odśwież (`/kruczek:migruj`, krok 0).
 
 ## Zapis do teczki — teczka.py
 
@@ -39,6 +40,9 @@ kontra → …). Nie zakładaj nowego wątku na każde pismo. Nowy wątek tylko 
 
 **Gdy teczka.py pyta o `--dotyczy`** (czeka naraz kilka Twoich pism w wątku): pokaż użytkownikowi
 pisma z komunikatu jednym AskUserQuestion i powtórz polecenie z `--dotyczy <id>`.
+**„Sprawdź datę doręczenia”** zamykasz wpisaniem doręczenia (`teczka.py zdarzenie <sprawa> --typ doreczenie
+--data <data z EPO> --watek <w>`), nie przez `zrobione` — dopiero doręczenie przelicza termin adresata
+z szacunku na datę od doręczenia. `zrobione` tylko wtedy, gdy daty doręczenia nie da się ustalić.
 **Gdy po odpowiedzi wypisze „nadal otwarte …”**: zapytaj, czy ta odpowiedź dotyczy też tamtego pisma;
 jeśli tak — `teczka.py zrobione <sprawa> <id>` dla wskazanych zadań, po jednym.
 
@@ -52,5 +56,13 @@ zgłosiła błąd — czytaj sekcję BŁĘDY (reszta mogła się wykonać).
 Kod 0 z linią `uwaga:` (np. „zapisano, ale index.md nie odświeżony”) = zapis jest, tylko `index.md`
 się nie odświeżył: nie powtarzaj polecenia (zdublujesz zdarzenie), powiedz o tym użytkownikowi.
 
-Daty względne zawsze zamieniaj na bezwzględne (`date +%F`). Przyszłe rzeczy (snapshot za 2 tygodnie,
-termin zawity na skargę) to zadania: `teczka.py zadanie <sprawa> "<opis>" --aktywne-od <data> [--termin <data>]`.
+Daty względne zawsze zamieniaj na bezwzględne (`date +%F`). Przyszłe rzeczy (snapshot za 2 tygodnie)
+to zadania: `teczka.py zadanie <sprawa> "<opis>" --aktywne-od <data>`.
+
+**Twój termin (np. zawity na odwołanie, skargę) liczy kod, nie Ty.** Biegnie od pisma, które doszło do
+Ciebie → `teczka.py zdarzenie <sprawa> --typ wplyw --data <dzień doręczenia> --watek <w> --termin <długość>
+--podstawa "<przepis>"` (kod przesuwa koniec z soboty i święta i przelicza go po `dzien-wolny`). Pismo jest
+już wpisane bez terminu: jeśli to ostatnie zdarzenie — `cofnij-zdarzenie` i wpisz je ponownie z `--termin`;
+jeśli nie — powiedz to użytkownikowi i ustal z nim datę końca, zanim ją zapiszesz.
+`zadanie <sprawa> "<opis z podstawą>" --termin <data>` tylko wtedy, gdy dokument podaje datę końca wprost
+(np. „do 30.11.2026”) — z podstawą w opisie.
