@@ -17,13 +17,14 @@ lub zapytaj. Nie zapisuj do innej sprawy niż wskazana.
 
 Zdarzenia zapisujesz **wyłącznie** przez `${CLAUDE_PLUGIN_ROOT}/scripts/teczka.py`, według sekcji
 „Zapis do teczki — teczka.py” w `konwencje-teczki` (typ = kierunek, wątek = korespondencja z jednym
-adresatem, termin tylko z pisma albo przepisu). Nie edytujesz tabeli chronologii, `sprawa.json`
-ani bloków `<!-- kruczek:… -->`.
+adresatem, termin tylko z pisma albo przepisu). Bloki generowane w `index.md` i `sprawa.json` zmienia tylko `teczka.py`.
 
 ```
 ${CLAUDE_PLUGIN_ROOT}/scripts/teczka.py zdarzenie <sprawa> --typ <typ> --data <RRRR-MM-DD> [--godzina GG:MM] \
-  [--watek <id>] --opis "<opis>" [--dowod ARCHIWUM/<plik>] [--termin 14d --podstawa "<podstawa>"]
+  [--watek <id>] [--dotyczy <id nadania>] --opis "<opis>" [--dowod ARCHIWUM/<plik>] [--termin 14d --podstawa "<podstawa>"]
 ```
+
+Gdy `teczka.py` odpowie, że czeka kilka pism — nie pytasz użytkownika (nie możesz): zwróć wywołującemu pytanie z listą czekających pism i poproś o `--dotyczy <id nadania>`.
 
 ## Reguły
 

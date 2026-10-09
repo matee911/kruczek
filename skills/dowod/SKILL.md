@@ -186,8 +186,11 @@ potwierdzenie odbioru Twojego pisma → `doreczenie`; inne → `fakt`.
 
 ```
 ${CLAUDE_PLUGIN_ROOT}/scripts/teczka.py zdarzenie <sprawa> --typ <typ> --data <data> [--godzina GG:MM] \
-  [--watek <id>] --opis "<opis>" --dowod ARCHIWUM/<plik> [--termin … --podstawa …]
+  [--watek <id>] [--dotyczy <id nadania>] --opis "<opis>" --dowod ARCHIWUM/<plik> [--termin 14d --podstawa "<podstawa>"]
 ```
+
+`--termin` zawsze razem z `--podstawa` wziętą z pisma albo przepisu; nie wiesz — zapytaj użytkownika, nie zgaduj.
+Gdy `teczka.py` odpowie, że czeka kilka pism — pokaż je użytkownikowi i powtórz polecenie z `--dotyczy <id nadania>`.
 
 ## 11. Raport końcowy
 
