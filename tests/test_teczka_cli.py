@@ -325,3 +325,17 @@ def test_popraw_zdarzenie_cli(projekt, capsys):
     kod, out, _ = uruchom(capsys, "popraw-zdarzenie", sprawa, "z1", "--data", "2026-10-09")
     # Assert
     assert kod == 0 and "t1: 2026-10-22 → 2026-10-23" in out
+
+
+def test_cofnij_zle_wpisane_doreczenie_cli(projekt, capsys):
+    # Arrange — decyzję sądu wpisano jako doręczenie zamiast wpływu
+    sprawa = str(projekt / "spamer")
+    uruchom(capsys, "zdarzenie", sprawa, "--typ", "nadanie", "--data", "2026-10-01", "--watek", "firma",
+            "--termin", "14d", "--podstawa", "x")
+    uruchom(capsys, "zdarzenie", sprawa, "--typ", "doreczenie", "--data", "2026-10-12", "--watek", "firma")
+    # Act
+    kod, out, _ = uruchom(capsys, "cofnij-zdarzenie", sprawa, "z2")
+    # Assert
+    dane = json.loads((projekt / "spamer" / "sprawa.json").read_text(encoding="utf-8"))
+    assert kod == 0 and "cofnięto z2" in out
+    assert (dane["terminy"][0]["od_zdarzenia"], dane["terminy"][0]["szacunek"]) == ("z1", True)
