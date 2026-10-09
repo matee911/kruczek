@@ -12,7 +12,7 @@ import json
 import os
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, TypeVar
 
@@ -151,32 +151,57 @@ def zmien(katalog: Path, zmiana: Callable[[Sprawa], T]) -> T:
 class ListaSpraw:
     sprawy: list[Path]
     stary_format: list[Path]  # index.md bez sprawa.json — do migracji
+    bez_indexu: list[Path] = field(default_factory=list)  # foldery najwyższego poziomu bez index.md i sprawa.json
 
 
-def czy_folder_sprawy(katalog: Path) -> bool:
-    """Folder ma sprawa.json albo index.md zaczynający się od „# SPRAWA:” (BOM i puste linie
-    na początku nie przeszkadzają) — czyli jest teczką sprawy, a nie projektem."""
-    if (katalog / PLIK_SPRAWY).exists():
-        return True
+def _naglowek(katalog: Path) -> str:
+    """Pierwsza niepusta linia index.md (BOM i puste linie na początku pomijane), bez wielkości liter."""
     try:
         tekst = (katalog / "index.md").read_text(encoding="utf-8-sig", errors="replace")
     except OSError:
-        return False
+        return ""
     for linia in tekst.splitlines():
         if linia.strip():
-            return linia.startswith("# SPRAWA:")
-    return False
+            return linia.strip().casefold()
+    return ""
+
+
+def czy_folder_sprawy(katalog: Path) -> bool:
+    """Folder ma sprawa.json albo index.md zaczynający się od „# Sprawa:” (wielkość liter, BOM
+    i puste linie na początku nie przeszkadzają) — czyli jest teczką sprawy, a nie projektem."""
+    return (katalog / PLIK_SPRAWY).exists() or _naglowek(katalog).startswith("# sprawa:")
+
+
+def czy_rejestr_spraw(katalog: Path) -> bool:
+    """index.md zaczyna się od „# Rejestr spraw” — folder jest projektem (podprojektem) ze sprawami w środku."""
+    return _naglowek(katalog) == "# rejestr spraw"
+
+
+def _podfoldery(projekt: Path) -> list[Path]:
+    return sorted(
+        p for p in projekt.iterdir()
+        if p.is_dir() and not p.name.startswith((".", "_")) and p.name not in _NIE_SPRAWY
+    )
 
 
 def lista_spraw(projekt: Path) -> ListaSpraw:
     """Każdy folder najwyższego poziomu z index.md i bez sprawa.json to stary format,
-    niezależnie od nagłówka — lepiej wypisać za dużo niż po cichu pominąć teczkę."""
-    sprawy, stare = [], []
-    for k in sorted(p for p in projekt.iterdir() if p.is_dir()):
-        if k.name.startswith((".", "_")) or k.name in _NIE_SPRAWY:
-            continue
+    niezależnie od nagłówka — lepiej wypisać za dużo niż po cichu pominąć teczkę.
+    Folder z index.md „# Rejestr spraw” to podprojekt: jego sprawy (o jeden poziom niżej)
+    są wypisywane tak samo. Folder bez index.md i sprawa.json trafia do `bez_indexu`."""
+    sprawy, stare, bez_indexu = [], [], []
+    for k in _podfoldery(projekt):
         if (k / PLIK_SPRAWY).exists():
             sprawy.append(k)
         elif (k / "index.md").is_file():
-            stare.append(k)
-    return ListaSpraw(sprawy, stare)
+            if czy_rejestr_spraw(k):
+                for g in _podfoldery(k):
+                    if (g / PLIK_SPRAWY).exists():
+                        sprawy.append(g)
+                    elif (g / "index.md").is_file():
+                        stare.append(g)
+            else:
+                stare.append(k)
+        else:
+            bez_indexu.append(k)
+    return ListaSpraw(sprawy, stare, bez_indexu)
