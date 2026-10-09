@@ -4,6 +4,7 @@ import json
 import pytest
 
 import teczka
+from dane_migracji import STARY_INDEX, propozycja
 from kruczek_core import widok
 
 
@@ -250,14 +251,15 @@ def test_renderuj_nie_zostawia_plikow_tymczasowych(projekt, capsys):
     assert [p.name for p in (projekt / "spamer").glob(".*.tmp")] == []
 
 
-def test_stary_format_wskazuje_nowa_sprawe(projekt, capsys):
+def test_stary_format_wskazuje_migracje(projekt, capsys):
     # Arrange
     (projekt / "stara").mkdir()
     (projekt / "stara" / "index.md").write_text("# Sprawa: Stara\n", encoding="utf-8")
     # Act
     _, out, _ = uruchom(capsys, "co-robic", str(projekt))
     # Assert
-    assert "migracja w kolejnej wersji; nowa sprawa: teczka.py nowa" in out
+    assert "STARY FORMAT (bez sprawa.json — przenieś: /kruczek:migruj)" in out
+    assert "teczka.py nowa" not in out
 
 
 def test_bez_argumentow_wypisuje_pomoc_i_kod_2(capsys):
@@ -515,3 +517,139 @@ def test_wlasciciel_domyslnie_biezacy_uzytkownik(tmp_path, capsys, monkeypatch):
     uruchom(capsys, "nowa", str(tmp_path / "s"), "--tytul", "T", "--strona", "X")
     # Assert
     assert json.loads((tmp_path / "s" / "sprawa.json").read_text(encoding="utf-8"))["wlasciciel"] == "ktos"
+
+
+def _stara_sprawa(projekt, index=STARY_INDEX, **zmiany):
+    k = projekt / "stara"
+    (k / "ROBOCZE").mkdir(parents=True)
+    (k / "index.md").write_text(index, encoding="utf-8")
+    plik = k / "ROBOCZE" / "migracja-propozycja.json"
+    plik.write_text(json.dumps(propozycja(**zmiany)), encoding="utf-8")
+    return k, plik
+
+
+def _pliki(katalog):
+    return sorted(p.relative_to(katalog).as_posix() for p in katalog.rglob("*"))
+
+
+def test_migruj_podglad_niczego_nie_zapisuje(projekt, capsys):
+    # Arrange
+    k, plik = _stara_sprawa(projekt)
+    przed = _pliki(k)
+    # Act
+    kod, out, _ = uruchom(capsys, "migruj", str(k), str(plik))
+    # Assert
+    assert kod == 0 and "podgląd" in out and "Reklamacja butów" in out and "Zebrać paragon" in out
+    assert _pliki(k) == przed  # brak sprawa.json, kopii i .sprawa.lock
+    assert (k / "index.md").read_text(encoding="utf-8") == STARY_INDEX
+
+
+def test_migruj_zapisz_kopia_bajt_w_bajt_i_nic_nie_ginie(projekt, capsys):
+    # Arrange
+    k, plik = _stara_sprawa(projekt)
+    # Act
+    kod, out, _ = uruchom(capsys, "migruj", str(k), str(plik), "--zapisz")
+    # Assert
+    assert kod == 0
+    (kopia,) = (k / "ROBOCZE").glob("index.przed-migracja-*.md")
+    assert kopia.read_bytes() == STARY_INDEX.encode("utf-8")
+    nowy = (k / "index.md").read_text(encoding="utf-8")
+    linie = nowy.splitlines()
+    assert all(linia in linie for linia in STARY_INDEX.splitlines() if linia.strip())
+    assert nowy.index("<!-- /kruczek:chronologia -->") < nowy.index("### Chronologia sprzed migracji (archiwalna")
+    assert "<!-- kruczek:zadania -->" in nowy and "Zebrać paragon" in nowy
+    assert json.loads((k / "sprawa.json").read_text(encoding="utf-8"))["tytul"] == "Reklamacja butów"
+
+
+def test_migruj_drugi_raz_odrzucone(projekt, capsys):
+    # Arrange
+    k, plik = _stara_sprawa(projekt)
+    uruchom(capsys, "migruj", str(k), str(plik), "--zapisz")
+    # Act
+    kod, _, err = uruchom(capsys, "migruj", str(k), str(plik), "--zapisz")
+    # Assert
+    assert kod == 1 and "już" in err
+
+
+def test_migruj_zla_propozycja_kod_1_nic_nie_zapisane(projekt, capsys):
+    # Arrange
+    k, plik = _stara_sprawa(projekt)
+    plik.write_text("{", encoding="utf-8")
+    przed = _pliki(k)
+    # Act
+    kod, _, err = uruchom(capsys, "migruj", str(k), str(plik), "--zapisz")
+    # Assert
+    assert kod == 1 and "Traceback" not in err
+    assert _pliki(k) == przed
+
+
+def test_migruj_index_nie_w_utf8_kod_1_nic_nie_zapisane(projekt, capsys):
+    # Arrange
+    k, plik = _stara_sprawa(projekt)
+    (k / "index.md").write_bytes(b"# SPRAWA: X\n\xff\n")
+    przed = _pliki(k)
+    # Act
+    kod, _, err = uruchom(capsys, "migruj", str(k), str(plik), "--zapisz")
+    # Assert
+    assert kod == 1 and "UTF-8" in err and "Traceback" not in err
+    assert _pliki(k) == przed
+
+
+def test_migruj_zepsute_znaczniki_zapis_udany_kod_0_z_uwaga(projekt, capsys):
+    # Arrange
+    k, plik = _stara_sprawa(projekt, index=STARY_INDEX + "\n<!-- kruczek:zadania -->\n")
+    # Act
+    kod, _, err = uruchom(capsys, "migruj", str(k), str(plik), "--zapisz")
+    # Assert
+    assert kod == 0 and "uwaga:" in err
+    assert (k / "sprawa.json").exists()
+
+
+def test_migruj_bez_naglowka_chronologii_ostrzega_w_podgladzie(projekt, capsys):
+    # Arrange
+    k, plik = _stara_sprawa(projekt, index="# SPRAWA: X\n\n## Oś czasu\n\n| 2026-09-01 | nadanie |\n")
+    # Act
+    kod, out, err = uruchom(capsys, "migruj", str(k), str(plik))
+    # Assert
+    assert kod == 0
+    assert "uwaga: nie znaleziono nagłówka „Chronologia” — blok trafi na koniec, stara tabela bez zmian" in out + err
+
+
+def test_migruj_tytul_z_naglowka_gdy_brak_w_propozycji(projekt, capsys):
+    # Arrange
+    k, plik = _stara_sprawa(projekt, index=STARY_INDEX.replace("# SPRAWA: X sp. z o.o.", "# Sprawa: Stara reklamacja"))
+    p = json.loads(plik.read_text(encoding="utf-8"))
+    del p["tytul"]
+    plik.write_text(json.dumps(p), encoding="utf-8")
+    # Act
+    kod, _, _ = uruchom(capsys, "migruj", str(k), str(plik), "--zapisz")
+    # Assert
+    assert kod == 0
+    assert json.loads((k / "sprawa.json").read_text(encoding="utf-8"))["tytul"] == "Stara reklamacja"
+
+
+@pytest.mark.parametrize("index, komunikat", [(None, "brak index.md"), ("# Rejestr spraw\n", "podprojekt")],
+                         ids=["bez-index", "rejestr-spraw"])
+def test_migruj_odrzuca_folder_ktory_nie_jest_stara_sprawa(projekt, capsys, index, komunikat):
+    # Arrange
+    k, plik = _stara_sprawa(projekt)
+    if index is None:
+        (k / "index.md").unlink()
+    else:
+        (k / "index.md").write_text(index, encoding="utf-8")
+    przed = _pliki(k)
+    # Act
+    kod, _, err = uruchom(capsys, "migruj", str(k), str(plik), "--zapisz")
+    # Assert
+    assert kod == 1 and komunikat in err
+    assert _pliki(k) == przed
+
+
+def test_zapis_do_starej_sprawy_wskazuje_migracje(projekt, capsys):
+    # Arrange
+    k, _ = _stara_sprawa(projekt)
+    # Act
+    kod, _, err = uruchom(capsys, "zadanie", str(k), "coś")
+    # Assert
+    assert kod == 1 and "stary format — przenieś: /kruczek:migruj" in err
+    assert not (k / "sprawa.json").exists()

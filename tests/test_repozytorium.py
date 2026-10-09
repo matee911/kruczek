@@ -334,3 +334,17 @@ def test_lista_spraw_zbiera_foldery_bez_indexu_i_sprawa_json(tmp_path):
     # Assert
     assert [p.name for p in lista.bez_indexu] == ["kopia 2"]
     assert [p.name for p in lista.sprawy] == ["sprawa-a"]
+
+
+def test_brak_sprawa_json_przy_index_md_wskazuje_migracje(tmp_path):
+    # Arrange
+    (tmp_path / "index.md").write_text("# Sprawa: Stara\n", encoding="utf-8")
+    # Act / Assert
+    with pytest.raises(BladSprawy, match="stary format — przenieś: /kruczek:migruj"):
+        wczytaj(tmp_path)
+
+
+def test_brak_sprawa_json_bez_index_md_wskazuje_zalozenie(tmp_path):
+    # Act / Assert
+    with pytest.raises(BladSprawy, match="załóż sprawę: teczka.py nowa"):
+        wczytaj(tmp_path)
