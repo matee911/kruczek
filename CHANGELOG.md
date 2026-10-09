@@ -5,13 +5,13 @@ wersjonowanie wg [SemVer](https://semver.org/lang/pl/).
 
 ## [Unreleased]
 
-## [0.9.0] — 2026-10-08
+## [0.9.0] — 2026-10-09
 
 ### Dodane
 - **`teczka.py` i pakiet `kruczek_core`** — dane sprawy w `sprawa.json` (wątki, pisma, zdarzenia,
   terminy, zadania, dowody) zapisywane wyłącznie przez CLI: blokada, zapis atomowy, numer rewizji.
   `teczka.py co-robic` pokazuje we wszystkich sprawach: co jest do zrobienia teraz, na co czekasz
-  i co wkrótce; sprawy w starym formacie wypisuje do migracji. Skille jeszcze z tego nie korzystają.
+  i co wkrótce; sprawy w starym formacie wypisuje do migracji.
 - **Terminy liczone kodem** — art. 111, 112, 115 k.c., art. 57 § 1–4 k.p.a. (k.p.c. przez art. 165 § 1):
   przesunięcie z soboty i dni wolnych z ustawy o dniach wolnych od pracy (t.j. Dz.U. 2025 poz. 296,
   Wigilia od 2025), jednorazowe dni wolne ustanowione ustawą (12.11.2018), ostrzeżenie dla dni
@@ -22,14 +22,33 @@ wersjonowanie wg [SemVer](https://semver.org/lang/pl/).
   czeka. Gdy czeka naraz kilka Twoich pism (np. ponaglenie przed odpowiedzią), kod nie zgaduje:
   doręczenie wymaga `--dotyczy <id nadania>`, a odpowiedź bez wskazania zamyka najstarsze pismo
   i wypisuje, co zostało otwarte.
-- **Poprawka błędnie wpisanego zdarzenia** (do czasu osobnej komendy): popraw ręcznie `sprawa.json`,
-  potem `teczka.py przelicz <sprawa>`. `co-robic` nie ukrywa całego przeglądu, gdy jedna sprawa
-  jest nieczytelna — wypisuje ją w sekcji BŁĘDY (kod wyjścia 1), a resztę pokazuje normalnie.
+- `co-robic` nie ukrywa całego przeglądu, gdy jedna sprawa jest nieczytelna — wypisuje ją w sekcji
+  BŁĘDY (kod wyjścia 1), a resztę pokazuje normalnie.
+- **`/kruczek:migruj`** — stara teczka (`index.md` bez `sprawa.json`) przechodzi na nowy format:
+  podgląd zdarzeń, terminów i zadań, zapis dopiero po akceptacji, kopia starego `index.md` w
+  `ROBOCZE/`, stara tabela chronologii zostaje jako archiwalna. Nagłówek sprawy rozpoznawany bez
+  względu na wielkość liter.
+- `teczka.py popraw-zdarzenie` (data, opis, godzina, pewność, dowody — z przeliczeniem terminów)
+  i `cofnij-zdarzenie` (ostatni wpis razem z jego terminami i zadaniami); `zamknij` / `otworz`.
+- `co-robic`: folder sprawy przy każdej pozycji, „PO TERMINIE”, termin w „Wkrótce”, ostrzeżenia
+  o dniach wolnych tylko dla urzędów, sekcja „Bez ruchu”. Zagnieżdżone podprojekty
+  (`index.md` zaczynający się od „# Rejestr spraw”) są przeglądane razem ze sprawami z etykietą
+  podprojektu; foldery bez `index.md` są wypisywane jako POMINIĘTO.
+- Chronologia z godziną i oznaczeniem pewności faktu.
+- `--dotyczy <id nadania>` w skillach zapisujących doręczenie i odpowiedź, gdy czekają naraz dwa pisma.
 - Testy pytest (przez `uv`) z kalendarzem sprawdzanym niezależnie pakietem `holidays`; job CI na
   Pythonie 3.11 i 3.14.
 
 ### Zmienione
 - `manifest.py` pomija `sprawa.json` — to plik roboczy teczki, nie dowód.
+- Skille `chronologia`, `fakt`, `dowod`, `archiwa`, `pismo`, `eskalacja`, `status`, `nowa-sprawa`
+  i agent `dopisz-chronologie` zapisują zdarzenia, terminy i zadania przez `teczka.py`;
+  `/kruczek:status` jest liczony kodem. Stara sprawa bez `sprawa.json` → propozycja `/kruczek:migruj`.
+- `teczka.py` po każdym zapisie sam odświeża tabele w `index.md`.
+- Nowa sprawa od razu ma `sprawa.json` z sześcioma zadaniami startowymi; konwencje teczki w jednym
+  miejscu (`templates/KONWENCJE.md`); `.gitignore` projektu pomija pliki robocze
+  (`.sprawa.lock`, `.*.tmp`).
+- Kalendarz sprawy obejmuje dni wolne ze wszystkich folderów nadrzędnych.
 
 ## [0.8.2] — 2026-10-08
 
