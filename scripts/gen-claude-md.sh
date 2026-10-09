@@ -76,7 +76,7 @@ Każda sprawa: \`<PODMIOT>/index.md\` (ustalenia, chronologia generowana) i \`sp
 3. **Cytaty prawne** — wyłącznie dosłowne, ze źródeł urzędowych (ELI Sejmu, ISAP, EUR-Lex).
    Zanim zaczniesz research — sprawdź BAZA_WIEDZY/.
 4. **ARCHIWUM/** — append-only. Nigdy nie edytuj istniejących plików. Każdy nowy plik dostaje sumę SHA-256.
-5. **Hipotezy** — wyraźnie oznaczone \`⚠ HIPOTEZA\`, nigdy w treści pisma.
+5. **Hipotezy** — w sekcji \`⚠ HIPOTEZY — NIE cytować w pismach\`, nigdy w treści pisma.
 EOF
 
 echo "CLAUDE.md zaktualizowany: $OUT"
