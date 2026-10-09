@@ -96,3 +96,27 @@ def test_brak_watku_to_blad_sprawy():
     # Act / Assert
     with pytest.raises(BladSprawy, match="nie ma wątku 'uodo'"):
         pelna_sprawa().znajdz_watek("uodo")
+
+
+@pytest.mark.parametrize(
+    "pole, wartosc",
+    [("godzina", "25:00"), ("godzina", "9:5"), ("pewnosc", "pewne")],
+)
+def test_zle_godzina_i_pewnosc_odrzucone_przy_odczycie(pole, wartosc):
+    # Arrange
+    s = Sprawa(id="s1", tytul="T", wlasciciel="w", strona_przeciwna="X",
+               zdarzenia=[Zdarzenie("z1", dt.date(2026, 10, 8), "fakt")])
+    dane = do_slownika(s)
+    dane["zdarzenia"][0][pole] = wartosc
+    # Act / Assert
+    with pytest.raises(ValueError, match=pole):
+        z_slownika(dane)
+
+
+def test_nieznany_wynik_sprawy_odrzucony_przy_odczycie():
+    # Arrange
+    dane = do_slownika(Sprawa(id="s1", tytul="T", wlasciciel="w", strona_przeciwna="X"))
+    dane["wynik"] = "remis"
+    # Act / Assert
+    with pytest.raises(ValueError, match="wynik"):
+        z_slownika(dane)

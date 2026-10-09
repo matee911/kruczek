@@ -13,6 +13,7 @@ from pathlib import Path
 
 from kruczek_core.dni_wolne import PIERWSZY_ROK, Kalendarz
 from kruczek_core.model import (
+    PEWNOSCI,
     TYPY_ZDARZEN,
     ZDARZENIA_PRZYCHODZACE,
     WYNIKI_SPRAWY,
@@ -23,6 +24,7 @@ from kruczek_core.model import (
     Watek,
     Zadanie,
     Zdarzenie,
+    czy_godzina,
     kolejne_id,
 )
 from kruczek_core.reguly import SpecTerminu, przelicz, zastosuj
@@ -35,6 +37,19 @@ def _niepusty(nazwa: str, wartosc: str) -> str:
     if not czysta:
         raise BladSprawy(f"{nazwa} nie może być pusty")
     return czysta
+
+
+def _sprawdz_godzine(godzina: str) -> str:
+    czysta = godzina.strip()
+    if not czy_godzina(czysta):
+        raise BladSprawy(f"godzina {godzina!r} — podaj GG:MM, np. 09:05")
+    return czysta
+
+
+def _sprawdz_pewnosc(pewnosc: str) -> str:
+    if pewnosc not in PEWNOSCI:
+        raise BladSprawy(f"nieznana pewność {pewnosc!r}; dozwolone: {', '.join(PEWNOSCI)}")
+    return pewnosc
 
 
 def _sprawdz_termin(termin: SpecTerminu, data: dt.date, kalendarz: Kalendarz) -> SpecTerminu:
@@ -84,7 +99,8 @@ def dodaj_watek(katalog: Path, id: str, adresat: str) -> None:
 
 def dopisz_zdarzenie(s: Sprawa, typ: str, data: dt.date, kalendarz: Kalendarz, dzis: dt.date, *,
                      watek: str | None = None, opis: str = "", dowody: Sequence[str] = (),
-                     termin: SpecTerminu | None = None, dotyczy: str | None = None) -> list[str]:
+                     termin: SpecTerminu | None = None, dotyczy: str | None = None,
+                     godzina: str | None = None, pewnosc: str | None = None) -> list[str]:
     """Dopisuje zdarzenie do sprawy w pamięci i stosuje reguły. Błąd = sprawa bez zmian
     (walidacja przed pierwszą mutacją; reguły walidują przed swoją)."""
     if typ not in TYPY_ZDARZEN:
@@ -99,9 +115,14 @@ def dopisz_zdarzenie(s: Sprawa, typ: str, data: dt.date, kalendarz: Kalendarz, d
         termin = _sprawdz_termin(termin, data, kalendarz)
     if dotyczy is not None:
         dotyczy = _niepusty("dotyczy", dotyczy)
+    if godzina is not None:
+        godzina = _sprawdz_godzine(godzina)
+    if pewnosc is not None:
+        pewnosc = _sprawdz_pewnosc(pewnosc)
     if watek is not None:
         s.znajdz_watek(watek)
-    z = Zdarzenie(kolejne_id("z", s.zdarzenia), data, typ, opis, watek, list(dowody))
+    z = Zdarzenie(kolejne_id("z", s.zdarzenia), data, typ, opis, watek, list(dowody), godzina=godzina,
+                  pewnosc=pewnosc)
     s.zdarzenia.append(z)
     try:
         return [f"zdarzenie {z.id}: {typ} {data.isoformat()}", *zastosuj(s, z, termin, kalendarz, dotyczy=dotyczy)]
@@ -112,9 +133,11 @@ def dopisz_zdarzenie(s: Sprawa, typ: str, data: dt.date, kalendarz: Kalendarz, d
 
 def dodaj_zdarzenie(katalog: Path, typ: str, data: dt.date, kalendarz: Kalendarz, dzis: dt.date, *,
                     watek: str | None = None, opis: str = "", dowody: Sequence[str] = (),
-                    termin: SpecTerminu | None = None, dotyczy: str | None = None) -> list[str]:
+                    termin: SpecTerminu | None = None, dotyczy: str | None = None,
+                    godzina: str | None = None, pewnosc: str | None = None) -> list[str]:
     return zmien(katalog, lambda s: dopisz_zdarzenie(s, typ, data, kalendarz, dzis, watek=watek, opis=opis,
-                                                     dowody=dowody, termin=termin, dotyczy=dotyczy))
+                                                     dowody=dowody, termin=termin, dotyczy=dotyczy,
+                                                     godzina=godzina, pewnosc=pewnosc))
 
 
 def dopisz_zadanie(s: Sprawa, opis: str, aktywne_od: dt.date, *, termin: dt.date | None = None,

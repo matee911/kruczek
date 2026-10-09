@@ -303,3 +303,14 @@ def test_zamknieta_sprawa_znika_z_przegladu(projekt, capsys):
     # Assert
     assert kod == 0 and "wygrana" in out
     assert "coś" not in przeglad
+
+
+def test_zdarzenie_z_godzina_i_pewnoscia(projekt, capsys):
+    # Act
+    kod, _, _ = uruchom(capsys, "zdarzenie", str(projekt / "spamer"), "--typ", "telefon", "--data", "2026-10-08",
+                        "--godzina", "14:32", "--pewnosc", "wlasne_oswiadczenie", "--opis", "dzwonili")
+    zly, _, err = uruchom(capsys, "zdarzenie", str(projekt / "spamer"), "--typ", "fakt", "--godzina", "9:5")
+    # Assert
+    dane = json.loads((projekt / "spamer" / "sprawa.json").read_text(encoding="utf-8"))
+    assert kod == 0 and (dane["zdarzenia"][0]["godzina"], dane["zdarzenia"][0]["pewnosc"]) == ("14:32", "wlasne_oswiadczenie")
+    assert zly == 1 and "GG:MM" in err
