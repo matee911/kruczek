@@ -1,4 +1,7 @@
-#!/usr/bin/env python3
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.11"
+# ///
 """eml_forensics.py — mechaniczna analiza wiadomości .eml pod kątem dowodowym.
 
 Wypluwa raport markdown: droga wiadomości, uwierzytelnienie (SPF/DKIM/DMARC/ARC),

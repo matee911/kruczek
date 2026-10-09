@@ -1,4 +1,7 @@
-#!/usr/bin/env python3
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.11"
+# ///
 """dane_nadawcy_status.py — sprawdza, które krytyczne pola w dane-nadawcy.md są wypełnione.
 
 Nie wypisuje wartości pól (tylko status) — żeby dane osobowe nie przeciekały do
