@@ -554,8 +554,9 @@ def test_migruj_zapisz_kopia_bajt_w_bajt_i_nic_nie_ginie(projekt, capsys):
     (kopia,) = (k / "ROBOCZE").glob("index.przed-migracja-*.md")
     assert kopia.read_bytes() == STARY_INDEX.encode("utf-8")
     nowy = (k / "index.md").read_text(encoding="utf-8")
-    linie = nowy.splitlines()
+    linie = [linia.replace(" (sprzed migracji)", "") for linia in nowy.splitlines()]
     assert all(linia in linie for linia in STARY_INDEX.splitlines() if linia.strip())
+    assert "| **Status** | w toku (sprzed migracji) |" in nowy.splitlines()
     assert nowy.index("<!-- /kruczek:chronologia -->") < nowy.index("### Chronologia sprzed migracji (archiwalna")
     assert "<!-- kruczek:zadania -->" in nowy and "Zebrać paragon" in nowy
     assert json.loads((k / "sprawa.json").read_text(encoding="utf-8"))["tytul"] == "Reklamacja butów"
@@ -653,3 +654,83 @@ def test_zapis_do_starej_sprawy_wskazuje_migracje(projekt, capsys):
     # Assert
     assert kod == 1 and "stary format — przenieś: /kruczek:migruj" in err
     assert not (k / "sprawa.json").exists()
+
+
+def test_doreczenie_po_recznym_zrobione_na_sprawdzeniu_przelicza_termin_cli(projekt, capsys):
+    # Arrange — „sprawdź datę doręczenia” zamknięte przez zrobione zamiast wpisania doręczenia
+    sprawa = str(projekt / "spamer")
+    uruchom(capsys, "zdarzenie", sprawa, "--typ", "nadanie", "--data", "2026-09-25", "--watek", "firma",
+            "--termin", "14d", "--podstawa", "x")
+    uruchom(capsys, "zrobione", sprawa, "a1")
+    # Act
+    kod, out, _ = uruchom(capsys, "zdarzenie", sprawa, "--typ", "doreczenie", "--data", "2026-09-29",
+                          "--watek", "firma")
+    # Assert
+    dane = json.loads((projekt / "spamer" / "sprawa.json").read_text(encoding="utf-8"))
+    assert kod == 0 and "termin t1: do 2026-10-13 (od doręczenia)" in out
+    assert (dane["terminy"][0]["data_konca"], dane["terminy"][0]["szacunek"]) == ("2026-10-13", False)
+
+
+def test_migruj_tytul_null_w_propozycji_bierze_tytul_z_naglowka(projekt, capsys):
+    # Arrange
+    k, plik = _stara_sprawa(projekt, index=STARY_INDEX.replace("# SPRAWA: X sp. z o.o.", "# Sprawa: Stara reklamacja"),
+                            tytul=None)
+    # Act
+    kod, _, err = uruchom(capsys, "migruj", str(k), str(plik), "--zapisz")
+    # Assert
+    assert kod == 0, err
+    assert json.loads((k / "sprawa.json").read_text(encoding="utf-8"))["tytul"] == "Stara reklamacja"
+
+
+def test_popraw_zdarzenie_na_rok_sprzed_obslugiwanych_kod_1_bez_tracebacku(projekt, capsys):
+    # Arrange
+    sprawa = projekt / "spamer"
+    uruchom(capsys, "zdarzenie", str(sprawa), "--typ", "nadanie", "--data", "2026-10-08", "--watek", "firma",
+            "--termin", "14d", "--podstawa", "x")
+    przed = (sprawa / "sprawa.json").read_bytes()
+    # Act
+    kod, _, err = uruchom(capsys, "popraw-zdarzenie", str(sprawa), "z1", "--data", "1999-12-01")
+    # Assert
+    assert kod == 1 and "obsługiwane lata od 2000" in err and "Traceback" not in err
+    assert (sprawa / "sprawa.json").read_bytes() == przed
+
+
+@pytest.mark.parametrize("data", ["+999999999d", "+99999999999d", "+999999999t"])
+def test_data_wzgledna_poza_zakresem_kod_1_bez_tracebacku(projekt, capsys, data):
+    # Act
+    kod, _, err = uruchom(capsys, "zadanie", str(projekt / "spamer"), "coś", "--aktywne-od", data)
+    # Assert
+    assert kod == 1 and "poza zakresem" in err and "Traceback" not in err
+
+
+def test_nowa_w_folderze_starej_sprawy_odmawia(projekt, capsys):
+    # Arrange
+    k, _ = _stara_sprawa(projekt)
+    przed = _pliki(k)
+    # Act
+    kod, _, err = uruchom(capsys, "nowa", str(k), "--tytul", "T", "--strona", "X")
+    # Assert
+    assert kod == 1 and "stary format — przenieś: /kruczek:migruj" in err
+    assert _pliki(k) == przed
+
+
+def test_zamkniecie_sprawy_z_otwartym_moim_terminem_ostrzega(projekt, capsys):
+    # Arrange — decyzja 12.10, 14 dni na odwołanie; zadanie bez terminu nie trafia do uwagi
+    sprawa = str(projekt / "spamer")
+    uruchom(capsys, "zdarzenie", sprawa, "--typ", "wplyw", "--data", "2026-10-12", "--watek", "firma",
+            "--termin", "14d", "--podstawa", "pouczenie w decyzji")
+    uruchom(capsys, "zadanie", sprawa, "zebrać paragon")
+    # Act
+    kod, out, err = uruchom(capsys, "zamknij", sprawa, "--wynik", "porzucona")
+    # Assert
+    assert kod == 0 and "zamknięto sprawę" in out
+    assert "uwaga:" in err and "a1" in err and "2026-10-26" in err
+    assert "zebrać paragon" not in err
+    assert json.loads((projekt / "spamer" / "sprawa.json").read_text(encoding="utf-8"))["zamknieta"] is True
+
+
+def test_zamkniecie_sprawy_bez_moich_terminow_bez_uwagi(projekt, capsys):
+    # Act
+    kod, _, err = uruchom(capsys, "zamknij", str(projekt / "spamer"), "--wynik", "ugoda")
+    # Assert
+    assert kod == 0 and "uwaga" not in err

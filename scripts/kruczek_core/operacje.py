@@ -28,7 +28,7 @@ from kruczek_core.model import (
     kolejne_id,
 )
 from kruczek_core.reguly import SpecTerminu, cofnij, przelicz, zastosuj, zmien_date
-from kruczek_core.repozytorium import zapisz_nowa, zmien
+from kruczek_core.repozytorium import PLIK_SPRAWY, zapisz_nowa, zmien
 from kruczek_core.terminy import koniec_terminu, parsuj_dlugosc
 
 
@@ -78,6 +78,10 @@ def utworz_sprawe(tytul: str, strona_przeciwna: str, wlasciciel: str) -> Sprawa:
 
 
 def nowa_sprawa(katalog: Path, tytul: str, strona_przeciwna: str, wlasciciel: str) -> Sprawa:
+    """Odmawia w folderze starej teczki (index.md bez sprawa.json): nowa sprawa.json przykryłaby
+    jej chronologię i terminy — taką teczkę przenosi migracja."""
+    if (katalog / "index.md").is_file() and not (katalog / PLIK_SPRAWY).exists():
+        raise BladSprawy(f"{katalog}: jest index.md bez {PLIK_SPRAWY} — stary format — przenieś: /kruczek:migruj")
     sprawa = utworz_sprawe(tytul, strona_przeciwna, wlasciciel)
     zapisz_nowa(katalog, sprawa)
     return sprawa
@@ -157,16 +161,19 @@ def dodaj_zadanie(katalog: Path, opis: str, aktywne_od: dt.date, *, termin: dt.d
     return zmien(katalog, lambda s: dopisz_zadanie(s, opis, aktywne_od, termin=termin, watek=watek))
 
 
-def zamknij_sprawe(katalog: Path, wynik: str) -> None:
+def zamknij_sprawe(katalog: Path, wynik: str) -> list[Zadanie]:
+    """Zamyka sprawę i zwraca jej otwarte zadania z Twoim terminem — zamknięcie chowa je
+    z przeglądu, więc wywołujący ma je pokazać użytkownikowi."""
     if wynik not in WYNIKI_SPRAWY:
         raise BladSprawy(f"nieznany wynik {wynik!r}; dozwolone: {', '.join(WYNIKI_SPRAWY)}")
 
-    def zmiana(s: Sprawa) -> None:
+    def zmiana(s: Sprawa) -> list[Zadanie]:
         if s.zamknieta:
             raise BladSprawy(f"sprawa już zamknięta ({s.wynik})")
         s.zamknieta, s.wynik = True, wynik
+        return [a for a in s.zadania if a.zrobione is None and a.termin is not None]
 
-    zmien(katalog, zmiana)
+    return zmien(katalog, zmiana)
 
 
 def otworz_sprawe(katalog: Path) -> None:
@@ -207,7 +214,11 @@ def popraw_zdarzenie(katalog: Path, zdarzenie_id: str, kalendarz: Kalendarz, dzi
 
     def zmiana(s: Sprawa) -> list[str]:
         z = s.znajdz_zdarzenie(zdarzenie_id)
-        komunikaty = zmien_date(s, z, data, kalendarz) if data is not None and data != z.data else []
+        try:
+            komunikaty = zmien_date(s, z, data, kalendarz) if data is not None and data != z.data else []
+        except (ValueError, OverflowError):
+            raise BladSprawy(f"termin poza obsługiwanym zakresem dat (obsługiwane lata od {PIERWSZY_ROK}): "
+                             f"{zdarzenie_id} z datą {data}") from None
         if opis is not None:
             z.opis = opis
         if godzina is not None:

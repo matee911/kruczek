@@ -5,7 +5,13 @@ import pytest
 from dane_migracji import STARY_INDEX, propozycja
 from kruczek_core import migracja
 from kruczek_core.dni_wolne import Kalendarz
-from kruczek_core.migracja import kopia_zapasowa, tytul_z_naglowka, wstaw_znaczniki_chronologii, zbuduj_sprawe
+from kruczek_core.migracja import (
+    kopia_zapasowa,
+    oznacz_sprzed_migracji,
+    tytul_z_naglowka,
+    wstaw_znaczniki_chronologii,
+    zbuduj_sprawe,
+)
 from kruczek_core.model import BladSprawy
 
 D = dt.date
@@ -207,3 +213,43 @@ def test_ostrzezenie_o_minionym_szacunku_tylko_dla_pisma_bez_odpowiedzi(odpowied
     wynik = zbuduj_sprawe(propozycja(zdarzenia=zdarzenia, zadania=[]), Kalendarz(), DZIS, "opiekun1")
     # Assert
     assert any("liczony od nadania i już minął" in o for o in wynik.ostrzezenia) is ostrzega
+
+
+_INDEX_Z_TODO = """# SPRAWA: X
+
+| | |
+|---|---|
+| **Status** | w toku |
+| **Najbliższy termin** | 2026-09-15 — odpowiedź na reklamację |
+
+## 5. TODO
+
+- [ ] Przygotować pismo
+
+## 6. Ścieżka eskalacji
+"""
+
+
+@pytest.mark.parametrize("nl", ["\n", "\r\n"], ids=["lf", "crlf"])
+def test_oznaczenie_starych_sekcji_dopisuje_sprzed_migracji_bez_usuwania_linii(nl):
+    # Arrange
+    tekst = _INDEX_Z_TODO.replace("\n", nl)
+    # Act
+    nowy = oznacz_sprzed_migracji(tekst)
+    # Assert
+    linie = nowy.split(nl)
+    assert "## 5. TODO (sprzed migracji)" in linie
+    assert "| **Status** | w toku (sprzed migracji) |" in linie
+    assert "| **Najbliższy termin** | 2026-09-15 — odpowiedź na reklamację (sprzed migracji) |" in linie
+    assert len(linie) == len(tekst.split(nl))
+    bez_dopisku = [linia.replace(" (sprzed migracji)", "") for linia in linie]
+    assert bez_dopisku == tekst.split(nl)
+
+
+def test_oznaczenie_starych_sekcji_jest_idempotentne():
+    # Arrange
+    raz = oznacz_sprzed_migracji(_INDEX_Z_TODO)
+    # Act
+    dwa = oznacz_sprzed_migracji(raz)
+    # Assert
+    assert dwa == raz
