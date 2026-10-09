@@ -27,7 +27,7 @@ from kruczek_core.model import (
     czy_godzina,
     kolejne_id,
 )
-from kruczek_core.reguly import SpecTerminu, przelicz, zastosuj
+from kruczek_core.reguly import SpecTerminu, przelicz, zastosuj, zmien_date
 from kruczek_core.repozytorium import zapisz_nowa, zmien
 from kruczek_core.terminy import koniec_terminu, parsuj_dlugosc
 
@@ -189,3 +189,33 @@ def oznacz_zrobione(katalog: Path, zadanie_id: str, dzis: dt.date) -> Zadanie:
 
 def przelicz_sprawe(katalog: Path, kalendarz: Kalendarz) -> list[str]:
     return zmien(katalog, lambda s: przelicz(s, kalendarz))
+
+
+def popraw_zdarzenie(katalog: Path, zdarzenie_id: str, kalendarz: Kalendarz, dzis: dt.date, *,
+                     data: dt.date | None = None, opis: str | None = None, godzina: str | None = None,
+                     pewnosc: str | None = None, dowody: Sequence[str] | None = None) -> list[str]:
+    """Poprawia błędnie wpisane zdarzenie. Pusty napis w godzinie/pewności czyści pole.
+    Typu i wątku nie zmienia — to cofnij-zdarzenie i wpis od nowa."""
+    if all(v is None for v in (data, opis, godzina, pewnosc, dowody)):
+        raise BladSprawy("nic do poprawienia — podaj --data, --opis, --godzina, --pewnosc albo --dowod")
+    if data is not None and data > dzis:
+        raise BladSprawy(f"data zdarzenia {data} jest w przyszłości")
+    if godzina:
+        godzina = _sprawdz_godzine(godzina)
+    if pewnosc:
+        pewnosc = _sprawdz_pewnosc(pewnosc)
+
+    def zmiana(s: Sprawa) -> list[str]:
+        z = s.znajdz_zdarzenie(zdarzenie_id)
+        komunikaty = zmien_date(s, z, data, kalendarz) if data is not None and data != z.data else []
+        if opis is not None:
+            z.opis = opis
+        if godzina is not None:
+            z.godzina = godzina or None
+        if pewnosc is not None:
+            z.pewnosc = pewnosc or None
+        if dowody is not None:
+            z.dowody = list(dowody)
+        return komunikaty or [f"{z.id}: poprawiono"]
+
+    return zmien(katalog, zmiana)

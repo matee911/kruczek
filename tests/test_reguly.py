@@ -12,6 +12,7 @@ from kruczek_core.reguly import (
     SpecTerminu,
     przelicz,
     zastosuj,
+    zmien_date,
 )
 
 D = dt.date
@@ -381,3 +382,57 @@ def test_wskazane_nadanie_z_doreczeniem_po_odpowiedzi_odrzucone():
     # Act / Assert
     with pytest.raises(BladSprawy, match="ma już wpisane doręczenie z2"):
         dodaj(s, "z4", D(2026, 10, 11), "doreczenie", dotyczy="z1")
+
+
+def test_zmiana_daty_doreczenia_przelicza_termin():
+    # Arrange
+    s = sprawa_z_watkiem()
+    dodaj(s, "z1", D(2026, 10, 1), "nadanie", SPEC)
+    dodaj(s, "z2", D(2026, 10, 3), "doreczenie")
+    # Act
+    komunikaty = zmien_date(s, s.znajdz_zdarzenie("z2"), D(2026, 10, 6), Kalendarz())
+    # Assert
+    (t,) = s.terminy
+    assert t.data_konca == D(2026, 10, 20)
+    assert "t1: 2026-10-19 → 2026-10-20" in komunikaty
+    assert any("2026-10-03 → 2026-10-06" in k for k in komunikaty)
+
+
+def test_zmiana_daty_nadania_przesuwa_sprawdzenie_doreczenia_i_szacunek():
+    # Arrange
+    s = sprawa_z_watkiem()
+    dodaj(s, "z1", D(2026, 10, 1), "nadanie", SPEC)
+    # Act
+    zmien_date(s, s.znajdz_zdarzenie("z1"), D(2026, 10, 2), Kalendarz())
+    # Assert
+    (t,) = s.terminy
+    sprawdz = next(a for a in s.zadania if a.regula == REGULA_DORECZENIE)
+    odpowiedz = next(a for a in s.zadania if a.regula == REGULA_ODPOWIEDZ)
+    assert (t.data_konca, sprawdz.aktywne_od, odpowiedz.aktywne_od) == (D(2026, 10, 16), D(2026, 10, 3), D(2026, 10, 17))
+
+
+def test_zmiana_daty_wplywu_przesuwa_moj_termin_i_zadanie():
+    # Arrange
+    s = sprawa_z_watkiem()
+    dodaj(s, "z1", D(2026, 10, 12), "wplyw", SPEC)
+    # Act
+    zmien_date(s, s.znajdz_zdarzenie("z1"), D(2026, 10, 13), Kalendarz())
+    # Assert
+    (a,) = s.zadania
+    assert (a.aktywne_od, a.termin) == (D(2026, 10, 13), D(2026, 10, 27))
+
+
+@pytest.mark.parametrize(
+    "id_, nowa, komunikat",
+    [("z1", D(2026, 10, 4), "z2"), ("z2", D(2026, 9, 30), "z1")],
+    ids=["nadanie-po-doreczeniu", "doreczenie-przed-nadaniem"],
+)
+def test_zmiana_daty_sprzeczna_z_powiazanym_zdarzeniem_odrzucona(id_, nowa, komunikat):
+    # Arrange
+    s = sprawa_z_watkiem()
+    dodaj(s, "z1", D(2026, 10, 1), "nadanie", SPEC)
+    dodaj(s, "z2", D(2026, 10, 3), "doreczenie")
+    # Act / Assert
+    with pytest.raises(BladSprawy, match=komunikat):
+        zmien_date(s, s.znajdz_zdarzenie(id_), nowa, Kalendarz())
+    assert s.znajdz_zdarzenie(id_).data != nowa
