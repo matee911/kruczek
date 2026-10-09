@@ -195,7 +195,7 @@ TLDR.md zostaje w katalogu wysyłki i **nie jest wysyłany**.
 - wątek adresata: odczytaj `watki` z `sprawa.json` (czytać wolno, edytować nie). Jeśli jest wątek z tym
   samym `adresat` — użyj go (wątek = korespondencja tam i z powrotem z jednym adresatem; kolejne pismo
   do tej samej firmy to ten sam wątek). Jeśli nie ma — `teczka.py watek <sprawa> <id> --adresat "<adresat>"`
-- zadanie: `teczka.py zadanie <sprawa> "Nadaj <pismo> (<kanał>) — potem /kruczek:chronologia nadanie" --watek <id>`;
+- zadanie: `teczka.py zadanie <sprawa> "Nadaj <pismo> (<kanał>) i zarchiwizuj potwierdzenie nadania — potem /kruczek:chronologia nadanie" --watek <id>`;
   razem z nim oznacz jako `zrobione` otwarte zadania startowe „Przygotować pismo” i „Nadać i zarchiwizować
   potwierdzenie nadania” (`teczka.py zrobione <sprawa> <id>`, po jednym wywołaniu na zadanie; id z bloku „Zadania”)
 - w `TLDR.md` pole „Termin, który wyznaczasz” wypełnione długością i podstawą — z niego
