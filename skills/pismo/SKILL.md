@@ -5,7 +5,7 @@ argument-hint: "[katalog sprawy] [rodzaj pisma]"
 disable-model-invocation: true
 model: opus
 effort: high
-allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/check-deps.sh) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/build_pismo.py *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/kontrola_pisma.py *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/eli.sh *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/orzecznictwo.sh *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/manifest.py *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/podmiot.sh *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/dns.sh *) Bash(mkdir *) Bash(cp *) Bash(zip *) Bash(sha256sum *) Bash(date *) Read Write Edit
+allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/check-deps.sh) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/build_pismo.py *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/kontrola_pisma.py *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/eli.sh *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/orzecznictwo.sh *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/manifest.py *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/teczka.py *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/podmiot.sh *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/dns.sh *) Bash(mkdir *) Bash(cp *) Bash(zip *) Bash(sha256sum *) Bash(date *) Read Write Edit
 ---
 
 # Budowa pisma
@@ -33,7 +33,9 @@ z wyjścia skryptu, i przerwij zanim zaczniesz pisać pismo.
 
 ## 1. Wczytaj sprawę i dane nadawcy
 
-Przeczytaj `index.md` sprawy: chronologię, ustalenia, **sekcję `⚠ HIPOTEZY`**, dotychczasową
+Zapis do teczki idzie przez `teczka.py` — protokół w skillu `konwencje-teczki` („Zapis do teczki — teczka.py”). Jeśli sprawa jest w starym formacie (jest `index.md`, nie ma `sprawa.json`) — zatrzymaj się i zaproponuj `/kruczek:migruj <sprawa>`.
+
+Przeczytaj `index.md` sprawy: bloki „Chronologia”, „Terminy” i „Zadania”, ustalenia, **sekcję `⚠ HIPOTEZY`**, dotychczasową
 podstawę prawną, manifest. Przeczytaj wersje tekstowe kluczowych dowodów z `ARCHIWUM/`.
 
 Sprawdź `_SZABLONY/dane-nadawcy.md` i status pól krytycznych w `CLAUDE.md` (sekcja
@@ -190,11 +192,18 @@ TLDR.md zostaje w katalogu wysyłki i **nie jest wysyłany**.
 ## 10. Zaktualizuj teczkę
 
 - `manifest.py wstaw <sprawa>/index.md <sprawa>`
-- chronologia: wiersz „sporządzenie pisma" + przyszły wiersz z upływem terminu
-- TODO: nadanie, archiwizacja potwierdzenia, termin kontrolny
-- sekcja „Ścieżka eskalacji", jeśli pismo ją zapowiada
+- wątek adresata: odczytaj `watki` z `sprawa.json` (czytać wolno, edytować nie). Jeśli jest wątek z tym
+  samym `adresat` — użyj go (wątek = korespondencja tam i z powrotem z jednym adresatem; kolejne pismo
+  do tej samej firmy to ten sam wątek). Jeśli nie ma — `teczka.py watek <sprawa> <id> --adresat "<adresat>"`
+- zadanie: `teczka.py zadanie <sprawa> "Nadaj <pismo> (<kanał>) — potem /kruczek:chronologia nadanie" --watek <id>`;
+  razem z nim oznacz jako `zrobione` otwarte zadania startowe „Przygotować pismo” i „Nadać i zarchiwizować
+  potwierdzenie nadania” (`teczka.py zrobione <sprawa> <id>`, po jednym wywołaniu na zadanie; id z bloku „Zadania”)
+- w `TLDR.md` pole „Termin, który wyznaczasz” wypełnione długością i podstawą — z niego
+  `/kruczek:chronologia` weźmie termin przy nadaniu. Termin wymaga `--termin` i `--podstawa` z treści pisma
+  albo przepisu; nie znasz podstawy — zapytaj użytkownika, nie zgaduj
+- sekcja „Ścieżka eskalacji”, jeśli pismo ją zapowiada (wolny tekst)
 
 ## 11. Zamelduj
 
 Krótko: gdzie leży PDF i TLDR.md, ile stron, **co zostało do uzupełnienia**, jak i dokąd wysłać
-(z danymi do wysyłki z TL;DR: tytuł/opis, Do/DW, temat), jaki jest termin kontrolny. Nie streszczaj treści pisma — użytkownik ma TL;DR.
+(z danymi do wysyłki z TL;DR: tytuł/opis, Do/DW, temat), że po nadaniu wystarczy `/kruczek:chronologia` (termin weźmie z TL;DR). Nie streszczaj treści pisma — użytkownik ma TL;DR.
