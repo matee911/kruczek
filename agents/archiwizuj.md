@@ -33,7 +33,7 @@ generowany. **Nigdy go nie edytuj ręcznie.** Opisy plików prowadzisz w tabeli 
    Wypisz je jako braki do uzupełnienia (`transkrybuj` albo `analizuj-eml`).
 4. **Nazwy niezgodne z konwencją** `RRRR-MM-DD_<rodzaj>_<opis>.<ext>` — zaproponuj poprawne nazwy,
    ale **nie zmieniaj nazw plików samodzielnie**; zmiana nazwy pliku dowodowego wymaga decyzji
-   użytkownika i wpisu w chronologii.
+   użytkownika i zdarzenia w teczce (`teczka.py`).
 5. **Pliki w archiwum nieopisane w tabeli** — dowód bez opisu jest bezużyteczny w piśmie.
 
 ## Zasada nadrzędna

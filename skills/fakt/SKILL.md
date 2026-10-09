@@ -1,11 +1,11 @@
 ---
 name: fakt
-description: Rejestruje fakt słowny (bez pliku) w sprawie — kontekstowy (rola, relacja, stan trwały) lub zdarzeniowy (coś się wydarzyło w czasie). Przy zdarzeniowych pyta o datę i dowód, oznacza pewność, wpisuje do chronologii. Użyj, gdy masz informację bez pliku — telefon, rozmowę, obserwację, rolę osoby.
+description: Rejestruje fakt słowny (bez pliku) w sprawie — kontekstowy (rola, relacja, stan trwały) lub zdarzeniowy (coś się wydarzyło w czasie). Przy zdarzeniowych pyta o datę i dowód, oznacza pewność, zapisuje w teczce. Użyj, gdy masz informację bez pliku — telefon, rozmowę, obserwację, rolę osoby.
 argument-hint: "[sprawa] [opis faktu]"
 disable-model-invocation: true
 model: haiku
 effort: low
-allowed-tools: Read Write Edit
+allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/teczka.py *) Read Write Edit
 ---
 
 # Rejestracja faktu słownego
@@ -69,13 +69,14 @@ Pytaj: „Czy masz coś, co to potwierdza? Na przykład: [sugestia]"
 | `poszlaka` | dowód pośredni (np. autoresponder potwierdzający kontakt, ale nie treść) |
 | `własne_oświadczenie` | brak zewnętrznego potwierdzenia |
 
-### d) Dopisz do chronologii `index.md`
+### d) Zapisz zdarzenie
 
-```markdown
-| RRRR-MM-DD | HH:MM (jeśli znane) | [Opis zdarzenia] | pewność: własne_oświadczenie — brak pliku |
+```
+${CLAUDE_PLUGIN_ROOT}/scripts/teczka.py zdarzenie <sprawa> --typ <fakt|telefon> --data <RRRR-MM-DD> \
+  [--godzina GG:MM] --opis "<opis>" --pewnosc <dowod|poszlaka|wlasne_oswiadczenie>
 ```
 
-Zachowaj porządek chronologiczny w tabeli.
+Zasady zapisu: sekcja „Zapis do teczki — teczka.py” w `konwencje-teczki`.
 
 ### e) Dopisz do sekcji „Ustalenia" z flagą pewności
 
