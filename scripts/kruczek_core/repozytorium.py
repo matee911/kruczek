@@ -48,6 +48,8 @@ class KonfliktRewizji(BladSprawy):
 def wczytaj(katalog: Path) -> Sprawa:
     plik = katalog / PLIK_SPRAWY
     if not plik.exists():
+        if (katalog / "index.md").is_file():
+            raise BladSprawy(f"{katalog}: brak {PLIK_SPRAWY}, jest index.md — stary format — przenieś: /kruczek:migruj")
         raise BladSprawy(f"{katalog}: brak {PLIK_SPRAWY} — załóż sprawę: teczka.py nowa {katalog} …")
     try:
         dane = json.loads(plik.read_text(encoding="utf-8"))
