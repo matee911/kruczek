@@ -32,7 +32,8 @@ git clone https://github.com/matee911/kruczek && claude --plugin-dir ./kruczek
 | Narzędzie | Do czego | Wymagane |
 |---|---|---|
 | `curl`, `jq` | API rejestrów i orzecznictwa | tak |
-| `python3` (sam stdlib) | analiza `.eml`, manifest, budowa pism | tak |
+| `uv` | uruchamia skrypty Pythona kruczka na Pythonie ≥ 3.11 (sam go dobiera, gdy systemowy `python3` jest starszy) | tak |
+| `python3` (sam stdlib) | drobne wstawki w skryptach powłoki | tak |
 | `weasyprint` **albo** Chrome/Chromium **albo** `wkhtmltopdf` | składanie pism do PDF (próbowane w tej kolejności) | do pism |
 | `pandoc` | załączniki `.md` w PDF | do pism |
 | `poppler-utils` (`pdftotext`, `pdfinfo`) | odczyt PDF, licznik stron | zalecane |
@@ -47,9 +48,10 @@ i na Linuksie — obie platformy są testowane w CI.
 
 ```bash
 # Debian/Ubuntu
+curl -LsSf https://astral.sh/uv/install.sh | sh
 sudo apt install curl jq python3 weasyprint pandoc poppler-utils tesseract-ocr tesseract-ocr-pol ocrmypdf libimage-exiftool-perl unzip
 # macOS
-brew install curl jq python pandoc poppler tesseract tesseract-lang ocrmypdf exiftool grep unzip
+brew install curl jq python uv pandoc poppler tesseract tesseract-lang ocrmypdf exiftool grep unzip
 pip install weasyprint
 ```
 

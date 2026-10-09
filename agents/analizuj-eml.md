@@ -13,8 +13,7 @@ i deterministyczna** — liczysz to, co da się policzyć, i nie interpretujesz 
 Dla każdej wskazanej wiadomości uruchom skrypt **z katalogu `scripts/` wtyczki**:
 
 ```
-cd ${CLAUDE_PLUGIN_ROOT}/scripts
-python3 eml_forensics.py <ścieżka/do/pliku.eml> --outdir <katalog-z-plikiem-eml>
+${CLAUDE_PLUGIN_ROOT}/scripts/eml_forensics.py <ścieżka/do/pliku.eml> --outdir <katalog-z-plikiem-eml>
 ```
 
 Jako `--outdir` podaj katalog, w którym leży plik `.eml` (domyślne zachowanie skryptu).

@@ -3,7 +3,9 @@
 #   nowa-sprawa.sh "<Nazwa podmiotu>" "<przedmiot sprawy>" [KATALOG-PROJEKTU]
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PY="${PYTHON:-python3}"
+# teczka.py startuje przez uv (Python ≥ 3.11); PYTHON nadpisuje interpreter w testach.
+TECZKA=("$SCRIPT_DIR/teczka.py")
+[ -n "${PYTHON:-}" ] && TECZKA=("$PYTHON" "$SCRIPT_DIR/teczka.py")
 NAZWA="${1:?podaj nazwę podmiotu}"; PRZEDMIOT="${2:?podaj przedmiot sprawy}"; ROOT="${3:-.}"
 SLUG=$(printf %s "$NAZWA" | iconv -f UTF-8 -t ASCII//TRANSLIT 2>/dev/null || printf %s "$NAZWA")
 # sed -E (ERE): BSD sed na macOS nie rozumie \+ w podstawowym wyrażeniu regularnym —
@@ -20,7 +22,7 @@ if [ -f "$DIR/index.md" ]; then
 fi
 mkdir -p "$DIR"
 # Najpierw sprawa.json: gdy Python zawiedzie, nie zostaje index.md w starym formacie.
-"$PY" "$SCRIPT_DIR/teczka.py" nowa "$DIR" --tytul "$PRZEDMIOT" --strona "$NAZWA" >/dev/null
+"${TECZKA[@]}" nowa "$DIR" --tytul "$PRZEDMIOT" --strona "$NAZWA" >/dev/null
 mkdir -p "$DIR"/{ARCHIWUM,ROBOCZE}
 cat > "$DIR/index.md" <<EOF
 # SPRAWA: $NAZWA
@@ -75,7 +77,7 @@ Opisy plików prowadź w tej sekcji nad manifestem.
 
 _(kolejne kroki po bezskutecznym upływie terminu — od najtańszego do najdroższego)_
 EOF
-"$PY" "$SCRIPT_DIR/teczka.py" zdarzenie "$DIR" --typ inne --opis "Założenie sprawy" >/dev/null
+"${TECZKA[@]}" zdarzenie "$DIR" --typ inne --opis "Założenie sprawy" >/dev/null
 for ZADANIE in \
   "Ustalić pełne dane rejestrowe drugiej strony" \
   "Zebrać i zarchiwizować dowody (+ wersje tekstowe dla plików nietekstowych)" \
@@ -83,7 +85,7 @@ for ZADANIE in \
   "Przygotować pismo" \
   "Cross-check cytatów przed wysyłką" \
   "Nadać i zarchiwizować potwierdzenie nadania"; do
-  "$PY" "$SCRIPT_DIR/teczka.py" zadanie "$DIR" "$ZADANIE" >/dev/null
+  "${TECZKA[@]}" zadanie "$DIR" "$ZADANIE" >/dev/null
 done
 echo "Założono sprawę: $DIR"
 echo "Dopisz ją do rejestru w $ROOT/index.md:"

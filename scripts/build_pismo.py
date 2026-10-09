@@ -1,4 +1,7 @@
-#!/usr/bin/env python3
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.11"
+# ///
 """build_pismo.py — składa pismo w PDF razem z wdrukowanymi załącznikami.
 
 Marginesy 25/20/25/20 mm (góra/dół/lewy/prawy) — spełniają jednocześnie:
