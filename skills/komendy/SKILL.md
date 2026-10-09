@@ -41,7 +41,7 @@ a jeśli z rozmowy wynika konkretna potrzeba — wskaż jedną, właściwą pozy
 
 | Skill | Kiedy się włącza | Model |
 |---|---|---|
-| `konwencje-teczki` | przy każdej pracy na plikach sprawy — zasady archiwum, nazewnictwa, chronologii | dziedziczy |
+| `konwencje-teczki` | przy każdej pracy na plikach sprawy — zasady teczki i protokół zapisu przez teczka.py | dziedziczy |
 | `redagowanie-pism` | gdy powstaje pismo — struktura, ton, cytowanie, częste błędy | dziedziczy |
 | `zrodla-prawa` | gdy potrzebny tekst przepisu — API ELI Sejmu, EUR-Lex (`eurlex.sh`) | dziedziczy |
 | `zrodla-orzecznictwa` | gdy potrzebne orzeczenie lub decyzja organu | dziedziczy |
