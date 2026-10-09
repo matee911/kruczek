@@ -88,6 +88,7 @@ def test_nowa_sprawa_gdy_python_pada_nie_zostawia_index(tmp_path):
     # Assert
     assert wynik.returncode != 0
     assert not (tmp_path / "x" / "index.md").exists()
+    assert not (tmp_path / "x" / "ARCHIWUM").exists() and not (tmp_path / "x" / "ROBOCZE").exists()
 
 
 @WYMAGA_JQ_CURL
@@ -100,6 +101,18 @@ def test_gitignore_projektu_idempotentny(tmp_path):
     # Assert
     linie = (tmp_path / ".gitignore").read_text(encoding="utf-8").splitlines()
     assert linie.count(".sprawa.lock") == 1 and linie.count(".*.tmp") == 1 and "node_modules/" in linie
+
+
+@WYMAGA_JQ_CURL
+def test_gitignore_bez_koncowej_nowej_linii(tmp_path):
+    # Arrange
+    (tmp_path / ".gitignore").write_bytes(b"node_modules/")
+    # Act
+    uruchom("init-projekt.sh", str(tmp_path), cwd=tmp_path)
+    uruchom("init-projekt.sh", str(tmp_path), cwd=tmp_path)
+    # Assert
+    linie = (tmp_path / ".gitignore").read_text(encoding="utf-8").splitlines()
+    assert linie == ["node_modules/", ".sprawa.lock", ".*.tmp"]
 
 
 @WYMAGA_JQ_CURL
