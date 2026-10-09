@@ -122,3 +122,12 @@ def test_konwencje_z_szablonu(tmp_path):
     # Assert
     assert (tmp_path / "KONWENCJE.md").read_text(encoding="utf-8") == \
         (SKRYPTY.parent / "templates" / "KONWENCJE.md").read_text(encoding="utf-8")
+
+
+def test_szablon_konwencji_zawiera_zasady_teczki():
+    # Arrange
+    tekst = (SKRYPTY.parent / "templates" / "KONWENCJE.md").read_text(encoding="utf-8")
+    # Assert
+    for fraza in ("Dane osobowe", "Język", "⚠ HIPOTEZY — NIE cytować w pismach",
+                  "`email`, `list`, `umowa`", "`potwierdzenie`", "nie dowód"):
+        assert fraza in tekst

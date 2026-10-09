@@ -45,8 +45,8 @@ jeśli tak — `teczka.py zrobione <sprawa> <id>` dla wskazanych zadań, po jedn
 **Pomyłka:** `teczka.py popraw-zdarzenie <sprawa> <id> --data/--opis/--godzina/--pewnosc/--dowod`;
 zły typ albo wątek ostatniego wpisu → `teczka.py cofnij-zdarzenie <sprawa> <id>` i wpis od nowa.
 
-**Kod wyjścia 1 przy zapisie do jednej sprawy** (`zdarzenie`, `zadanie`, `watek`, `zrobione`,
-`popraw-zdarzenie`, `cofnij-zdarzenie`, `migruj --zapisz`) = nic nie zapisano: pokaż komunikat
+**Kod wyjścia 1 przy zapisie do jednej sprawy** (`nowa`, `zdarzenie`, `zadanie`, `watek`,
+`zrobione`, `popraw-zdarzenie`, `cofnij-zdarzenie`, `zamknij`, `otworz`, `przelicz`, `migruj --zapisz`) = nic nie zapisano: pokaż komunikat
 użytkownikowi, nie ponawiaj w ciemno. Przy `dzien-wolny` i `co-robic` kod 1 znaczy, że część spraw
 zgłosiła błąd — czytaj sekcję BŁĘDY (reszta mogła się wykonać).
 Kod 0 z linią `uwaga:` (np. „zapisano, ale index.md nie odświeżony”) = zapis jest, tylko `index.md`

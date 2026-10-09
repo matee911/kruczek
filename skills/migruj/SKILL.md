@@ -76,7 +76,8 @@ Reguły przepisywania:
 
 `${CLAUDE_PLUGIN_ROOT}/scripts/teczka.py migruj <sprawa> <sprawa>/ROBOCZE/migracja-propozycja.json`
 
-Błąd (kod 1) → popraw propozycję i uruchom ponownie. Pokaż użytkownikowi zwięźle: wątki, liczby,
+Błąd (kod 1) dotyczący propozycji → popraw ją i uruchom ponownie. Błąd innej natury (już zmigrowana,
+brak `index.md`, podprojekt, `index.md` nie w UTF-8) → pomiń tę sprawę i powiedz użytkownikowi dlaczego. Pokaż użytkownikowi zwięźle: wątki, liczby,
 wygenerowaną chronologię i terminy, ostrzeżenia `uwaga:` i listę „nieprzeniesione”. Potem jedno
 AskUserQuestion: **Zapisz** / **Popraw** (co) / **Pomiń tę sprawę**.
 
