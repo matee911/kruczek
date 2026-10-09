@@ -1,0 +1,17 @@
+{
+  "description": "Kruczek: przy starcie sesji sprawdza, czy są uv, curl i jq, i mówi, co doinstalować",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/scripts/sprawdz-zaleznosci.sh\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

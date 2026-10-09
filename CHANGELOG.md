@@ -14,7 +14,8 @@ wersjonowanie wg [SemVer](https://semver.org/lang/pl/).
   z nowym wzorcem i za Twoją zgodą odświeży go razem z `CLAUDE.md` (z kopią obu).
 - Skrypty Pythona startują przez `uv` (`uv run --script`) i wymagają Pythona ≥ 3.11 — uv dobiera
   go sam, nawet gdy systemowy `python3` jest starszy (np. 3.9 na macOS). Zainstaluj `uv`
-  (`brew install uv`); `scripts/check-deps.sh` go sprawdza.
+  (`brew install uv`); `scripts/check-deps.sh` go sprawdza, a hook przy starcie sesji mówi, czego
+  brakuje i jak to doinstalować.
 
 ### Dodane
 - **`teczka.py` i pakiet `kruczek_core`** — dane sprawy w `sprawa.json` (wątki, zdarzenia ze ścieżkami
