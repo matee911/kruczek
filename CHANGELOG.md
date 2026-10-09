@@ -7,9 +7,15 @@ wersjonowanie wg [SemVer](https://semver.org/lang/pl/).
 
 ## [0.9.0] — 2026-10-09
 
+### Aktualizacja z 0.8.x
+- Sprawy założone przed 0.9.0 nie mają `sprawa.json` — `/kruczek:status` wypisuje je jako „stary
+  format” (z terminami zacytowanymi z `index.md`). Przenieś je `/kruczek:migruj`, po jednej, z podglądem.
+- `KONWENCJE.md` w projekcie to kopia z dnia założenia — `/kruczek:migruj` (krok 0) pokaże różnice
+  z nowym wzorcem i za Twoją zgodą odświeży go razem z `CLAUDE.md` (z kopią obu).
+
 ### Dodane
-- **`teczka.py` i pakiet `kruczek_core`** — dane sprawy w `sprawa.json` (wątki, pisma, zdarzenia,
-  terminy, zadania, dowody) zapisywane wyłącznie przez CLI: blokada, zapis atomowy, numer rewizji.
+- **`teczka.py` i pakiet `kruczek_core`** — dane sprawy w `sprawa.json` (wątki, zdarzenia ze ścieżkami
+  dowodów, terminy, zadania) zapisywane wyłącznie przez CLI: blokada, zapis atomowy, numer rewizji.
   `teczka.py co-robic` pokazuje we wszystkich sprawach: co jest do zrobienia teraz, na co czekasz
   i co wkrótce; sprawy w starym formacie wypisuje do migracji.
 - **Terminy liczone kodem** — art. 111, 112, 115 k.c., art. 57 § 1–4 k.p.a. (k.p.c. przez art. 165 § 1):
@@ -26,10 +32,12 @@ wersjonowanie wg [SemVer](https://semver.org/lang/pl/).
   BŁĘDY (kod wyjścia 1), a resztę pokazuje normalnie.
 - **`/kruczek:migruj`** — stara teczka (`index.md` bez `sprawa.json`) przechodzi na nowy format:
   podgląd zdarzeń, terminów i zadań, zapis dopiero po akceptacji, kopia starego `index.md` w
-  `ROBOCZE/`, stara tabela chronologii zostaje jako archiwalna. Nagłówek sprawy rozpoznawany bez
-  względu na wielkość liter.
+  `ROBOCZE/`, stara tabela chronologii zostaje jako archiwalna, a stare TODO i wiersze „Status” /
+  „Najbliższy termin” dostają dopisek „(sprzed migracji)”. Nagłówek sprawy rozpoznawany bez
+  względu na wielkość liter; `teczka.py nowa` odmawia w folderze starej teczki.
 - `teczka.py popraw-zdarzenie` (data, opis, godzina, pewność, dowody — z przeliczeniem terminów)
-  i `cofnij-zdarzenie` (ostatni wpis razem z jego terminami i zadaniami); `zamknij` / `otworz`.
+  i `cofnij-zdarzenie` (ostatni wpis razem z jego terminami i zadaniami); `zamknij` / `otworz` —
+  `zamknij` ostrzega o otwartych zadaniach z Twoim terminem.
 - `co-robic`: folder sprawy przy każdej pozycji, „PO TERMINIE”, termin w „Wkrótce”, ostrzeżenia
   o dniach wolnych tylko dla urzędów, sekcja „Bez ruchu”. Zagnieżdżone podprojekty
   (`index.md` zaczynający się od „# Rejestr spraw”) są przeglądane razem ze sprawami z etykietą
