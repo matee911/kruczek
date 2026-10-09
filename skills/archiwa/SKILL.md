@@ -77,7 +77,9 @@ Sprawdź czy `archiwizuj-strone` dopisał do `index.md`:
 - SHA-256 lokalnej kopii
 - Liczbę unikalnych wersji z CDX
 
-Zapisz zdarzenie i przypomnienie o ponownym zrzucie:
+Zapisz zdarzenie i przypomnienie o ponownym zrzucie. Najpierw sprawdź blok „Zadania” w `index.md`:
+otwarte zadanie „Ponowny snapshot <ten sam url>” zamknij (`teczka.py zrobione <sprawa> <id>`) — ten zrzut
+właśnie je wykonał, a nowe przypomnienie je zastępuje.
 ```
 ${CLAUDE_PLUGIN_ROOT}/scripts/teczka.py zdarzenie <sprawa> --typ fakt --opis "Zarchiwizowano <url>: <N> wersji w Wayback, SHA-256 <hash>" --dowod ARCHIWUM/<plik>
 ${CLAUDE_PLUGIN_ROOT}/scripts/teczka.py zadanie <sprawa> "Ponowny snapshot <url>" --aktywne-od +14d
