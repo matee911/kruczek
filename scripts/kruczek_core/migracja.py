@@ -19,7 +19,7 @@ from typing import Any
 from kruczek_core.dni_wolne import Kalendarz
 from kruczek_core.model import WYNIKI_SPRAWY, BladSprawy, Sprawa, kolejne_id
 from kruczek_core.operacje import dopisz_watek, dopisz_zadanie, dopisz_zdarzenie, utworz_sprawe
-from kruczek_core.reguly import SpecTerminu
+from kruczek_core.reguly import REGULA_DORECZENIE, REGULA_ODPOWIEDZ, SpecTerminu
 
 _POLA = {"tytul", "strona_przeciwna", "wlasciciel", "zamknieta", "wynik", "watki", "zdarzenia", "zadania"}
 _POLA_WATKU = {"id", "adresat"}
@@ -109,6 +109,34 @@ def _wpis(nr: int, surowy: Any) -> _Wpis:
     return _Wpis(nr, _data(co, z.get("data")), z, termin, dowody)
 
 
+def _kolejnosc_odtwarzania(wpisy: list[_Wpis]) -> list[_Wpis]:
+    """Po datach; w obrębie dnia kolejność z propozycji (godzina nie zmienia kolejności), ale
+    zdarzenie z `dotyczy` zawsze po zdarzeniu z tego samego dnia, którego dotyczy. `dotyczy`
+    wskazujące późniejszą datę albo cykl zostają na swoim miejscu — błąd zgłosi odtwarzanie."""
+    wynik: list[_Wpis] = []
+    for data in sorted({w.data for w in wpisy}):
+        dzien = sorted((w for w in wpisy if w.data == data), key=lambda w: w.nr)
+        klucze_dnia = {w.pola.get("klucz") for w in dzien} - {None}
+        umieszczone: set[str] = set()
+        czekajace: list[_Wpis] = []
+        for w in dzien:
+            dotyczy = w.pola.get("dotyczy")
+            if dotyczy in klucze_dnia and dotyczy not in umieszczone:
+                czekajace.append(w)
+                continue
+            kolejka = [w]
+            while kolejka:
+                biezacy = kolejka.pop(0)
+                wynik.append(biezacy)
+                if biezacy.pola.get("klucz") is not None:
+                    umieszczone.add(biezacy.pola["klucz"])
+                gotowe = [c for c in czekajace if c.pola.get("dotyczy") in umieszczone]
+                czekajace = [c for c in czekajace if c not in gotowe]
+                kolejka += gotowe
+        wynik += czekajace
+    return wynik
+
+
 def _po_kluczach(komunikat: str, nazwy: dict[str, str]) -> str:
     """Id zdarzeń (z1, z2…) w komunikacie reguł → klucze z propozycji, a wskazówka o --dotyczy →
     jak to zapisać w propozycji.
@@ -160,7 +188,7 @@ def zbuduj_sprawe(propozycja: dict[str, Any], kalendarz: Kalendarz, dzis: dt.dat
     klucze: dict[str, str] = {}  # klucz z propozycji → id zdarzenia
     nazwy: dict[str, str] = {}  # id zdarzenia → jak je nazwać w komunikacie
     komunikaty: list[str] = []
-    for w in sorted(wpisy, key=lambda w: (w.data, w.pola.get("godzina") or "", w.nr)):
+    for w in _kolejnosc_odtwarzania(wpisy):
         z = w.pola
         opis = f"zdarzenie {w.nr} ({w.data.isoformat()} {z.get('typ')})"
         dotyczy = z.get("dotyczy")
@@ -202,8 +230,10 @@ def _ostrzezenia(s: Sprawa, dzis: dt.date) -> list[str]:
     if stare and not s.zamknieta:
         wyniki.append(f"{len(stare)} zadań aktywnych od ponad {_STARE_ZADANIA_DNI} dni "
                       f"({', '.join(a.id for a in stare)}) — po migracji oznacz nieaktualne jako zrobione")
+    czekajace_nadania = {a.zdarzenie_id for a in s.zadania
+                         if a.zrobione is None and a.regula in (REGULA_DORECZENIE, REGULA_ODPOWIEDZ)}
     for t in s.terminy:
-        if t.szacunek and t.data_konca < dzis:
+        if t.szacunek and t.data_konca < dzis and t.od_zdarzenia in czekajace_nadania:
             wyniki.append(f"termin {t.id} liczony od nadania i już minął — wpisz doręczenie, jeśli znasz datę")
     return wyniki
 
@@ -214,7 +244,7 @@ def tytul_z_naglowka(tekst: str) -> str | None:
     >>> tytul_z_naglowka("\\n# Sprawa: Reklamacja\\n")
     'Reklamacja'
     """
-    for linia in tekst.lstrip("﻿").splitlines():
+    for linia in tekst.lstrip("\ufeff").splitlines():
         if linia.strip():
             linia = linia.strip()
             if linia[:len(_NAGLOWEK_SPRAWY)].casefold() == _NAGLOWEK_SPRAWY:

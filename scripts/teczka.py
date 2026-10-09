@@ -287,8 +287,10 @@ def _wypisz_podsumowanie(p: Podsumowanie, kal: Kalendarz) -> None:
 
 
 def _migruj(a: argparse.Namespace, dzis: dt.date) -> int:
-    """Kolejność zapisu: kopia → sprawa.json → index.md. Wszystko, co może się nie udać, jest
-    sprawdzane przed kopią; nieudane odświeżenie index.md to już tylko uwaga (kod 0)."""
+    """Kolejność zapisu: kopia → sprawa.json → index.md. Propozycja, index.md i kalendarz są
+    sprawdzane przed kopią. `zapisz_nowa` może jeszcze paść po kopii (kod 1, sprawa.json nie
+    powstał) — kopia zostaje w ROBOCZE/ i nie blokuje ponownej próby (następna dostaje sufiks -2).
+    Nieudane odświeżenie index.md po zapisie sprawa.json to już tylko uwaga (kod 0)."""
     index = a.sprawa / "index.md"
     if (a.sprawa / PLIK_SPRAWY).exists():
         raise BladSprawy(f"{a.sprawa}: już zmigrowana (jest {PLIK_SPRAWY})")
