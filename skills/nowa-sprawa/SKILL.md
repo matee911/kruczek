@@ -43,13 +43,16 @@ Załóż sprawę, a materiał wciągnij przez `/kruczek:dowod`.
 ## 2. Załóż katalog
 
 ```
-${CLAUDE_PLUGIN_ROOT}/scripts/nowa-sprawa.sh "<nazwa>" "<przedmiot>" <katalog-projektu>
+${CLAUDE_PLUGIN_ROOT}/scripts/nowa-sprawa.sh "<nazwa>" "<przedmiot>" <katalog-projektu> ["<osoba>"]
 ```
+
+Czwarty argument tylko przy **w imieniu innej osoby**: imię i nazwisko tej osoby. Trafia do `sprawa.json`
+jako strona sprawy (rola `klientka`) — przegląd pokazuje wtedy, czyj jest termin.
 
 Skrypt tworzy `ARCHIWUM/`, `ROBOCZE/`, `sprawa.json` i `index.md`. W `index.md` są sekcje wolnego
 tekstu (ustalenia, hipotezy, podstawa prawna, manifest, eskalacja) oraz generowane bloki chronologii,
 terminów i zadań; zadania startowe są w `sprawa.json` (blok „Zadania”) — skrypt już je dodał, nie twórz ich
-ponownie. Protokół zapisu: skill `konwencje-teczki`, „Zapis do teczki — teczka.py”.
+ponownie. „Nadać i zarchiwizować potwierdzenie nadania” zamyka się samo, gdy wpiszesz nadanie. Protokół zapisu: skill `konwencje-teczki`, „Zapis do teczki — teczka.py”.
 
 ## 3. Ustal dane rejestrowe drugiej strony
 

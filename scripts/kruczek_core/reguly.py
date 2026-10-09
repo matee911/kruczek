@@ -24,6 +24,9 @@ from kruczek_core.terminy import koniec_terminu
 REGULA_DORECZENIE = "sprawdz-doreczenie"
 REGULA_ODPOWIEDZ = "sprawdz-odpowiedz"
 REGULA_ANALIZA = "przeanalizuj-odpowiedz"
+# Zadania startowe nowej sprawy (operacje.ZADANIA_STARTOWE); „nadaj pismo” zamyka pierwsze nadanie.
+REGULA_START = "start"
+REGULA_START_NADANIE = "start-nadanie"
 
 _DZIEN = dt.timedelta(days=1)
 
@@ -72,20 +75,31 @@ def _otwarte(sprawa: Sprawa, watek: str | None, regula: str) -> list[Zadanie]:
     return [a for a in sprawa.zadania if a.watek == watek and a.regula == regula and a.zrobione is None]
 
 
+def _zamknij_nadaj_pismo(sprawa: Sprawa, z: Zdarzenie) -> list[str]:
+    """Startowe „nadaj pismo” zamyka nadanie — cofnięcie nadania otwiera je z powrotem (zamkniete_przez)."""
+    komunikaty = []
+    for a in _otwarte(sprawa, None, REGULA_START_NADANIE):
+        a.zrobione, a.zamkniete_przez = z.data, z.id
+        komunikaty.append(f"zadanie {a.id} zamknięte: {a.opis}")
+    return komunikaty
+
+
 def _po_nadaniu(sprawa: Sprawa, z: Zdarzenie, spec: SpecTerminu | None, kal: Kalendarz) -> list[str]:
     adresat = sprawa.znajdz_watek(z.watek).adresat if z.watek else "adresat"
+    zamkniete = _zamknij_nadaj_pismo(sprawa, z)
     if spec is None:
-        _nowe_zadanie(sprawa, "sprawdź datę doręczenia (EPO / Envelo)", z.data + _DZIEN, z.watek,
+        _nowe_zadanie(sprawa, f"{adresat}: sprawdź datę doręczenia w śledzeniu przesyłki", z.data + _DZIEN, z.watek,
                       REGULA_DORECZENIE, z.id)
-        return ["nadanie bez terminu na odpowiedź — nie ma na co czekać; podaj --termin, jeśli pismo go wyznacza"]
+        return ["nadanie bez terminu na odpowiedź — nie ma na co czekać; podaj --termin, jeśli pismo go wyznacza",
+                *zamkniete]
     termin = Termin(kolejne_id("t", sprawa.terminy), spec.podstawa, z.id, spec.dlugosc,
                     koniec_terminu(z.data, spec.dlugosc, kal), watek=z.watek, szacunek=True)
     sprawa.terminy.append(termin)
-    _nowe_zadanie(sprawa, "sprawdź datę doręczenia (EPO / Envelo)", z.data + _DZIEN, z.watek,
+    _nowe_zadanie(sprawa, f"{adresat}: sprawdź datę doręczenia w śledzeniu przesyłki", z.data + _DZIEN, z.watek,
                   REGULA_DORECZENIE, z.id, termin.id)
-    _nowe_zadanie(sprawa, f"sprawdź, czy {adresat} odpowiedział", termin.data_konca + _DZIEN, z.watek,
+    _nowe_zadanie(sprawa, f"{adresat}: sprawdź, czy przyszła odpowiedź", termin.data_konca + _DZIEN, z.watek,
                   REGULA_ODPOWIEDZ, z.id, termin.id)
-    return [f"termin {termin.id}: do {termin.data_konca.isoformat()} (szacunek — liczony od nadania)"]
+    return [f"termin {termin.id}: do {termin.data_konca.isoformat()} (szacunek — liczony od nadania)", *zamkniete]
 
 
 def _sprawdzenia_doreczenia(sprawa: Sprawa, watek: str | None) -> list[tuple[Zadanie, Zdarzenie]]:
@@ -224,15 +238,15 @@ def _po_przychodzacym(sprawa: Sprawa, z: Zdarzenie, spec: SpecTerminu | None, ka
     """Pismo doszło do Ciebie (odpowiedź albo wpływ). Data zdarzenia = data doręczenia do
     Ciebie, także zastępczego (awizo). Ze `spec` liczy TWÓJ termin — nie szacunek, bo datę znasz."""
     komunikaty = _zamknij_oczekiwanie(sprawa, z, wskazane)
-    adresat = sprawa.znajdz_watek(z.watek).adresat if z.watek else "nadawcy"
+    adresat = sprawa.znajdz_watek(z.watek).adresat if z.watek else "nadawca"
     co = "odpowiedź" if z.typ == "odpowiedz" else "pismo"
     if spec is None:
-        zadanie = _nowe_zadanie(sprawa, f"przeanalizuj {co} od {adresat}", z.data, z.watek, REGULA_ANALIZA, z.id)
+        zadanie = _nowe_zadanie(sprawa, f"{adresat}: przeanalizuj {co}", z.data, z.watek, REGULA_ANALIZA, z.id)
         return [*komunikaty, f"zadanie {zadanie.id}: {zadanie.opis}"]
     termin = Termin(kolejne_id("t", sprawa.terminy), spec.podstawa, z.id, spec.dlugosc,
                     koniec_terminu(z.data, spec.dlugosc, kal), watek=z.watek, czyj="moj")
     sprawa.terminy.append(termin)
-    zadanie = _nowe_zadanie(sprawa, f"przeanalizuj {co} od {adresat} i działaj", z.data, z.watek, REGULA_ANALIZA,
+    zadanie = _nowe_zadanie(sprawa, f"{adresat}: przeanalizuj {co} i działaj", z.data, z.watek, REGULA_ANALIZA,
                             z.id, termin.id, termin.data_konca)
     return [*komunikaty, f"Twój termin {termin.id}: do {termin.data_konca.isoformat()} ({spec.podstawa})",
             f"zadanie {zadanie.id}: {zadanie.opis}"]

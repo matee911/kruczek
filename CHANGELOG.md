@@ -50,6 +50,12 @@ wersjonowanie wg [SemVer](https://semver.org/lang/pl/).
 - `--dotyczy <id nadania>` w skillach zapisujących doręczenie i odpowiedź, gdy czekają naraz dwa pisma.
 - Testy pytest (przez `uv`) z kalendarzem sprawdzanym niezależnie pakietem `holidays`; job CI na
   Pythonie 3.11 i 3.14.
+- **Sprawa w czyimś imieniu** — `nowa-sprawa.sh … "<osoba>"` (i `teczka.py nowa --w-imieniu`) zapisuje
+  osobę, w której imieniu działasz, jako stronę sprawy. Zadania startowe tworzy `teczka.py nowa
+  --zadania-startowe`; „Nadać i zarchiwizować potwierdzenie nadania” zamyka wpisanie nadania (cofnięcie
+  nadania otwiera je z powrotem).
+- Zadania tworzone przez reguły mówią po ludzku i bez odmiany nazwy: „Sklep: sprawdź datę doręczenia
+  w śledzeniu przesyłki”, „Sklep: sprawdź, czy przyszła odpowiedź”, „Sklep: przeanalizuj odpowiedź”.
 
 ### Zmienione
 - `manifest.py` pomija `sprawa.json` — to plik roboczy teczki, nie dowód.

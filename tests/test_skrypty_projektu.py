@@ -131,3 +131,27 @@ def test_szablon_konwencji_zawiera_zasady_teczki():
     for fraza in ("Dane osobowe", "Język", "⚠ HIPOTEZY — NIE cytować w pismach",
                   "`email`, `list`, `umowa`", "`potwierdzenie`", "nie dowód"):
         assert fraza in tekst
+
+
+def test_nowa_sprawa_w_czyims_imieniu(tmp_path):
+    # Act
+    wynik = uruchom("nowa-sprawa.sh", "X", "Reklamacja", str(tmp_path), "Osoba Testowa", cwd=tmp_path)
+    # Assert
+    assert wynik.returncode == 0, wynik.stderr
+    dane = json.loads((tmp_path / "x" / "sprawa.json").read_text(encoding="utf-8"))
+    assert {"osoba": "Osoba Testowa", "rola": "klientka"} in dane["uczestnicy"]
+
+
+def test_nowa_sprawa_zadanie_nadania_zamyka_wpis_nadania(tmp_path):
+    # Arrange
+    uruchom("nowa-sprawa.sh", "X", "Reklamacja", str(tmp_path), cwd=tmp_path)
+    k = tmp_path / "x"
+    teczka = [sys.executable, str(SKRYPTY / "teczka.py")]
+    subprocess.run([*teczka, "watek", str(k), "firma", "--adresat", "X"], check=True, capture_output=True)
+    # Act
+    subprocess.run([*teczka, "zdarzenie", str(k), "--typ", "nadanie", "--watek", "firma"], check=True,
+                   capture_output=True)
+    # Assert
+    dane = json.loads((k / "sprawa.json").read_text(encoding="utf-8"))
+    nadaj = next(a for a in dane["zadania"] if a["opis"] == ZADANIA_STARTOWE[-1])
+    assert nadaj["zrobione"] is not None and nadaj["zamkniete_przez"] is not None
