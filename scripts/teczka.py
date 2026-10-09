@@ -5,7 +5,8 @@
 """teczka.py — jedyna droga zapisu danych sprawy (sprawa.json).
 
 Podkomendy:
-  nowa <sprawa> --tytul T --strona S [--wlasciciel W]   załóż sprawa.json
+  nowa <sprawa> --tytul T --strona S [--wlasciciel W] [--w-imieniu O] [--zadania-startowe]
+                                                       załóż sprawa.json (O = osoba, w której imieniu działasz)
   watek <sprawa> <id> --adresat A                      dodaj wątek korespondencji
   zdarzenie <sprawa> --typ T [--data D] [--watek W] [--opis O] [--dowod P ...]
             [--termin 14d --podstawa P] [--dotyczy zN]
@@ -118,6 +119,8 @@ def _parser() -> argparse.ArgumentParser:
     s.add_argument("--tytul", required=True)
     s.add_argument("--strona", required=True, help="strona przeciwna")
     s.add_argument("--wlasciciel")
+    s.add_argument("--w-imieniu", help="osoba, w której imieniu działasz (strona sprawy)")
+    s.add_argument("--zadania-startowe", action="store_true", help="dodaj sześć kroków startowych")
 
     s = sub.add_parser("watek", help="dodaj wątek korespondencji")
     s.add_argument("sprawa", type=Path)
@@ -343,7 +346,8 @@ def _wykonaj(a: argparse.Namespace, dzis: dt.date) -> int:
     if a.komenda == "nowa":
         wlasciciel = a.wlasciciel if a.wlasciciel is not None else _uzytkownik()
         a.sprawa.mkdir(parents=True, exist_ok=True)
-        s = nowa_sprawa(a.sprawa, a.tytul, a.strona, wlasciciel)
+        s = nowa_sprawa(a.sprawa, a.tytul, a.strona, wlasciciel, w_imieniu=a.w_imieniu,
+                        zadania_startowe=dzis if a.zadania_startowe else None)
         print(f"założono {a.sprawa / 'sprawa.json'} (id {s.id})")
     elif a.komenda == "watek":
         dodaj_watek(a.sprawa, a.id, a.adresat)

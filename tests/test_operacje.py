@@ -386,3 +386,22 @@ def test_cofnij_tylko_ostatnie(katalog):
         cofnij_zdarzenie(katalog, "z1", Kalendarz())
     cofnij_zdarzenie(katalog, "z2", Kalendarz())
     assert [z.id for z in wczytaj(katalog).zdarzenia] == ["z1"]
+
+
+def test_nowa_sprawa_w_czyims_imieniu_zapisuje_strone_sprawy(tmp_path):
+    # Act
+    nowa_sprawa(tmp_path, "Reklamacja", "X sp. z o.o.", "opiekun1", w_imieniu="Osoba Testowa")
+    # Assert
+    s = wczytaj(tmp_path)
+    assert [(u.osoba, u.rola) for u in s.uczestnicy] == [("opiekun1", "opiekun"), ("Osoba Testowa", "klientka")]
+
+
+def test_nowa_sprawa_z_zadaniami_startowymi(tmp_path):
+    # Act
+    nowa_sprawa(tmp_path, "Reklamacja", "X sp. z o.o.", "opiekun1", zadania_startowe=DZIS)
+    # Assert
+    s = wczytaj(tmp_path)
+    assert [a.opis for a in s.zadania] == list(operacje.ZADANIA_STARTOWE)
+    assert {a.regula for a in s.zadania[:-1]} == {operacje.REGULA_START}
+    assert s.zadania[-1].regula == operacje.REGULA_START_NADANIE
+    assert all(a.aktywne_od == DZIS and a.zdarzenie_id is None for a in s.zadania)

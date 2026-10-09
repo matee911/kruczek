@@ -4,12 +4,13 @@ import datetime as dt
 import pytest
 
 from kruczek_core.dni_wolne import DzienJednorazowy, Kalendarz
-from kruczek_core.model import BladSprawy, Sprawa, Watek, Zdarzenie
+from kruczek_core.model import BladSprawy, Sprawa, Watek, Zadanie, Zdarzenie
 from kruczek_core.widok import stan_watku
 from kruczek_core.reguly import (
     REGULA_ANALIZA,
     REGULA_DORECZENIE,
     REGULA_ODPOWIEDZ,
+    REGULA_START_NADANIE,
     SpecTerminu,
     cofnij,
     przelicz,
@@ -574,3 +575,57 @@ def test_doreczenie_pisma_z_odpowiedzia_mowi_prawde_o_niedoreczonym_nadaniu():
     tekst = " ".join(komunikaty)
     assert "nie ma niedoręczonego nadania" not in tekst
     assert "z1" in tekst and "--dotyczy" in tekst
+
+
+def _sprawa_ze_startem():
+    s = sprawa_z_watkiem()
+    s.zadania.append(Zadanie("a1", "Nadać i zarchiwizować potwierdzenie nadania", D(2026, 10, 1),
+                             regula=REGULA_START_NADANIE))
+    return s
+
+
+def test_nadanie_zamyka_startowe_nadaj_pismo():
+    # Arrange
+    s = _sprawa_ze_startem()
+    # Act
+    komunikaty = dodaj(s, "z1", D(2026, 10, 8), "nadanie", SPEC)
+    # Assert
+    a1 = s.znajdz_zadanie("a1")
+    assert (a1.zrobione, a1.zamkniete_przez) == (D(2026, 10, 8), "z1")
+    assert any("a1" in k and "zamknięte" in k for k in komunikaty)
+
+
+def test_cofniecie_nadania_otwiera_startowe_nadaj_pismo():
+    # Arrange
+    s = _sprawa_ze_startem()
+    dodaj(s, "z1", D(2026, 10, 8), "nadanie", SPEC)
+    # Act
+    cofnij(s, s.znajdz_zdarzenie("z1"), Kalendarz())
+    # Assert
+    a1 = s.znajdz_zadanie("a1")
+    assert (a1.zrobione, a1.zamkniete_przez) == (None, None)
+
+
+def test_drugie_nadanie_nie_rusza_zamknietego_startowego():
+    # Arrange
+    s = _sprawa_ze_startem()
+    dodaj(s, "z1", D(2026, 10, 8), "nadanie", SPEC)
+    # Act
+    dodaj(s, "z2", D(2026, 10, 9), "nadanie", SPEC)
+    # Assert
+    assert s.znajdz_zadanie("a1").zamkniete_przez == "z1"
+
+
+@pytest.mark.parametrize("adresat", ["Sklep internetowy", "Spółdzielnia", "Urząd Gminy"])
+def test_teksty_zadan_nie_odmieniaja_adresata(adresat):
+    # Arrange
+    s = Sprawa(id="s1", tytul="T", wlasciciel="w", strona_przeciwna="X", watki=[Watek("firma", adresat)])
+    # Act
+    dodaj(s, "z1", D(2026, 10, 1), "nadanie", SPEC)
+    dodaj(s, "z2", D(2026, 10, 5), "odpowiedz")
+    # Assert
+    opisy = {a.regula: a.opis for a in s.zadania}
+    assert opisy[REGULA_DORECZENIE] == f"{adresat}: sprawdź datę doręczenia w śledzeniu przesyłki"
+    assert opisy[REGULA_ODPOWIEDZ] == f"{adresat}: sprawdź, czy przyszła odpowiedź"
+    assert opisy[REGULA_ANALIZA] == f"{adresat}: przeanalizuj odpowiedź"
+    assert all(" od " not in o and "EPO" not in o for o in opisy.values())

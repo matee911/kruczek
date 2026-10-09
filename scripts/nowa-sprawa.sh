@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # nowa-sprawa.sh — zakłada katalog sprawy z index.md.
-#   nowa-sprawa.sh "<Nazwa podmiotu>" "<przedmiot sprawy>" [KATALOG-PROJEKTU]
+#   nowa-sprawa.sh "<Nazwa podmiotu>" "<przedmiot sprawy>" [KATALOG-PROJEKTU] ["<w imieniu: osoba>"]
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # teczka.py startuje przez uv (Python ≥ 3.11); PYTHON nadpisuje interpreter w testach.
 TECZKA=("$SCRIPT_DIR/teczka.py")
 [ -n "${PYTHON:-}" ] && TECZKA=("$PYTHON" "$SCRIPT_DIR/teczka.py")
-NAZWA="${1:?podaj nazwę podmiotu}"; PRZEDMIOT="${2:?podaj przedmiot sprawy}"; ROOT="${3:-.}"
+NAZWA="${1:?podaj nazwę podmiotu}"; PRZEDMIOT="${2:?podaj przedmiot sprawy}"; ROOT="${3:-.}"; W_IMIENIU="${4:-}"
 SLUG=$(printf %s "$NAZWA" | iconv -f UTF-8 -t ASCII//TRANSLIT 2>/dev/null || printf %s "$NAZWA")
 # sed -E (ERE): BSD sed na macOS nie rozumie \+ w podstawowym wyrażeniu regularnym —
 # bez -E slug zostawał niezmieniony i katalog sprawy dostawał nazwę ze spacjami i kropkami.
@@ -22,7 +22,9 @@ if [ -f "$DIR/index.md" ]; then
 fi
 mkdir -p "$DIR"
 # Najpierw sprawa.json: gdy Python zawiedzie, nie zostaje index.md w starym formacie.
-"${TECZKA[@]}" nowa "$DIR" --tytul "$PRZEDMIOT" --strona "$NAZWA" >/dev/null
+NOWA=(nowa "$DIR" --tytul "$PRZEDMIOT" --strona "$NAZWA" --zadania-startowe)
+[ -n "$W_IMIENIU" ] && NOWA+=(--w-imieniu "$W_IMIENIU")
+"${TECZKA[@]}" "${NOWA[@]}" >/dev/null
 mkdir -p "$DIR"/{ARCHIWUM,ROBOCZE}
 cat > "$DIR/index.md" <<EOF
 # SPRAWA: $NAZWA
@@ -78,15 +80,6 @@ Opisy plików prowadź w tej sekcji nad manifestem.
 _(kolejne kroki po bezskutecznym upływie terminu — od najtańszego do najdroższego)_
 EOF
 "${TECZKA[@]}" zdarzenie "$DIR" --typ inne --opis "Założenie sprawy" >/dev/null
-for ZADANIE in \
-  "Ustalić pełne dane rejestrowe drugiej strony" \
-  "Zebrać i zarchiwizować dowody (+ wersje tekstowe dla plików nietekstowych)" \
-  "Sprawdzić BAZĘ WIEDZY, uzupełnić brakujące przepisy" \
-  "Przygotować pismo" \
-  "Cross-check cytatów przed wysyłką" \
-  "Nadać i zarchiwizować potwierdzenie nadania"; do
-  "${TECZKA[@]}" zadanie "$DIR" "$ZADANIE" >/dev/null
-done
 echo "Założono sprawę: $DIR"
 echo "Dopisz ją do rejestru w $ROOT/index.md:"
 echo "| | $NAZWA | $PRZEDMIOT | $DZIS |"

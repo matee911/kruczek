@@ -27,7 +27,8 @@ from kruczek_core.model import (
     czy_godzina,
     kolejne_id,
 )
-from kruczek_core.reguly import SpecTerminu, cofnij, przelicz, zastosuj, zmien_date
+from kruczek_core.reguly import (REGULA_START, REGULA_START_NADANIE, SpecTerminu, cofnij, przelicz, zastosuj,
+                                 zmien_date)
 from kruczek_core.repozytorium import PLIK_SPRAWY, zapisz_nowa, zmien
 from kruczek_core.terminy import koniec_terminu, parsuj_dlugosc
 
@@ -68,21 +69,45 @@ def _sprawdz_termin(termin: SpecTerminu, data: dt.date, kalendarz: Kalendarz) ->
     return dataclasses.replace(termin, dlugosc=dlugosc, podstawa=podstawa)
 
 
-def utworz_sprawe(tytul: str, strona_przeciwna: str, wlasciciel: str) -> Sprawa:
-    """Nowa sprawa w pamięci (bez zapisu): walidacja, stałe id, właściciel jako opiekun."""
+ZADANIA_STARTOWE = (
+    "Ustalić pełne dane rejestrowe drugiej strony",
+    "Zebrać i zarchiwizować dowody (+ wersje tekstowe dla plików nietekstowych)",
+    "Sprawdzić BAZĘ WIEDZY, uzupełnić brakujące przepisy",
+    "Przygotować pismo",
+    "Cross-check cytatów przed wysyłką",
+    "Nadać i zarchiwizować potwierdzenie nadania",
+)
+
+
+def utworz_sprawe(tytul: str, strona_przeciwna: str, wlasciciel: str, w_imieniu: str | None = None) -> Sprawa:
+    """Nowa sprawa w pamięci (bez zapisu): walidacja, stałe id, właściciel jako opiekun, a osoba,
+    w której imieniu działa — jako klientka (strona sprawy)."""
     tytul = _niepusty("tytuł", tytul)
     strona_przeciwna = _niepusty("strona przeciwna", strona_przeciwna)
     wlasciciel = _niepusty("właściciel", wlasciciel)
+    uczestnicy = [Uczestnik(wlasciciel, "opiekun")]
+    if w_imieniu is not None:
+        uczestnicy.append(Uczestnik(_niepusty("osoba, w której imieniu działasz", w_imieniu), "klientka"))
     return Sprawa(id=uuid.uuid4().hex, tytul=tytul, wlasciciel=wlasciciel, strona_przeciwna=strona_przeciwna,
-                  uczestnicy=[Uczestnik(wlasciciel, "opiekun")])
+                  uczestnicy=uczestnicy)
 
 
-def nowa_sprawa(katalog: Path, tytul: str, strona_przeciwna: str, wlasciciel: str) -> Sprawa:
+def _dopisz_zadania_startowe(s: Sprawa, od: dt.date) -> None:
+    for opis in ZADANIA_STARTOWE:
+        regula = REGULA_START_NADANIE if opis == ZADANIA_STARTOWE[-1] else REGULA_START
+        s.zadania.append(Zadanie(kolejne_id("a", s.zadania), opis, od, regula=regula))
+
+
+def nowa_sprawa(katalog: Path, tytul: str, strona_przeciwna: str, wlasciciel: str, *,
+                w_imieniu: str | None = None, zadania_startowe: dt.date | None = None) -> Sprawa:
     """Odmawia w folderze starej teczki (index.md bez sprawa.json): nowa sprawa.json przykryłaby
-    jej chronologię i terminy — taką teczkę przenosi migracja."""
+    jej chronologię i terminy — taką teczkę przenosi migracja. `zadania_startowe` = data, od której
+    są aktywne sześć kroków startowych (None = bez nich)."""
     if (katalog / "index.md").is_file() and not (katalog / PLIK_SPRAWY).exists():
         raise BladSprawy(f"{katalog}: jest index.md bez {PLIK_SPRAWY} — stary format — przenieś: /kruczek:migruj")
-    sprawa = utworz_sprawe(tytul, strona_przeciwna, wlasciciel)
+    sprawa = utworz_sprawe(tytul, strona_przeciwna, wlasciciel, w_imieniu)
+    if zadania_startowe is not None:
+        _dopisz_zadania_startowe(sprawa, zadania_startowe)
     zapisz_nowa(katalog, sprawa)
     return sprawa
 
