@@ -314,3 +314,14 @@ def test_zdarzenie_z_godzina_i_pewnoscia(projekt, capsys):
     dane = json.loads((projekt / "spamer" / "sprawa.json").read_text(encoding="utf-8"))
     assert kod == 0 and (dane["zdarzenia"][0]["godzina"], dane["zdarzenia"][0]["pewnosc"]) == ("14:32", "wlasne_oswiadczenie")
     assert zly == 1 and "GG:MM" in err
+
+
+def test_popraw_zdarzenie_cli(projekt, capsys):
+    # Arrange
+    sprawa = str(projekt / "spamer")
+    uruchom(capsys, "zdarzenie", sprawa, "--typ", "nadanie", "--data", "2026-10-08", "--watek", "firma",
+            "--termin", "14d", "--podstawa", "x")
+    # Act
+    kod, out, _ = uruchom(capsys, "popraw-zdarzenie", sprawa, "z1", "--data", "2026-10-09")
+    # Assert
+    assert kod == 0 and "t1: 2026-10-22 → 2026-10-23" in out

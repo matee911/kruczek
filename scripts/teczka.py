@@ -9,6 +9,7 @@ Podkomendy:
             [--godzina GG:MM] [--pewnosc dowod|poszlaka|wlasne_oswiadczenie]  dopisz zdarzenie (reguły tworzą zadania);
                                                        --termin przy nadaniu = termin adresata,
                                                        przy odpowiedz/wplyw = Twój termin
+  popraw-zdarzenie <sprawa> <id> [--data D] [--opis O] [--godzina G] [--pewnosc P] [--dowod P ...]
   zadanie <sprawa> <opis> [--aktywne-od D|+Nd] [--termin D|+Nd] [--watek W]
   zrobione <sprawa> <id-zadania>
   zamknij <sprawa> --wynik {wygrana,ugoda,porzucona}   zamknij sprawę (znika z przeglądu)
@@ -40,6 +41,7 @@ from kruczek_core.operacje import (
     nowa_sprawa,
     otworz_sprawe,
     oznacz_zrobione,
+    popraw_zdarzenie,
     przelicz_sprawe,
     zamknij_sprawe,
 )
@@ -107,6 +109,15 @@ def _parser() -> argparse.ArgumentParser:
                                      "tylko, gdy w wątku czeka naraz kilka pism")
     s.add_argument("--godzina", help="GG:MM, jeśli znana (maile, telefony)")
     s.add_argument("--pewnosc", choices=PEWNOSCI, help="dowod / poszlaka / wlasne_oswiadczenie (fakt bez pliku)")
+
+    s = sub.add_parser("popraw-zdarzenie", help="popraw błędnie wpisane zdarzenie (data, opis, godzina, pewność, dowody)")
+    s.add_argument("sprawa", type=Path)
+    s.add_argument("id")
+    s.add_argument("--data")
+    s.add_argument("--opis")
+    s.add_argument("--godzina", help='GG:MM; "" czyści')
+    s.add_argument("--pewnosc", help='dowod / poszlaka / wlasne_oswiadczenie; "" czyści')
+    s.add_argument("--dowod", action="append", help="zastępuje listę dowodów")
 
     s = sub.add_parser("zadanie", help="dodaj zadanie")
     s.add_argument("sprawa", type=Path)
@@ -205,6 +216,11 @@ def _wykonaj(a: argparse.Namespace, dzis: dt.date) -> int:
         for k in dodaj_zdarzenie(a.sprawa, a.typ, data, wczytaj_kalendarz(_projekt(a.sprawa)), dzis,
                                  watek=a.watek, opis=a.opis, dowody=a.dowod, termin=spec,
                                  dotyczy=a.dotyczy, godzina=a.godzina, pewnosc=a.pewnosc):
+            print(k)
+    elif a.komenda == "popraw-zdarzenie":
+        data = parsuj_date(a.data, dzis) if a.data else None
+        for k in popraw_zdarzenie(a.sprawa, a.id, wczytaj_kalendarz(_projekt(a.sprawa)), dzis, data=data,
+                                  opis=a.opis, godzina=a.godzina, pewnosc=a.pewnosc, dowody=a.dowod):
             print(k)
     elif a.komenda == "zadanie":
         termin = parsuj_date(a.termin, dzis) if a.termin else None
