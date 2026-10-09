@@ -20,10 +20,11 @@ a jeśli z rozmowy wynika konkretna potrzeba — wskaż jedną, właściwą pozy
 | `/kruczek:komendy` | ten spis | haiku |
 | `/kruczek:nowy-projekt` | zakłada repozytorium spraw: BAZA_WIEDZY, KONWENCJE.md, rejestr | sonnet |
 | `/kruczek:dane-nadawcy` | wypełnia/aktualizuje _SZABLONY/dane-nadawcy.md | sonnet |
-| `/kruczek:nowa-sprawa` | zakłada teczkę sprawy z chronologią, manifestem i TODO | sonnet |
+| `/kruczek:nowa-sprawa` | zakłada teczkę sprawy: `sprawa.json`, chronologia, manifest, zadania startowe | sonnet |
 | `/kruczek:dowod` | wciąga dowód do archiwum: suma kontrolna, OCR/transkrypcja, wpis w chronologii | haiku |
-| `/kruczek:chronologia` | dopisuje zdarzenie do chronologii sprawy | haiku |
-| `/kruczek:status` | przegląd spraw: terminy, zaległości, następne kroki | haiku |
+| `/kruczek:chronologia` | dopisuje zdarzenie do sprawy przez teczka.py | haiku |
+| `/kruczek:status` | przegląd spraw liczony kodem: teraz, czekam, wkrótce, bez ruchu | haiku |
+| `/kruczek:migruj` | stara teczka → sprawa.json: podgląd, kopia, zapis po akceptacji | sonnet |
 | `/kruczek:baza-wiedzy` | dopisuje zweryfikowany przepis lub orzeczenie do bazy wiedzy | sonnet |
 | `/kruczek:pismo` | buduje pismo: argumentacja, cytaty, PDF z załącznikami, dowody.zip | opus |
 | `/kruczek:kontrola` | mechaniczna kontrola pisma: numeracja, nazwy załączników, sumy, wymogi druku | haiku |
@@ -56,7 +57,7 @@ a jeśli z rozmowy wynika konkretna potrzeba — wskaż jedną, właściwą pozy
 |---|---|---|---|
 | `analizuj-eml` | wykrywa techniki obchodzenia filtrów w `.eml` | haiku | robotę robi skrypt, agent tylko czyta wynik i opisuje |
 | `archiwizuj` | sumy kontrolne, manifest, porządek w archiwum | haiku | czysto mechaniczne, deterministyczne |
-| `dopisz-chronologie` | dopisuje zdarzenia do chronologii | haiku | jedna tabela, ustalony format |
+| `dopisz-chronologie` | dopisuje zdarzenia do chronologii | haiku | zdarzenia wpisuje teczka.py, agent dobiera typ i wątek |
 | `ustal-strone` | NIP, KRS, RDAP, DNS, przekierowania domen | haiku | uruchamia skrypty i przepisuje pola JSON |
 | `sprawdz-zalaczniki` | spójność numeracji, nazw i sum kontrolnych w gotowym piśmie | haiku | porównywanie łańcuchów, zero uznaniowości |
 | `transkrybuj` | OCR i transkrypcja do `.md` | sonnet | odczyt obrazu i polskiej fleksji, haiku gubi znaki diakrytyczne |
@@ -87,6 +88,6 @@ a jeśli z rozmowy wynika konkretna potrzeba — wskaż jedną, właściwą pozy
 | `kontrola_pisma.py` | mechaniczna kontrola spójności gotowego pisma |
 | `archiwa.sh` | Wayback Machine CDX, Save Page Now, diff snapshotów |
 | `metadane.sh` | zbiorcza tabela metadanych PDF/DOCX/XLSX/obrazów z flagami rozbieżności |
-| `teczka.py` | dane sprawy w `sprawa.json`: zdarzenia, terminy, zadania; `co-robic` dla wszystkich spraw |
+| `teczka.py` | dane sprawy w `sprawa.json`: zdarzenia, terminy, zadania; `co-robic` dla wszystkich spraw; `migruj`, `popraw-zdarzenie`, `cofnij-zdarzenie`, `zamknij` |
 
 Wszystkie skrypty wypisują pomoc po uruchomieniu bez argumentów.

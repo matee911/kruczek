@@ -1,71 +1,56 @@
 ---
 name: konwencje-teczki
-description: Zasady prowadzenia teczki sprawy — niezmienne archiwum, nazewnictwo plików, sumy kontrolne, chronologia, oddzielanie faktów od hipotez, katalogi do wysyłki. Obowiązują przy każdej pracy na plikach sprawy.
+description: Zasady prowadzenia teczki sprawy (wskazują KONWENCJE.md) i protokół zapisu zdarzeń, terminów i zadań przez teczka.py. Obowiązują przy każdej pracy na plikach sprawy.
 when_to_use: Praca na plikach w katalogu sprawy, dodawanie dowodów, edycja index.md, przygotowanie wysyłki, pytania o strukturę teczki.
 user-invocable: false
 ---
 
 # Konwencje teczki sprawy
 
-## Archiwum jest niezmienne
+Zasady teczki (archiwum, nazwy, sumy, wersje tekstowe, chronologia, wysyłka, hipotezy): przeczytaj
+`${CLAUDE_PLUGIN_ROOT}/templates/KONWENCJE.md`. W projekcie te same zasady są w `KONWENCJE.md`.
 
-`ARCHIWUM/` jest **append-only**. Oryginał dowodu nigdy nie jest edytowany, przycinany,
-kompresowany ani konwertowany „w miejscu". Każda obróbka tworzy **nowy** plik obok oryginału.
+## Zapis do teczki — teczka.py
 
-Jeżeli ktoś prosi o poprawienie pliku w archiwum — wyjaśnij, dlaczego tego nie robisz, i utwórz
-wersję poprawioną jako nowy plik z sufiksem.
+Zdarzenia, terminy i zadania sprawy są w `sprawa.json`. Zapisuje je **wyłącznie**
+`${CLAUDE_PLUGIN_ROOT}/scripts/teczka.py`; po każdym zapisie sam odświeża tabele „Chronologia”,
+„Terminy” i „Zadania” w `index.md`. Nie edytuj `sprawa.json` ani bloków `<!-- kruczek:… -->`.
+Wolny tekst `index.md` (ustalenia, hipotezy, podstawa prawna, eskalacja) edytujesz jak dotąd.
 
-## Nazewnictwo
+**Stara sprawa** (jest `index.md`, nie ma `sprawa.json`): zatrzymaj się. Nie dopisuj do starej tabeli —
+powiedz jednym zdaniem, że ta sprawa jest w starym formacie, i zaproponuj `/kruczek:migruj <sprawa>`.
 
-`RRRR-MM-DD_<rodzaj>_<krotki-opis>.<ext>`
+**Typ zdarzenia = kierunek:**
 
-Data to **data powstania dowodu** (nadania, wysłania, wykonania zdjęcia), nie data dodania do teczki.
-Bez polskich znaków i spacji w nazwach — myślniki i podkreślenia. Rodzaje: `email`, `list`, `umowa`,
-`faktura`, `zdjecie`, `skan`, `nagranie`, `zrzut`, `wydruk`, `zgloszenie`, `potwierdzenie`.
+| Typ | Kiedy |
+|---|---|
+| `nadanie` | Ty wysyłasz pismo (z `--termin` i `--podstawa`, jeśli pismo albo przepis wyznacza termin adresatowi) |
+| `doreczenie` | Twoje pismo doszło do adresata (EPO, Envelo, potwierdzenie odbioru) |
+| `odpowiedz` | adresat odpisał Tobie |
+| `wplyw` | przyszło do Ciebie inne pismo, np. decyzja — z `--termin`, jeśli wyznacza **Tobie** termin (data = dzień doręczenia do Ciebie, także po awizo) |
+| `fakt`, `telefon`, `inne` | notatka; przy fakcie bez pliku `--pewnosc` |
 
-Katalog wysyłki: `<RRRR_MM_DD>-<CO>-<DO_KOGO>-DO_WYSYLKI/` (data przygotowania), w środku
-`ROBOCZE/`, plik `.PDF` z pismem i `dowody.zip`.
+**Wątek** to korespondencja z jednym adresatem w tej sprawie, tam i z powrotem (pismo → odpowiedź →
+kontra → …). Nie zakładaj nowego wątku na każde pismo. Nowy wątek tylko dla nowego adresata
+(np. UODO obok firmy): `teczka.py watek <sprawa> <id> --adresat "<nazwa>"`.
 
-## Sumy kontrolne
+**Termin:** tylko gdy wyznacza go pismo albo przepis — długość (`14d`, `2t`, `1m`, `1r`) i podstawa
+(„art. 7a ust. 1 u.p.k.”, „wyznaczony w piśmie”). Nie znasz podstawy — zapytaj, nie zgaduj.
 
-Po każdej zmianie w `ARCHIWUM/`:
-```
-manifest.py sumy  <sprawa>
-manifest.py wstaw <sprawa>/index.md <sprawa>
-```
-`sumy` tylko dopisuje nowe pliki. Wpisu, którego suma się zmieniła, nie nadpisuje — zgłasza
-niezgodność (exit 1), żeby ślad podmiany dowodu nie zniknął.
-Manifest w `index.md` jest generowany między znacznikami `<!-- KRUCZEK:MANIFEST:START/END -->`
-— nie edytuj go ręcznie. Opisy plików prowadź w osobnej tabeli **nad** manifestem.
+**Gdy teczka.py pyta o `--dotyczy`** (czeka naraz kilka Twoich pism w wątku): pokaż użytkownikowi
+pisma z komunikatu jednym AskUserQuestion i powtórz polecenie z `--dotyczy <id>`.
+**Gdy po odpowiedzi wypisze „nadal otwarte …”**: zapytaj, czy ta odpowiedź dotyczy też tamtego pisma;
+jeśli tak — `teczka.py zrobione <sprawa> <id>` dla wskazanych zadań, po jednym.
 
-Suma SHA-256 oryginału trafia też do treści pisma — zabezpiecza przed zarzutem podmiany dowodu.
+**Pomyłka:** `teczka.py popraw-zdarzenie <sprawa> <id> --data/--opis/--godzina/--pewnosc/--dowod`;
+zły typ albo wątek ostatniego wpisu → `teczka.py cofnij-zdarzenie <sprawa> <id>` i wpis od nowa.
 
-## Dowody nietekstowe mają wersję tekstową
+**Kod wyjścia 1 przy zapisie do jednej sprawy** (`zdarzenie`, `zadanie`, `watek`, `zrobione`,
+`popraw-zdarzenie`, `cofnij-zdarzenie`, `migruj --zapisz`) = nic nie zapisano: pokaż komunikat
+użytkownikowi, nie ponawiaj w ciemno. Przy `dzien-wolny` i `co-robic` kod 1 znaczy, że część spraw
+zgłosiła błąd — czytaj sekcję BŁĘDY (reszta mogła się wykonać).
+Kod 0 z linią `uwaga:` (np. „zapisano, ale index.md nie odświeżony”) = zapis jest, tylko `index.md`
+się nie odświeżył: nie powtarzaj polecenia (zdublujesz zdarzenie), powiedz o tym użytkownikowi.
 
-Skan, zdjęcie, PDF-obraz, nagranie, zrzut ekranu — **od razu** przy dodaniu powstaje `.md` obok
-oryginału, z nagłówkiem informującym o metodzie odczytu i o tym, że wiążący jest oryginał.
-Fragmenty nieczytelne: `[nieczytelne]`, niepewne: `[?]`. Nigdy nie uzupełniaj domysłem.
-
-## Chronologia jest ciągła
-
-Tabela `| Data | Godz. | Zdarzenie | Dowód |` w sekcji 1 `index.md`. Każde zdarzenie: wpływ pisma,
-nadanie, doręczenie, telefon, upływ terminu. Daty względne zawsze zamieniaj na bezwzględne.
-Przyszłe terminy wpisuj jako wiersze w przyszłości. Bez wpisu zdarzenie nie istnieje.
-
-## Fakty ≠ hipotezy
-
-Ustalenie bez pełnego dowodu trafia do sekcji `⚠ HIPOTEZY — NIE cytować w pismach`, z wyraźnie
-wskazanym brakującym ogniwem. Zbieżność adresu, branży czy nazwiska to poszlaka, nie dowód.
-
-Najgorszy błąd w całym procesie to hipoteza napisana w piśmie w trybie oznajmującym — druga strona
-obala jedno niepotwierdzone twierdzenie i podważa wszystko pozostałe.
-
-## Dane osobowe
-
-`_SZABLONY/dane-nadawcy.md` i teczki spraw zawierają dane osobowe. Jeżeli repozytorium ma trafić
-do gita — przypomnij o `.gitignore`. Nie wysyłaj danych z teczki do usług zewnętrznych bez potrzeby.
-
-## Język
-
-Cała dokumentacja i wszystkie pisma po polsku. Nazwy plików i katalogów bez polskich znaków.
-W pismach: forma bezosobowa lub pierwsza osoba, bez emocji, bez sarkazmu, bez wykrzykników.
+Daty względne zawsze zamieniaj na bezwzględne (`date +%F`). Przyszłe rzeczy (snapshot za 2 tygodnie,
+termin zawity na skargę) to zadania: `teczka.py zadanie <sprawa> "<opis>" --aktywne-od <data> [--termin <data>]`.
