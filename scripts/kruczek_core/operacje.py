@@ -27,7 +27,7 @@ from kruczek_core.model import (
     czy_godzina,
     kolejne_id,
 )
-from kruczek_core.reguly import SpecTerminu, przelicz, zastosuj, zmien_date
+from kruczek_core.reguly import SpecTerminu, cofnij, przelicz, zastosuj, zmien_date
 from kruczek_core.repozytorium import zapisz_nowa, zmien
 from kruczek_core.terminy import koniec_terminu, parsuj_dlugosc
 
@@ -217,5 +217,16 @@ def popraw_zdarzenie(katalog: Path, zdarzenie_id: str, kalendarz: Kalendarz, dzi
         if dowody is not None:
             z.dowody = list(dowody)
         return komunikaty or [f"{z.id}: poprawiono"]
+
+    return zmien(katalog, zmiana)
+
+
+def cofnij_zdarzenie(katalog: Path, zdarzenie_id: str, kalendarz: Kalendarz) -> list[str]:
+    def zmiana(s: Sprawa) -> list[str]:
+        z = s.znajdz_zdarzenie(zdarzenie_id)
+        if z is not s.zdarzenia[-1]:
+            raise BladSprawy(f"cofnąć można tylko ostatnie wpisane zdarzenie ({s.zdarzenia[-1].id}); "
+                             f"starsze popraw przez popraw-zdarzenie")
+        return cofnij(s, z, kalendarz)
 
     return zmien(katalog, zmiana)

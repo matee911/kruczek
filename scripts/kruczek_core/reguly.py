@@ -262,3 +262,31 @@ def zmien_date(sprawa: Sprawa, z: Zdarzenie, nowa: dt.date, kalendarz: Kalendarz
         elif a.regula == REGULA_ANALIZA:
             a.aktywne_od = nowa
     return [f"{z.id}: data {stara.isoformat()} → {nowa.isoformat()}", *przelicz(sprawa, kalendarz)]
+
+
+def cofnij(sprawa: Sprawa, z: Zdarzenie, kalendarz: Kalendarz) -> list[str]:
+    """Odwraca skutki reguł zdarzenia `z` i usuwa je. Bezpieczne tylko dla ostatnio wpisanego
+    zdarzenia — późniejsze nie mogły się na nim oprzeć (pilnuje tego operacje.cofnij_zdarzenie)."""
+    komunikaty = []
+    for t in sprawa.terminy:
+        if t.od_zdarzenia == z.id and z.typ == "doreczenie" and z.dotyczy is not None:
+            nadanie = sprawa.znajdz_zdarzenie(z.dotyczy)
+            t.od_zdarzenia, t.szacunek = nadanie.id, True
+            t.data_konca = koniec_terminu(nadanie.data, t.dlugosc, kalendarz)
+            for a in sprawa.zadania:
+                if a.termin_id == t.id and a.regula == REGULA_ODPOWIEDZ and a.zrobione is None:
+                    a.aktywne_od = t.data_konca + _DZIEN
+            komunikaty.append(f"termin {t.id}: znów szacunek od nadania {nadanie.id}, do {t.data_konca.isoformat()}")
+    if z.typ != "doreczenie":
+        usuniete = [t.id for t in sprawa.terminy if t.od_zdarzenia == z.id]
+        sprawa.terminy = [t for t in sprawa.terminy if t.od_zdarzenia != z.id]
+        komunikaty += [f"usunięto termin {tid}" for tid in usuniete]
+    for a in sprawa.zadania:
+        if a.zamkniete_przez == z.id:
+            a.zrobione, a.zamkniete_przez = None, None
+            komunikaty.append(f"zadanie {a.id} znów otwarte: {a.opis}")
+    usuniete_zadania = [a.id for a in sprawa.zadania if a.zdarzenie_id == z.id]
+    sprawa.zadania = [a for a in sprawa.zadania if a.zdarzenie_id != z.id]
+    komunikaty += [f"usunięto zadanie {aid}" for aid in usuniete_zadania]
+    sprawa.zdarzenia.remove(z)
+    return [f"cofnięto {z.id} ({z.typ} {z.data.isoformat()})", *komunikaty]

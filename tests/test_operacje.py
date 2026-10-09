@@ -6,6 +6,7 @@ from kruczek_core.dni_wolne import Kalendarz
 from kruczek_core import operacje
 from kruczek_core.model import BladSprawy, Sprawa
 from kruczek_core.operacje import (
+    cofnij_zdarzenie,
     dodaj_watek,
     dodaj_zadanie,
     dodaj_zdarzenie,
@@ -374,3 +375,14 @@ def test_popraw_date_doreczenia_przed_nadaniem_odrzucona_rewizja_bez_zmian(katal
         popraw_zdarzenie(katalog, "z2", Kalendarz(), DZIS, data=D(2026, 10, 7))
     s = wczytaj(katalog)
     assert s.rewizja == rewizja and s.znajdz_zdarzenie("z2").data == D(2026, 10, 10)
+
+
+def test_cofnij_tylko_ostatnie(katalog):
+    # Arrange
+    dodaj_zdarzenie(katalog, "fakt", D(2026, 10, 8), Kalendarz(), DZIS)
+    dodaj_zdarzenie(katalog, "fakt", D(2026, 10, 9), Kalendarz(), DZIS)
+    # Act / Assert
+    with pytest.raises(BladSprawy, match="tylko ostatnie.*z2"):
+        cofnij_zdarzenie(katalog, "z1", Kalendarz())
+    cofnij_zdarzenie(katalog, "z2", Kalendarz())
+    assert [z.id for z in wczytaj(katalog).zdarzenia] == ["z1"]
