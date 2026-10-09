@@ -416,16 +416,53 @@ def test_duplikat_id_sprawy_w_dwoch_folderach_to_blad_z_obiema_nazwami(projekt, 
     assert "spamer 2: Spamer — tylko w kopii" in out
 
 
-def test_projekt_to_najbardziej_zewnetrzny_rejestr_spraw(tmp_path):
-    # Arrange
-    (tmp_path / "podprojekt" / "sprawa-a").mkdir(parents=True)
-    (tmp_path / "index.md").write_text("# Rejestr spraw\n", encoding="utf-8")
+@pytest.fixture
+def zagniezdzony(tmp_path, capsys):
+    (tmp_path / "podprojekt").mkdir()
     (tmp_path / "podprojekt" / "index.md").write_text("# Rejestr spraw\n", encoding="utf-8")
-    inna = tmp_path / "inna"
-    inna.mkdir()
-    # Act / Assert
-    assert teczka._projekt(tmp_path / "podprojekt" / "sprawa-a") == tmp_path.resolve()
-    assert teczka._projekt(inna) == tmp_path.resolve()
+    sprawa = tmp_path / "podprojekt" / "sprawa-a"
+    uruchom(capsys, "nowa", str(sprawa), "--tytul", "A", "--strona", "X")
+    uruchom(capsys, "watek", str(sprawa), "firma", "--adresat", "X")
+    uruchom(capsys, "zdarzenie", str(sprawa), "--typ", "nadanie", "--data", "2026-10-08", "--watek", "firma",
+            "--termin", "14d", "--podstawa", "art. 7 u.r.")
+    return tmp_path
+
+
+def _koniec_terminu(sprawa):
+    return json.loads((sprawa / "sprawa.json").read_text(encoding="utf-8"))["terminy"][0]["data_konca"]
+
+
+def test_dzien_wolny_w_podprojekcie_jest_trwaly_po_przelicz(zagniezdzony, capsys):
+    # Arrange
+    sprawa = zagniezdzony / "podprojekt" / "sprawa-a"
+    assert _koniec_terminu(sprawa) == "2026-10-22"
+    # Act
+    uruchom(capsys, "dzien-wolny", "2026-10-22", "--podstawa", "test", "--projekt", str(zagniezdzony / "podprojekt"))
+    po_dniu = _koniec_terminu(sprawa)
+    uruchom(capsys, "przelicz", str(sprawa))
+    # Assert
+    assert po_dniu == "2026-10-23" and _koniec_terminu(sprawa) == "2026-10-23"
+
+
+def test_dzien_wolny_w_projekcie_nadrzednym_przesuwa_termin_zagniezdzonej_sprawy(zagniezdzony, capsys):
+    # Arrange
+    sprawa = zagniezdzony / "podprojekt" / "sprawa-a"
+    # Act
+    uruchom(capsys, "dzien-wolny", "2026-10-22", "--podstawa", "test", "--projekt", str(zagniezdzony))
+    # Assert
+    assert _koniec_terminu(sprawa) == "2026-10-23"
+
+
+def test_ta_sama_data_w_dwóch_plikach_bez_duplikatu(zagniezdzony, capsys):
+    # Arrange
+    sprawa = zagniezdzony / "podprojekt" / "sprawa-a"
+    uruchom(capsys, "dzien-wolny", "2026-10-22", "--podstawa", "test", "--projekt", str(zagniezdzony))
+    # Act
+    kod, _, _ = uruchom(capsys, "dzien-wolny", "2026-10-22", "--podstawa", "test", "--projekt",
+                        str(zagniezdzony / "podprojekt"))
+    kod_przelicz, _, _ = uruchom(capsys, "przelicz", str(sprawa))
+    # Assert
+    assert kod == 0 and kod_przelicz == 0 and _koniec_terminu(sprawa) == "2026-10-23"
 
 
 def test_zapis_odswieza_index_md(projekt, capsys):

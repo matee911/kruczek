@@ -5,9 +5,11 @@ import pytest
 
 from kruczek_core.dni_wolne import (
     PIERWSZY_ROK,
+    PLIK_PROJEKTU,
     DzienJednorazowy,
     dni_ustawowo_wolne,
     wczytaj_jednorazowe,
+    kalendarz_sprawy,
     wczytaj_kalendarz,
     wielkanoc,
     zapisz_jednorazowy,
@@ -123,3 +125,30 @@ def test_uszkodzony_plik_dni_wolnych_to_blad_sprawy(tmp_path, tresc):
     # Act / Assert
     with pytest.raises(BladSprawy, match="uszkodzony plik dni wolnych"):
         wczytaj_jednorazowe(plik)
+
+
+def test_kalendarz_sprawy_laczy_pliki_ze_wszystkich_folderow_nadrzednych(tmp_path):
+    # Arrange
+    sprawa = tmp_path / "podprojekt" / "sprawa-a"
+    sprawa.mkdir(parents=True)
+    zapisz_jednorazowy(tmp_path / PLIK_PROJEKTU, DzienJednorazowy(dt.date(2026, 12, 1), "góra"))
+    zapisz_jednorazowy(tmp_path / PLIK_PROJEKTU, DzienJednorazowy(dt.date(2026, 12, 2), "góra", True))
+    zapisz_jednorazowy(tmp_path / "podprojekt" / PLIK_PROJEKTU, DzienJednorazowy(dt.date(2026, 12, 2), "blisko"))
+    zapisz_jednorazowy(tmp_path / "podprojekt" / PLIK_PROJEKTU, DzienJednorazowy(dt.date(2026, 12, 3), "blisko"))
+    # Act
+    kal = kalendarz_sprawy(sprawa)
+    # Assert
+    ich = {j.data: j for j in kal.jednorazowe if j.data.year == 2026 and j.data.month == 12}
+    assert sorted(ich) == [dt.date(2026, 12, 1), dt.date(2026, 12, 2), dt.date(2026, 12, 3)]
+    assert ich[dt.date(2026, 12, 2)].podstawa == "blisko" and not ich[dt.date(2026, 12, 2)].tylko_urzedy
+
+
+def test_kalendarz_sprawy_uszkodzony_plik_w_przodku_to_blad_ze_sciezka(tmp_path):
+    # Arrange
+    sprawa = tmp_path / "podprojekt" / "sprawa-a"
+    sprawa.mkdir(parents=True)
+    (tmp_path / PLIK_PROJEKTU).parent.mkdir()
+    (tmp_path / PLIK_PROJEKTU).write_text("{", encoding="utf-8")
+    # Act / Assert
+    with pytest.raises(BladSprawy, match="dni-wolne.json"):
+        kalendarz_sprawy(sprawa)
