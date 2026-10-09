@@ -2,14 +2,25 @@
 # nowa-sprawa.sh — zakłada katalog sprawy z index.md.
 #   nowa-sprawa.sh "<Nazwa podmiotu>" "<przedmiot sprawy>" [KATALOG-PROJEKTU]
 set -euo pipefail
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PY="${PYTHON:-python3}"
 NAZWA="${1:?podaj nazwę podmiotu}"; PRZEDMIOT="${2:?podaj przedmiot sprawy}"; ROOT="${3:-.}"
 SLUG=$(printf %s "$NAZWA" | iconv -f UTF-8 -t ASCII//TRANSLIT 2>/dev/null || printf %s "$NAZWA")
 # sed -E (ERE): BSD sed na macOS nie rozumie \+ w podstawowym wyrażeniu regularnym —
 # bez -E slug zostawał niezmieniony i katalog sprawy dostawał nazwę ze spacjami i kropkami.
 SLUG=$(printf %s "$SLUG" | tr 'A-Z' 'a-z' | sed -E 's/[^a-z0-9]+/-/g; s/^-//; s/-$//')
 DIR="$ROOT/$SLUG"; DZIS=$(date +%F)
+if [ -f "$DIR/index.md" ]; then
+  if [ -f "$DIR/sprawa.json" ]; then
+    echo "Sprawa już istnieje: $DIR/index.md"
+  else
+    echo "Sprawa w starym formacie: $DIR — przenieś: /kruczek:migruj"
+  fi
+  exit 0
+fi
 mkdir -p "$DIR"/{ARCHIWUM,ROBOCZE}
-[ -f "$DIR/index.md" ] && { echo "Sprawa już istnieje: $DIR/index.md"; exit 0; }
+# Najpierw sprawa.json: gdy Python zawiedzie, nie zostaje index.md w starym formacie.
+"$PY" "$SCRIPT_DIR/teczka.py" nowa "$DIR" --tytul "$PRZEDMIOT" --strona "$NAZWA" >/dev/null
 cat > "$DIR/index.md" <<EOF
 # SPRAWA: $NAZWA
 
@@ -19,15 +30,22 @@ cat > "$DIR/index.md" <<EOF
 | **Przedmiot** | $PRZEDMIOT |
 | **Występuję jako** | _(osoba fizyczna / przedsiębiorca / w imieniu: <kto> — tożsamości w \`_SZABLONY/dane-nadawcy.md\`)_ |
 | **Dane rejestrowe** | _(NIP / KRS / adres — uzupełnij: \`podmiot.sh pelny <NIP>\`)_ |
-| **Status** | nowa |
 | **Założono** | $DZIS |
-| **Najbliższy termin** | — |
 
 ## 1. Chronologia
 
-| Data | Godz. | Zdarzenie | Dowód |
-|---|---|---|---|
-| $DZIS | | Założenie sprawy | — |
+<!-- kruczek:chronologia -->
+<!-- /kruczek:chronologia -->
+
+## Terminy
+
+<!-- kruczek:terminy -->
+<!-- /kruczek:terminy -->
+
+## Zadania
+
+<!-- kruczek:zadania -->
+<!-- /kruczek:zadania -->
 
 ## 2. Ustalenia
 
@@ -52,23 +70,23 @@ Opisy plików prowadź w tej sekcji nad manifestem.
 <!-- KRUCZEK:MANIFEST:START -->
 <!-- KRUCZEK:MANIFEST:END -->
 
-## 5. TODO
-
-- [ ] Ustalić pełne dane rejestrowe drugiej strony
-- [ ] Zebrać i zarchiwizować dowody (+ wersje tekstowe dla plików nietekstowych)
-- [ ] Sprawdzić BAZĘ WIEDZY, uzupełnić brakujące przepisy
-- [ ] Przygotować pismo
-- [ ] Cross-check cytatów przed wysyłką
-- [ ] Nadać i zarchiwizować potwierdzenie nadania
-- [ ] Wpisać termin kontrolny do chronologii
-
 ## 6. Ścieżka eskalacji
 
 _(kolejne kroki po bezskutecznym upływie terminu — od najtańszego do najdroższego)_
 EOF
+"$PY" "$SCRIPT_DIR/teczka.py" zdarzenie "$DIR" --typ inne --opis "Założenie sprawy" >/dev/null
+for ZADANIE in \
+  "Ustalić pełne dane rejestrowe drugiej strony" \
+  "Zebrać i zarchiwizować dowody (+ wersje tekstowe dla plików nietekstowych)" \
+  "Sprawdzić BAZĘ WIEDZY, uzupełnić brakujące przepisy" \
+  "Przygotować pismo" \
+  "Cross-check cytatów przed wysyłką" \
+  "Nadać i zarchiwizować potwierdzenie nadania"; do
+  "$PY" "$SCRIPT_DIR/teczka.py" zadanie "$DIR" "$ZADANIE" >/dev/null
+done
 echo "Założono sprawę: $DIR"
 echo "Dopisz ją do rejestru w $ROOT/index.md:"
-echo "| | $NAZWA | $PRZEDMIOT | $DZIS | nowa | — |"
+echo "| | $NAZWA | $PRZEDMIOT | $DZIS |"
 echo ""
 echo "Dalszą pracę nad tą sprawą prowadź w OSOBNEJ sesji przypiętej do $DIR"
 echo "(nie w sesji obejmującej cały $ROOT) — zapobiega myleniu spraw, gdy pracujesz"
