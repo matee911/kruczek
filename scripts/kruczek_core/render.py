@@ -22,13 +22,19 @@ def _komorka(s: str) -> str:
     return _jednolinia(s).replace("|", "\\|")
 
 
+_PEWNOSC = {"dowod": "dowód", "poszlaka": "poszlaka", "wlasne_oswiadczenie": "własne oświadczenie — brak pliku"}
+
+
 def _chronologia(s: Sprawa) -> str:
-    wiersze = ["| Data | Zdarzenie | Wątek | Opis | Dowody |", "|---|---|---|---|---|"]
-    for z in sorted(s.zdarzenia, key=lambda z: z.data):
+    wiersze = ["| Data | Godz. | Zdarzenie | Wątek | Opis | Dowody |", "|---|---|---|---|---|---|"]
+    kolejnosc = {id(z): i for i, z in enumerate(s.zdarzenia)}
+    for z in sorted(s.zdarzenia, key=lambda z: (z.data, z.godzina or "", kolejnosc[id(z)])):
         watek = _komorka(z.watek or "—")
         opis = _komorka(z.opis)
-        dowody = _komorka(", ".join(z.dowody) or "—")
-        wiersze.append(f"| {z.data.isoformat()} | {z.typ} | {watek} | {opis} | {dowody} |")
+        dowody = ", ".join(z.dowody) or "—"
+        if z.pewnosc:
+            dowody = f"{dowody} ({_PEWNOSC[z.pewnosc]})"
+        wiersze.append(f"| {z.data.isoformat()} | {z.godzina or '—'} | {z.typ} | {watek} | {opis} | {_komorka(dowody)} |")
     return "\n".join(wiersze)
 
 

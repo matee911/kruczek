@@ -93,12 +93,17 @@ def _sprawdzenia_doreczenia(sprawa: Sprawa, watek: str | None) -> list[tuple[Zad
             if a.watek == watek and a.regula == REGULA_DORECZENIE and a.zdarzenie_id is not None]
 
 
+def _doreczenie_nadania(sprawa: Sprawa, nadanie_id: str) -> Zdarzenie | None:
+    return next((d for d in sprawa.zdarzenia if d.typ == "doreczenie" and d.dotyczy == nadanie_id), None)
+
+
 def _kandydaci_doreczenia(sprawa: Sprawa, watek: str | None) -> list[tuple[Zadanie, Zdarzenie]]:
     """Nadania, których doręczenia jeszcze nie wpisano. Sprawdzenie zamknięte odpowiedzią liczy
     się tylko wtedy, gdy w chwili tej odpowiedzi czekało też inne pismo — wtedy potwierdzenie EPO
     wpisane później może dotyczyć obu. Przy korespondencji tam i z powrotem (odpowiedź przyszła,
     zanim wysłałeś kolejne pismo) stare pismo jest już załatwione."""
-    wszystkie = _sprawdzenia_doreczenia(sprawa, watek)
+    wszystkie = [(a, n) for a, n in _sprawdzenia_doreczenia(sprawa, watek)
+                 if _doreczenie_nadania(sprawa, n.id) is None]
     otwarte = [(a, n) for a, n in wszystkie if a.zrobione is None]
     kandydaci = list(otwarte)
     for a, n in wszystkie:
@@ -118,8 +123,9 @@ def _po_doreczeniu(sprawa: Sprawa, z: Zdarzenie, kal: Kalendarz, wskazane: Zdarz
         if not pary:
             raise BladSprawy(f"nadanie {wskazane.id} nie czeka na doręczenie")
         zadanie, nadanie = pary[0]
-        if zadanie.zamkniete_przez and sprawa.znajdz_zdarzenie(zadanie.zamkniete_przez).typ == "doreczenie":
-            raise BladSprawy(f"nadanie {wskazane.id} ma już wpisane doręczenie {zadanie.zamkniete_przez}")
+        wpisane = _doreczenie_nadania(sprawa, wskazane.id)
+        if wpisane is not None:
+            raise BladSprawy(f"nadanie {wskazane.id} ma już wpisane doręczenie {wpisane.id}")
     else:
         kandydaci = _kandydaci_doreczenia(sprawa, z.watek)
         if not kandydaci:
@@ -133,9 +139,10 @@ def _po_doreczeniu(sprawa: Sprawa, z: Zdarzenie, kal: Kalendarz, wskazane: Zdarz
             raise BladSprawy(f"w wątku {z.watek} czeka kilka pism: {lista} — wskaż, którego dotyczy "
                              f"doręczenie: --dotyczy <id>")
         zadanie, nadanie = pasujace[0]
+    z.dotyczy = nadanie.id
     if zadanie.zrobione is None:
         zadanie.zrobione = z.data
-    zadanie.zamkniete_przez = z.id
+        zadanie.zamkniete_przez = z.id
     if zadanie.termin_id is None:
         return [f"doręczenie nadania {nadanie.id} zapisane"]
     termin = next(t for t in sprawa.terminy if t.id == zadanie.termin_id)
@@ -182,6 +189,7 @@ def _zamknij_oczekiwanie(sprawa: Sprawa, z: Zdarzenie, wskazane: Zdarzenie | Non
         pasujace = [wskazane]
     if pasujace:
         zamykane = pasujace[0]
+        z.dotyczy = zamykane.id
         for a in oczekujace.pop(zamykane.id):
             a.zrobione = z.data
             a.zamkniete_przez = z.id
