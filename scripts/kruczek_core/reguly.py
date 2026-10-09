@@ -97,14 +97,18 @@ def _doreczenie_nadania(sprawa: Sprawa, nadanie_id: str) -> Zdarzenie | None:
     return next((d for d in sprawa.zdarzenia if d.typ == "doreczenie" and d.dotyczy == nadanie_id), None)
 
 
+def _bez_doreczenia(sprawa: Sprawa, watek: str | None) -> list[tuple[Zadanie, Zdarzenie]]:
+    return [(a, n) for a, n in _sprawdzenia_doreczenia(sprawa, watek) if _doreczenie_nadania(sprawa, n.id) is None]
+
+
 def _kandydaci_doreczenia(sprawa: Sprawa, watek: str | None) -> list[tuple[Zadanie, Zdarzenie]]:
-    """Nadania, których doręczenia jeszcze nie wpisano. Sprawdzenie zamknięte odpowiedzią liczy
-    się tylko wtedy, gdy w chwili tej odpowiedzi czekało też inne pismo — wtedy potwierdzenie EPO
-    wpisane później może dotyczyć obu. Przy korespondencji tam i z powrotem (odpowiedź przyszła,
-    zanim wysłałeś kolejne pismo) stare pismo jest już załatwione."""
-    wszystkie = [(a, n) for a, n in _sprawdzenia_doreczenia(sprawa, watek)
-                 if _doreczenie_nadania(sprawa, n.id) is None]
-    otwarte = [(a, n) for a, n in wszystkie if a.zrobione is None]
+    """Nadania, których doręczenia jeszcze nie wpisano. Sprawdzenie zamknięte ręcznie („zrobione”
+    bez wpisania doręczenia) liczy się jak otwarte — termin dalej jest szacunkiem od nadania.
+    Sprawdzenie zamknięte odpowiedzią liczy się tylko wtedy, gdy w chwili tej odpowiedzi czekało
+    też inne pismo — wtedy potwierdzenie EPO wpisane później może dotyczyć obu. Przy korespondencji
+    tam i z powrotem (odpowiedź przyszła, zanim wysłałeś kolejne pismo) stare pismo jest już załatwione."""
+    wszystkie = _bez_doreczenia(sprawa, watek)
+    otwarte = [(a, n) for a, n in wszystkie if a.zrobione is None or a.zamkniete_przez is None]
     kandydaci = list(otwarte)
     for a, n in wszystkie:
         if a.zrobione is None or not _zamkniete_odpowiedzia(sprawa, a):
@@ -129,7 +133,7 @@ def _po_doreczeniu(sprawa: Sprawa, z: Zdarzenie, kal: Kalendarz, wskazane: Zdarz
     else:
         kandydaci = _kandydaci_doreczenia(sprawa, z.watek)
         if not kandydaci:
-            return ["w wątku nie ma niedoręczonego nadania — nie ma terminu do przeliczenia; doręczenie zapisane bez przeliczania"]
+            return [_bez_kandydata(sprawa, z.watek)]
         pasujace = [(a, n) for a, n in kandydaci if n.data <= z.data]
         if not pasujace:
             najwczesniejsze = min(n.data for _, n in kandydaci)
@@ -153,6 +157,19 @@ def _po_doreczeniu(sprawa: Sprawa, z: Zdarzenie, kal: Kalendarz, wskazane: Zdarz
         if a.termin_id == termin.id and a.regula == REGULA_ODPOWIEDZ and a.zrobione is None:
             a.aktywne_od = termin.data_konca + _DZIEN
     return [f"termin {termin.id}: do {termin.data_konca.isoformat()} (od doręczenia)"]
+
+
+def _bez_kandydata(sprawa: Sprawa, watek: str | None) -> str:
+    """Komunikat, gdy doręczenia nie da się przypisać bez wskazania. Pisma bez wpisanego
+    doręczenia, które mają już odpowiedź, wymienia z nazwy — doręczenie może dotyczyć któregoś z nich."""
+    zalatwione = [n for _, n in _bez_doreczenia(sprawa, watek)]
+    if not zalatwione:
+        return ("w wątku nie ma nadania czekającego na doręczenie — nie ma terminu do przeliczenia; "
+                "doręczenie zapisane bez przeliczania")
+    lista = "; ".join(_opis_nadania(n) for n in sorted(zalatwione, key=lambda n: _kolejnosc(sprawa, n)))
+    return (f"doręczenie zapisane bez przeliczania — pisma w wątku bez wpisanego doręczenia mają już "
+            f"odpowiedź: {lista}. Jeśli to doręczenie któregoś z nich, cofnij je (cofnij-zdarzenie) "
+            f"i wpisz ponownie z --dotyczy <id>")
 
 
 def _zamkniete_odpowiedzia(sprawa: Sprawa, a: Zadanie) -> bool:
