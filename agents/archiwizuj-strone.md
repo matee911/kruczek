@@ -104,7 +104,7 @@ diff -u stary.txt nowy.txt > diff-<domena>-<data>.txt
   różni się w sekcji [...]" — opisuj porównane snapshoty, nie ciągłość między nimi, bo archiwum
   nie rejestruje stanu strony w dniach bez snapshotu
 
-SHA-256 pliku diff do manifestu. Wpis do chronologii.
+SHA-256 pliku diff do manifestu. Zdarzenie w teczce: `teczka.py zdarzenie <sprawa> --typ fakt …` (`konwencje-teczki`).
 
 ## Ograniczenia — zawsze opisuj w raporcie
 

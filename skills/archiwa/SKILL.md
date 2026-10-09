@@ -4,7 +4,7 @@ description: Archiwizuje URL w Wayback Machine, pobiera historię snapshotów pr
 argument-hint: "[url] lub diff [url] — wymaga e-maila nadawcy z dane-nadawcy.md (User-Agent)"
 model: sonnet
 effort: medium
-allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/archiwa.sh *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/manifest.py *) Bash(python3 *) Bash(diff *) Bash(sha256sum *) Bash(mkdir *) Bash(curl *) Read Write Edit
+allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/archiwa.sh *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/manifest.py *) Bash(python3 *) Bash(diff *) Bash(sha256sum *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/teczka.py *) Bash(mkdir *) Bash(curl *) Read Write Edit
 ---
 
 # Archiwa internetowe
@@ -77,7 +77,11 @@ Sprawdź czy `archiwizuj-strone` dopisał do `index.md`:
 - SHA-256 lokalnej kopii
 - Liczbę unikalnych wersji z CDX
 
-Dopisz wpis do chronologii sprawy: „Zarchiwizowano URL: <url>, <N> wersji w Wayback, SHA-256: <hash>".
+Zapisz zdarzenie i przypomnienie o ponownym zrzucie:
+```
+${CLAUDE_PLUGIN_ROOT}/scripts/teczka.py zdarzenie <sprawa> --typ fakt --opis "Zarchiwizowano <url>: <N> wersji w Wayback, SHA-256 <hash>" --dowod ARCHIWUM/<plik>
+${CLAUDE_PLUGIN_ROOT}/scripts/teczka.py zadanie <sprawa> "Ponowny snapshot <url>" --aktywne-od +14d
+```
 
 ## Ograniczenia — pamiętaj przy pisaniu pisma
 
