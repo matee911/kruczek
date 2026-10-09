@@ -42,7 +42,8 @@ git clone https://github.com/matee911/kruczek && claude --plugin-dir ./kruczek
 | `unzip`, `qpdf`, `p7zip` | metadane plików Office, odszyfrowanie PDF/ZIP/7z chronionych hasłem | zalecane |
 | `ggrep` (macOS) / `grep` (Linux) | PCRE w `metadane.sh` (pliki Office) | zalecane |
 
-`scripts/check-deps.sh` sprawdza wszystko naraz i wypisuje gotową komendę instalacji brakujących
+Przy starcie sesji (Claude Code, Claude Desktop) kruczek sam sprawdza, czy są `uv`, `curl` i `jq`,
+i jeśli czegoś brakuje, podaje komendę instalacji. `scripts/check-deps.sh` sprawdza wszystko naraz i wypisuje gotową komendę instalacji brakujących
 pakietów dla Twojego systemu. Skrypty działają tak samo na macOS (BSD, systemowy bash 3.2)
 i na Linuksie — obie platformy są testowane w CI.
 

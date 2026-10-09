@@ -77,6 +77,9 @@ Każda sprawa: \`<PODMIOT>/index.md\` (ustalenia, chronologia generowana) i \`sp
    Zanim zaczniesz research — sprawdź BAZA_WIEDZY/.
 4. **ARCHIWUM/** — append-only. Nigdy nie edytuj istniejących plików. Każdy nowy plik dostaje sumę SHA-256.
 5. **Hipotezy** — w sekcji \`⚠ HIPOTEZY — NIE cytować w pismach\`, nigdy w treści pisma.
+6. **Brak uv** — gdy skrypt kruczka kończy się \`env: uv: No such file or directory\`, przerwij
+   i poproś o instalację uv (macOS: \`brew install uv\`, Linux: instalator z https://docs.astral.sh/uv/).
+   Nie uruchamiaj skryptów przez \`python3\` — wymagają Pythona ≥ 3.11, który dobiera uv.
 EOF
 
 echo "CLAUDE.md zaktualizowany: $OUT"
