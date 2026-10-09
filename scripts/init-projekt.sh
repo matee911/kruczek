@@ -62,6 +62,8 @@ TEMPLATES="$(dirname "$SCRIPT_DIR")/templates"
 
 # Pliki robocze teczki (blokada zapisu, pliki tymczasowe) nie trafiają do gita spraw.
 touch "$ROOT/.gitignore"
+# Plik bez końcowej nowej linii: dopisz ją, żeby nie skleić wzorca z ostatnią linią.
+[ ! -s "$ROOT/.gitignore" ] || [ -z "$(tail -c1 "$ROOT/.gitignore")" ] || echo >> "$ROOT/.gitignore"
 for wzor in '.sprawa.lock' '.*.tmp'; do
   grep -qxF "$wzor" "$ROOT/.gitignore" || printf '%s\n' "$wzor" >> "$ROOT/.gitignore"
 done

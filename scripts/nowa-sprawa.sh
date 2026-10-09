@@ -18,9 +18,10 @@ if [ -f "$DIR/index.md" ]; then
   fi
   exit 0
 fi
-mkdir -p "$DIR"/{ARCHIWUM,ROBOCZE}
+mkdir -p "$DIR"
 # Najpierw sprawa.json: gdy Python zawiedzie, nie zostaje index.md w starym formacie.
 "$PY" "$SCRIPT_DIR/teczka.py" nowa "$DIR" --tytul "$PRZEDMIOT" --strona "$NAZWA" >/dev/null
+mkdir -p "$DIR"/{ARCHIWUM,ROBOCZE}
 cat > "$DIR/index.md" <<EOF
 # SPRAWA: $NAZWA
 
