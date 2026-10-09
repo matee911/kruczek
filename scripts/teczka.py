@@ -35,7 +35,7 @@ from collections.abc import Callable
 from dataclasses import replace
 from pathlib import Path
 
-from kruczek_core.dni_wolne import PLIK_PROJEKTU, DzienJednorazowy, Kalendarz, wczytaj_kalendarz, zapisz_jednorazowy
+from kruczek_core.dni_wolne import PLIK_PROJEKTU, DzienJednorazowy, Kalendarz, kalendarz_sprawy, zapisz_jednorazowy
 from kruczek_core.model import PEWNOSCI, TYPY_ZDARZEN, WYNIKI_SPRAWY, BladSprawy
 from kruczek_core.operacje import (
     cofnij_zdarzenie,
@@ -51,7 +51,7 @@ from kruczek_core.operacje import (
 )
 from kruczek_core.reguly import SpecTerminu
 from kruczek_core.render import renderuj
-from kruczek_core.repozytorium import czy_folder_sprawy, czy_rejestr_spraw, lista_spraw, przetworz_tekst, wczytaj
+from kruczek_core.repozytorium import czy_folder_sprawy, lista_spraw, przetworz_tekst, wczytaj
 from kruczek_core.widok import DNI_BEZ_RUCHU, PozycjaZadania, Przeglad, co_robic
 
 _WZGLEDNA = re.compile(r"^\+(\d+)([dt])$")
@@ -162,17 +162,6 @@ def _parser() -> argparse.ArgumentParser:
     return p
 
 
-def _projekt(sprawa: Path) -> Path:
-    """Najbardziej zewnętrzny folder z index.md „# Rejestr spraw” nad sprawą (tam leży kalendarz
-    dni wolnych); bez takiego — folder nadrzędny."""
-    rodzic = sprawa.resolve().parent
-    zewnetrzny = None
-    for k in (rodzic, *rodzic.parents):
-        if czy_rejestr_spraw(k):
-            zewnetrzny = k
-    return zewnetrzny or rodzic
-
-
 def _uzytkownik() -> str:
     try:
         return getpass.getuser()
@@ -191,7 +180,7 @@ def _odswiez(katalog: Path, przed: Callable[[str], str] = lambda t: t) -> None:
     if not (katalog / "index.md").exists():
         return
     try:
-        kalendarz = wczytaj_kalendarz(_projekt(katalog))
+        kalendarz = kalendarz_sprawy(katalog)
         przetworz_tekst(katalog, "index.md", lambda tekst: renderuj(przed(tekst), wczytaj(katalog), kalendarz))
     except (BladSprawy, OSError) as e:
         print(f"uwaga: zapisano, ale index.md nie odświeżony: {e}", file=sys.stderr)
@@ -210,12 +199,12 @@ def _linia_zadania(p: PozycjaZadania, kal: Kalendarz, dzis: dt.date) -> str:
     return f"[{z.id}] {p.sprawa_id}: {p.sprawa}{watek} — {z.opis}{reszta}"
 
 
-def _wypisz(przeglad: Przeglad, stary_format: list[str], bez_indexu: list[str], kal: Kalendarz,
+def _wypisz(przeglad: Przeglad, stary_format: list[str], bez_indexu: list[str], kals: dict[str, Kalendarz],
             dzis: dt.date) -> None:
     """`sprawa_id` w przeglądzie to etykieta folderu (patrz `co-robic`), nie `Sprawa.id`."""
     print("TERAZ")
     for p in przeglad.teraz:
-        print(f"  {_linia_zadania(p, kal, dzis)}")
+        print(f"  {_linia_zadania(p, kals[p.sprawa_id], dzis)}")
     if not przeglad.teraz:
         print("  —")
     print("CZEKAM")
@@ -226,7 +215,7 @@ def _wypisz(przeglad: Przeglad, stary_format: list[str], bez_indexu: list[str], 
         print("  —")
     print("WKRÓTCE")
     for p in przeglad.wkrotce:
-        print(f"  od {p.zadanie.aktywne_od.isoformat()}  {_linia_zadania(p, kal, dzis)}")
+        print(f"  od {p.zadanie.aktywne_od.isoformat()}  {_linia_zadania(p, kals[p.sprawa_id], dzis)}")
     if not przeglad.wkrotce:
         print("  —")
     if przeglad.bez_ruchu:
@@ -279,17 +268,17 @@ def _wykonaj(a: argparse.Namespace, dzis: dt.date) -> int:
             raise BladSprawy("--termin i --podstawa podaje się razem")
         spec = SpecTerminu(a.termin, a.podstawa) if a.termin else None
         data = parsuj_date(a.data, dzis) if a.data else dzis
-        for k in dodaj_zdarzenie(a.sprawa, a.typ, data, wczytaj_kalendarz(_projekt(a.sprawa)), dzis,
+        for k in dodaj_zdarzenie(a.sprawa, a.typ, data, kalendarz_sprawy(a.sprawa), dzis,
                                  watek=a.watek, opis=a.opis, dowody=a.dowod, termin=spec,
                                  dotyczy=a.dotyczy, godzina=a.godzina, pewnosc=a.pewnosc):
             print(k)
     elif a.komenda == "popraw-zdarzenie":
         data = parsuj_date(a.data, dzis) if a.data else None
-        for k in popraw_zdarzenie(a.sprawa, a.id, wczytaj_kalendarz(_projekt(a.sprawa)), dzis, data=data,
+        for k in popraw_zdarzenie(a.sprawa, a.id, kalendarz_sprawy(a.sprawa), dzis, data=data,
                                   opis=a.opis, godzina=a.godzina, pewnosc=a.pewnosc, dowody=a.dowod):
             print(k)
     elif a.komenda == "cofnij-zdarzenie":
-        for k in cofnij_zdarzenie(a.sprawa, a.id, wczytaj_kalendarz(_projekt(a.sprawa))):
+        for k in cofnij_zdarzenie(a.sprawa, a.id, kalendarz_sprawy(a.sprawa)):
             print(k)
     elif a.komenda == "zadanie":
         termin = parsuj_date(a.termin, dzis) if a.termin else None
@@ -310,11 +299,12 @@ def _wykonaj(a: argparse.Namespace, dzis: dt.date) -> int:
         if not (lista.sprawy or lista.stary_format or lista.bez_indexu):
             print(f"brak spraw w {projekt}")
             return 0
-        sprawy, bledy, widziane = [], [], {}
+        sprawy, bledy, widziane, kals = [], [], {}, {}
         for k in lista.sprawy:
             etykieta = _etykieta(k, projekt)
             try:
                 s = wczytaj(k)
+                kals[etykieta] = kalendarz_sprawy(k)
             except BladSprawy as e:
                 bledy.append((etykieta, str(e)))
                 continue
@@ -324,12 +314,12 @@ def _wykonaj(a: argparse.Namespace, dzis: dt.date) -> int:
                 widziane[s.id] = etykieta
             sprawy.append(replace(s, id=etykieta))  # id = etykieta folderu, by kopie nie myliły linii
         _wypisz(co_robic(sprawy, dzis), [_etykieta(k, projekt) for k in lista.stary_format],
-                [_etykieta(k, projekt) for k in lista.bez_indexu], wczytaj_kalendarz(projekt), dzis)
+                [_etykieta(k, projekt) for k in lista.bez_indexu], kals, dzis)
         if bledy:
             return _wypisz_bledy(bledy)
     elif a.komenda == "renderuj":
         wczytaj(a.sprawa)  # BladSprawy bez brania blokady, gdy to nie folder sprawy
-        kalendarz = wczytaj_kalendarz(_projekt(a.sprawa))
+        kalendarz = kalendarz_sprawy(a.sprawa)
         index = przetworz_tekst(a.sprawa, "index.md", lambda tekst: renderuj(tekst, wczytaj(a.sprawa), kalendarz))
         print(f"odświeżono {index}")
     elif a.komenda == "dzien-wolny":
@@ -338,12 +328,11 @@ def _wykonaj(a: argparse.Namespace, dzis: dt.date) -> int:
         plik = projekt / PLIK_PROJEKTU
         zapisz_jednorazowy(plik, DzienJednorazowy(data, a.podstawa, a.tylko_urzedy))
         print(f"zapisano dzień wolny {data.isoformat()} w {plik}")
-        kalendarz = wczytaj_kalendarz(projekt)
         bledy = []
         for k in lista_spraw(projekt).sprawy:
             etykieta = _etykieta(k, projekt)
             try:
-                for zmiana in przelicz_sprawe(k, kalendarz):
+                for zmiana in przelicz_sprawe(k, kalendarz_sprawy(k)):
                     print(f"{etykieta}: {zmiana}")
                 _odswiez(k)
             except BladSprawy as e:
@@ -351,7 +340,7 @@ def _wykonaj(a: argparse.Namespace, dzis: dt.date) -> int:
         if bledy:
             return _wypisz_bledy(bledy)
     elif a.komenda == "przelicz":
-        for zmiana in przelicz_sprawe(a.sprawa, wczytaj_kalendarz(_projekt(a.sprawa))) or ["bez zmian"]:
+        for zmiana in przelicz_sprawe(a.sprawa, kalendarz_sprawy(a.sprawa)) or ["bez zmian"]:
             print(zmiana)
     if a.komenda in _ZAPISUJACE:
         _odswiez(a.sprawa)

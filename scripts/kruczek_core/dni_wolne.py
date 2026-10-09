@@ -146,3 +146,13 @@ def wczytaj_kalendarz(katalog_projektu: Path | None) -> Kalendarz:
     if katalog_projektu is not None:
         dni += wczytaj_jednorazowe(katalog_projektu / PLIK_PROJEKTU)
     return Kalendarz(tuple(dni))
+
+
+def kalendarz_sprawy(katalog_sprawy: Path) -> Kalendarz:
+    """Kalendarz sprawy: dni z pluginu plus .kruczek/dni-wolne.json z KAŻDEGO folderu nadrzędnego
+    sprawy (do korzenia). Ta sama data w kilku plikach: wygrywa plik bliższy sprawie."""
+    dni = {d.data: d for d in wczytaj_jednorazowe(JEDNORAZOWE_PLUGIN)}
+    rodzic = katalog_sprawy.resolve().parent
+    for k in reversed((rodzic, *rodzic.parents)):
+        dni.update({d.data: d for d in wczytaj_jednorazowe(k / PLIK_PROJEKTU)})
+    return Kalendarz(tuple(sorted(dni.values(), key=lambda d: d.data)))
