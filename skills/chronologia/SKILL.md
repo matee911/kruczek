@@ -23,13 +23,16 @@ według sekcji „Zapis do teczki — teczka.py” w `konwencje-teczki`.
 3. **Nadanie:** termin dla adresata weź z `Termin, który wyznaczasz` w najnowszym `*-DO_WYSYLKI/TLDR.md`
    tej sprawy (długość + „wyznaczony w piśmie”) albo z przepisu, na który pismo się powołuje. Brak — zapytaj.
 4. **Odpowiedź / wpływ:** zapytaj jednym zdaniem, czy pismo wyznacza Tobie termin (np. 14 dni na odwołanie).
+   `--termin` zawsze razem z `--podstawa` wziętą z pisma albo przepisu; nie wiesz — zapytaj użytkownika, nie zgaduj.
 5. Dowód: plik z `ARCHIWUM/` (`--dowod`); brak dowodu → zdarzenie i tak zapisz, a potem
    `teczka.py zadanie <sprawa> "Pozyskaj dowód: <opis>"`.
 
 ```
 ${CLAUDE_PLUGIN_ROOT}/scripts/teczka.py zdarzenie <sprawa> --typ <typ> --data <data> [--godzina GG:MM] \
-  [--watek <id>] --opis "<opis>" [--dowod ARCHIWUM/<plik>] [--termin 14d --podstawa "<podstawa>"]
+  [--watek <id>] [--dotyczy <id nadania>] --opis "<opis>" [--dowod ARCHIWUM/<plik>] [--termin 14d --podstawa "<podstawa>"]
 ```
+
+Gdy `teczka.py` odpowie, że czeka kilka pism — pokaż je użytkownikowi i powtórz polecenie z `--dotyczy <id nadania>`.
 
 Zamelduj jedną linią: co zapisano i jaki termin z tego wynika (z wyjścia `teczka.py`).
 
@@ -44,5 +47,6 @@ Zamelduj jedną linią: co zapisano i jaki termin z tego wynika (z wyjścia `tec
 ## Gdy proszą o przegląd, nie o dopisanie
 
 Przeczytaj bloki „Chronologia”, „Terminy” i „Zadania” w `index.md` (są aktualne po każdym zapisie).
+Brak bloków `<!-- kruczek:… -->` w `index.md` = stary format — zaproponuj `/kruczek:migruj`.
 Zaznacz osobno: terminy minione, najbliższe (≤ 7 dni), zdarzenia bez dowodu. Bez porady prawnej —
 od tego jest `/kruczek:eskalacja`.
