@@ -734,3 +734,15 @@ def test_zamkniecie_sprawy_bez_moich_terminow_bez_uwagi(projekt, capsys):
     kod, _, err = uruchom(capsys, "zamknij", str(projekt / "spamer"), "--wynik", "ugoda")
     # Assert
     assert kod == 0 and "uwaga" not in err
+
+
+def test_nowa_w_imieniu_i_z_zadaniami_startowymi(tmp_path, capsys):
+    # Act
+    kod, _, err = uruchom(capsys, "nowa", str(tmp_path / "s"), "--tytul", "T", "--strona", "X",
+                          "--wlasciciel", "op", "--w-imieniu", "Osoba Testowa", "--zadania-startowe")
+    # Assert
+    assert kod == 0, err
+    dane = json.loads((tmp_path / "s" / "sprawa.json").read_text(encoding="utf-8"))
+    assert {"osoba": "Osoba Testowa", "rola": "klientka"} in dane["uczestnicy"]
+    assert [a["regula"] for a in dane["zadania"]] == ["start"] * 5 + ["start-nadanie"]
+    assert {a["aktywne_od"] for a in dane["zadania"]} == {"2026-10-20"}
