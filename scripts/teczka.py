@@ -5,7 +5,8 @@ Podkomendy:
   nowa <sprawa> --tytul T --strona S [--wlasciciel W]   załóż sprawa.json
   watek <sprawa> <id> --adresat A                      dodaj wątek korespondencji
   zdarzenie <sprawa> --typ T [--data D] [--watek W] [--opis O] [--dowod P ...]
-            [--termin 14d --podstawa P] [--dotyczy zN]  dopisz zdarzenie (reguły tworzą zadania);
+            [--termin 14d --podstawa P] [--dotyczy zN]
+            [--godzina GG:MM] [--pewnosc dowod|poszlaka|wlasne_oswiadczenie]  dopisz zdarzenie (reguły tworzą zadania);
                                                        --termin przy nadaniu = termin adresata,
                                                        przy odpowiedz/wplyw = Twój termin
   zadanie <sprawa> <opis> [--aktywne-od D|+Nd] [--termin D|+Nd] [--watek W]
@@ -31,7 +32,7 @@ import sys
 from pathlib import Path
 
 from kruczek_core.dni_wolne import PLIK_PROJEKTU, DzienJednorazowy, wczytaj_kalendarz, zapisz_jednorazowy
-from kruczek_core.model import TYPY_ZDARZEN, WYNIKI_SPRAWY, BladSprawy
+from kruczek_core.model import PEWNOSCI, TYPY_ZDARZEN, WYNIKI_SPRAWY, BladSprawy
 from kruczek_core.operacje import (
     dodaj_watek,
     dodaj_zadanie,
@@ -104,6 +105,8 @@ def _parser() -> argparse.ArgumentParser:
     s.add_argument("--podstawa", help="podstawa terminu, np. „art. 7 ust. 1 u.r.”")
     s.add_argument("--dotyczy", help="id Twojego nadania, którego dotyczy doręczenie/odpowiedź — potrzebne "
                                      "tylko, gdy w wątku czeka naraz kilka pism")
+    s.add_argument("--godzina", help="GG:MM, jeśli znana (maile, telefony)")
+    s.add_argument("--pewnosc", choices=PEWNOSCI, help="dowod / poszlaka / wlasne_oswiadczenie (fakt bez pliku)")
 
     s = sub.add_parser("zadanie", help="dodaj zadanie")
     s.add_argument("sprawa", type=Path)
@@ -201,7 +204,7 @@ def _wykonaj(a: argparse.Namespace, dzis: dt.date) -> int:
         data = parsuj_date(a.data, dzis) if a.data else dzis
         for k in dodaj_zdarzenie(a.sprawa, a.typ, data, wczytaj_kalendarz(_projekt(a.sprawa)), dzis,
                                  watek=a.watek, opis=a.opis, dowody=a.dowod, termin=spec,
-                                 dotyczy=a.dotyczy):
+                                 dotyczy=a.dotyczy, godzina=a.godzina, pewnosc=a.pewnosc):
             print(k)
     elif a.komenda == "zadanie":
         termin = parsuj_date(a.termin, dzis) if a.termin else None

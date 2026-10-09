@@ -28,7 +28,7 @@ def test_dokleja_brakujace_bloki_i_zostawia_wolny_tekst():
     # Assert
     assert wynik.startswith(tekst)
     assert "<!-- kruczek:chronologia -->" in wynik
-    assert "| 2026-10-08 | nadanie | firma | wezwanie | ARCHIWUM/a.pdf |" in wynik
+    assert "| 2026-10-08 | — | nadanie | firma | wezwanie | ARCHIWUM/a.pdf |" in wynik
     assert "| t1 | adresata | firma | art. 7 u.r. | 14d | 2026-10-22 | szacunek |" in wynik
     assert "- [ ] a1 — sprawdź odpowiedź (aktywne od 2026-10-23)" in wynik
     assert "stare" not in wynik  # zrobione zadania nie są wypisywane
@@ -55,7 +55,7 @@ def test_opis_z_pionowa_kreska_i_nowa_linia_nie_psuje_tabeli():
     # Assert
     wiersz = next(l for l in wynik.splitlines() if l.startswith("| 2026-10-08 |"))
     assert "a \\| b c" in wiersz
-    assert wiersz.replace("\\|", "").count("|") == 6  # 5 kolumn
+    assert wiersz.replace("\\|", "").count("|") == 7  # 6 kolumn
 
 
 @pytest.mark.parametrize(
@@ -98,3 +98,17 @@ def test_opis_zadania_z_nowa_linia_renderuje_sie_w_jednym_wierszu():
     wynik = renderuj("# T\n", s, Kalendarz())
     # Assert
     assert "- [ ] a1 — linia1 linia2 (aktywne od 2026-10-23)" in wynik
+
+
+def test_godzina_i_pewnosc_w_chronologii():
+    # Arrange
+    s = Sprawa(id="s5", tytul="T", wlasciciel="w", strona_przeciwna="X", zdarzenia=[
+        Zdarzenie("z1", D(2026, 10, 8), "telefon", "dzwonili", None, [], godzina="14:32",
+                  pewnosc="wlasne_oswiadczenie"),
+        Zdarzenie("z2", D(2026, 10, 8), "fakt", "rano", None, [], godzina="09:05"),
+    ])
+    # Act
+    wynik = renderuj("# T\n", s, Kalendarz())
+    # Assert
+    assert "| 2026-10-08 | 14:32 | telefon | — | dzwonili | — (własne oświadczenie — brak pliku) |" in wynik
+    assert wynik.index("09:05") < wynik.index("14:32")

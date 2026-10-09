@@ -346,3 +346,38 @@ def test_wskazanie_nadania_walidowane(dotyczy, komunikat):
     # Act / Assert
     with pytest.raises(BladSprawy, match=komunikat):
         dodaj(s, "z3", D(2026, 10, 9), "doreczenie", dotyczy=dotyczy)
+
+
+def test_doreczenie_i_odpowiedz_zapamietuja_ktorego_nadania_dotycza():
+    # Arrange
+    s = sprawa_z_watkiem()
+    dodaj(s, "z1", D(2026, 10, 1), "nadanie", SPEC)
+    # Act
+    dodaj(s, "z2", D(2026, 10, 3), "doreczenie")
+    dodaj(s, "z3", D(2026, 10, 10), "odpowiedz")
+    # Assert
+    assert (s.znajdz_zdarzenie("z2").dotyczy, s.znajdz_zdarzenie("z3").dotyczy) == ("z1", "z1")
+
+
+def test_drugie_doreczenie_tego_samego_pisma_po_odpowiedzi_nie_pasuje():
+    # Arrange — z1 doręczone i z odpowiedzią; z4 wysłane po odpowiedzi
+    s = sprawa_z_watkiem()
+    dodaj(s, "z1", D(2026, 10, 1), "nadanie", SPEC)
+    dodaj(s, "z2", D(2026, 10, 3), "doreczenie")
+    dodaj(s, "z3", D(2026, 10, 10), "odpowiedz")
+    dodaj(s, "z4", D(2026, 10, 12), "nadanie", SPEC)
+    # Act
+    dodaj(s, "z5", D(2026, 10, 14), "doreczenie")
+    # Assert
+    assert s.znajdz_zdarzenie("z5").dotyczy == "z4"
+
+
+def test_wskazane_nadanie_z_doreczeniem_po_odpowiedzi_odrzucone():
+    # Arrange
+    s = sprawa_z_watkiem()
+    dodaj(s, "z1", D(2026, 10, 1), "nadanie", SPEC)
+    dodaj(s, "z2", D(2026, 10, 3), "doreczenie")
+    dodaj(s, "z3", D(2026, 10, 10), "odpowiedz")
+    # Act / Assert
+    with pytest.raises(BladSprawy, match="ma już wpisane doręczenie z2"):
+        dodaj(s, "z4", D(2026, 10, 11), "doreczenie", dotyczy="z1")

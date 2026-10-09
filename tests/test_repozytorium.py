@@ -185,10 +185,10 @@ def test_zla_schema_version_to_czytelny_blad(tmp_path, wersja):
 def test_migracja_jest_stosowana(tmp_path, monkeypatch):
     # Arrange
     katalog = nowa(tmp_path)
-    monkeypatch.setattr("kruczek_core.repozytorium.SCHEMA_VERSION", 2)
+    monkeypatch.setattr("kruczek_core.repozytorium.SCHEMA_VERSION", SCHEMA_VERSION + 1)
     monkeypatch.setattr(
         "kruczek_core.repozytorium.MIGRACJE",
-        {1: lambda d: {**d, "schema_version": 2, "tytul": d["tytul"] + " (zmigrowane)"}},
+        {SCHEMA_VERSION: lambda d: {**d, "schema_version": SCHEMA_VERSION + 1, "tytul": d["tytul"] + " (zmigrowane)"}},
     )
     # Act
     sprawa = wczytaj(katalog)
@@ -199,12 +199,12 @@ def test_migracja_jest_stosowana(tmp_path, monkeypatch):
 def test_brak_kroku_migracji_i_wyjatek_w_migracji_to_czytelny_blad(tmp_path, monkeypatch):
     # Arrange
     katalog = nowa(tmp_path)
-    monkeypatch.setattr("kruczek_core.repozytorium.SCHEMA_VERSION", 2)
+    monkeypatch.setattr("kruczek_core.repozytorium.SCHEMA_VERSION", SCHEMA_VERSION + 1)
     monkeypatch.setattr("kruczek_core.repozytorium.MIGRACJE", {})
     # Act / Assert
     with pytest.raises(BladSprawy, match="migracj"):
         wczytaj(katalog)
-    monkeypatch.setattr("kruczek_core.repozytorium.MIGRACJE", {1: lambda d: d["nie_ma"]})
+    monkeypatch.setattr("kruczek_core.repozytorium.MIGRACJE", {SCHEMA_VERSION: lambda d: d["nie_ma"]})
     with pytest.raises(BladSprawy, match="niepoprawne dane"):
         wczytaj(katalog)
 
@@ -261,3 +261,32 @@ def test_stary_format_to_kazdy_folder_z_index_md_bez_sprawa_json(tmp_path, zawar
     # Assert
     assert [p.name for p in lista.stary_format] == ["stara"]
     assert lista.sprawy == []
+
+
+def test_plik_w_wersji_1_wczytany_jako_v2(tmp_path):
+    # Arrange — plik z wersji rozwojowej: nadanie z1, doręczenie z2, które zamknęło sprawdzenie doręczenia a1
+    katalog = tmp_path / "s"
+    katalog.mkdir()
+    v1 = {
+        "id": "s1", "tytul": "T", "wlasciciel": "w", "strona_przeciwna": "X",
+        "schema_version": 1, "rewizja": 3, "zamknieta": False, "wynik": None,
+        "uczestnicy": [], "watki": [{"id": "firma", "adresat": "X"}], "pisma": [], "dowody": [],
+        "zdarzenia": [
+            {"id": "z1", "data": "2026-10-01", "typ": "nadanie", "opis": "", "watek": "firma", "dowody": []},
+            {"id": "z2", "data": "2026-10-03", "typ": "doreczenie", "opis": "", "watek": "firma", "dowody": []},
+        ],
+        "terminy": [{"id": "t1", "podstawa": "x", "od_zdarzenia": "z2", "dlugosc": "14d",
+                     "data_konca": "2026-10-19", "watek": "firma", "szacunek": False, "czyj": "adresata"}],
+        "zadania": [{"id": "a1", "opis": "sprawdź datę doręczenia", "aktywne_od": "2026-10-02",
+                     "termin": None, "watek": "firma", "regula": "sprawdz-doreczenie", "termin_id": "t1",
+                     "zrobione": "2026-10-03", "zdarzenie_id": "z1", "zamkniete_przez": "z2"}],
+    }
+    (katalog / PLIK_SPRAWY).write_text(json.dumps(v1), encoding="utf-8")
+    # Act
+    s = wczytaj(katalog)
+    zmien(katalog, lambda s: None)
+    # Assert
+    assert s.schema_version == SCHEMA_VERSION == 2
+    assert s.znajdz_zdarzenie("z2").dotyczy == "z1"
+    assert s.znajdz_zdarzenie("z1").godzina is None
+    assert json.loads((katalog / PLIK_SPRAWY).read_text(encoding="utf-8"))["schema_version"] == 2

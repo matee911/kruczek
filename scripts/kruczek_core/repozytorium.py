@@ -23,8 +23,20 @@ _BLOKADA = ".sprawa.lock"
 # Katalogi projektu, które nie są sprawami.
 _NIE_SPRAWY = {"BAZA_WIEDZY"}
 
-# v → funkcja migrująca słownik z wersji v do v+1. Pusty, dopóki format jest w wersji 1.
-MIGRACJE: dict[int, Callable[[dict[str, Any]], dict[str, Any]]] = {}
+def _z_1_do_2(d: dict[str, Any]) -> dict[str, Any]:
+    """v2 dodaje do zdarzeń godzinę, pewność i `dotyczy`. `dotyczy` odtwarzamy z zadań reguł:
+    zdarzenie, które zamknęło zadanie utworzone przez nadanie, dotyczy tego nadania."""
+    zdarzenia = [{**z} for z in d.get("zdarzenia", [])]
+    po_id = {z["id"]: z for z in zdarzenia}
+    for a in d.get("zadania", []):
+        zamykajace = po_id.get(a.get("zamkniete_przez") or "")
+        if zamykajace is not None and a.get("regula") and a.get("zdarzenie_id"):
+            zamykajace.setdefault("dotyczy", a["zdarzenie_id"])
+    return {**d, "schema_version": 2, "zdarzenia": zdarzenia}
+
+
+# v → funkcja migrująca słownik z wersji v do v+1.
+MIGRACJE: dict[int, Callable[[dict[str, Any]], dict[str, Any]]] = {1: _z_1_do_2}
 
 T = TypeVar("T")
 

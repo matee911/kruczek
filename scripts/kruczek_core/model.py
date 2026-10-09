@@ -7,11 +7,12 @@ i zadań, żeby nie rozjeżdżał się z rzeczywistością.
 from __future__ import annotations
 
 import datetime as dt
+import re
 from collections.abc import Iterable
 from dataclasses import asdict, dataclass, field
 from typing import Any
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 # odpowiedz — odpowiedź na Twoje pismo; wplyw — inne pismo, które doszło do Ciebie
 # (decyzja, wezwanie, nakaz). Oba to korespondencja przychodząca.
@@ -23,6 +24,8 @@ CZYJ_TERMINU = ("adresata", "moj")
 ROLE_UCZESTNIKOW = ("opiekun", "klientka")
 STANY_PISMA = ("szkic", "recenzja", "wyslane")
 WYNIKI_SPRAWY = ("wygrana", "ugoda", "porzucona")
+PEWNOSCI = ("dowod", "poszlaka", "wlasne_oswiadczenie")
+_GODZINA = re.compile(r"^([01][0-9]|2[0-3]):[0-5][0-9]$")
 
 
 class BladSprawy(Exception):
@@ -58,6 +61,9 @@ class Zdarzenie:
     opis: str = ""
     watek: str | None = None
     dowody: list[str] = field(default_factory=list)
+    godzina: str | None = None  # "GG:MM" — przy mailach i telefonach rozstrzyga kolejność
+    pewnosc: str | None = None  # "dowod" | "poszlaka" | "wlasne_oswiadczenie"; None = nie oceniano
+    dotyczy: str | None = None  # id nadania, którego dotyczy doręczenie/odpowiedź/wpływ (ustawiają reguły)
 
 
 @dataclass
@@ -133,6 +139,15 @@ def _znajdz(elementy: list[Any], id: str, co: str) -> Any:
     raise BladSprawy(f"w sprawie nie ma {co} {id!r} (znane: {znane})")
 
 
+def czy_godzina(tekst: str) -> bool:
+    """Godzina w formacie GG:MM.
+
+    >>> czy_godzina("09:05"), czy_godzina("9:5"), czy_godzina("24:00")
+    (True, False, False)
+    """
+    return bool(_GODZINA.match(tekst))
+
+
 def kolejne_id(prefiks: str, elementy: Iterable[Any]) -> str:
     """Następne id z prefiksem: najwyższy numer + 1.
 
@@ -175,12 +190,18 @@ def _dozwolona(pole: str, wartosc: str, dozwolone: tuple[str, ...]) -> None:
 def _sprawdz_wartosci(sprawa: Sprawa) -> None:
     for z in sprawa.zdarzenia:
         _dozwolona("typ", z.typ, TYPY_ZDARZEN)
+        if z.godzina is not None and not czy_godzina(z.godzina):
+            raise ValueError(f"godzina: {z.godzina!r} — oczekiwano GG:MM")
+        if z.pewnosc is not None:
+            _dozwolona("pewnosc", z.pewnosc, PEWNOSCI)
     for t in sprawa.terminy:
         _dozwolona("czyj", t.czyj, CZYJ_TERMINU)
     for u in sprawa.uczestnicy:
         _dozwolona("rola", u.rola, ROLE_UCZESTNIKOW)
     for p in sprawa.pisma:
         _dozwolona("stan", p.stan, STANY_PISMA)
+    if sprawa.wynik is not None:
+        _dozwolona("wynik", sprawa.wynik, WYNIKI_SPRAWY)
 
 
 def z_slownika(d: dict[str, Any]) -> Sprawa:
