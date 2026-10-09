@@ -5,7 +5,7 @@ argument-hint: "[katalog]"
 disable-model-invocation: true
 model: sonnet
 effort: medium
-allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/check-deps.sh) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/init-projekt.sh *) Read Write Edit
+allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/check-deps.sh) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/init-projekt.sh *) Bash(cp *) Bash(date *) Read Write Edit
 ---
 
 # Założenie repozytorium spraw
@@ -15,7 +15,11 @@ Katalog docelowy: `$1` (jeśli pusty — bieżący katalog roboczy).
 ## 1. Sprawdź, czy nie nadpisujesz
 
 Jeśli w katalogu docelowym jest już `index.md` lub `BAZA_WIEDZY/` — **nie nadpisuj**. Pokaż, co
-istnieje, i zapytaj, czy uzupełnić brakujące elementy, czy przerwać.
+istnieje, i zapytaj, czy uzupełnić brakujące elementy, czy przerwać. Skrypt nie podmienia istniejącego
+`KONWENCJE.md` — jeśli różni się od wzorca `${CLAUDE_PLUGIN_ROOT}/templates/KONWENCJE.md`, powiedz o tym
+i zaproponuj `/kruczek:migruj` (krok 0 odświeża `KONWENCJE.md` i `CLAUDE.md` z kopią i za zgodą).
+Skrypt (krok 2) i `/kruczek:dane-nadawcy` (krok 4) generują `CLAUDE.md` od nowa — jeśli już istnieje,
+najpierw `cp <katalog>/CLAUDE.md <katalog>/CLAUDE.md.<dziś>.bak` (`date +%F`) i podaj ścieżkę kopii.
 
 ## 2. Uruchom skrypt
 
