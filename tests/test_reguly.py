@@ -524,3 +524,53 @@ def test_cofniecie_doreczenia_po_odpowiedzi_nie_otwiera_zamknietego_odpowiedzia(
     cofnij(s, s.znajdz_zdarzenie("z4"), Kalendarz())
     # Assert
     assert s == przed
+
+
+def _nadanie_z_recznie_zamknietym_sprawdzeniem(s):
+    dodaj(s, "z1", D(2026, 9, 25), "nadanie", SPEC)
+    sprawdz = next(a for a in s.zadania if a.regula == REGULA_DORECZENIE)
+    sprawdz.zrobione = D(2026, 10, 1)  # „zrobione” ręcznie, bez wpisania doręczenia
+
+
+@pytest.mark.parametrize("dotyczy", [None, "z1"], ids=["bez-wskazania", "ze-wskazaniem"])
+def test_doreczenie_po_recznym_zamknieciu_sprawdzenia_przelicza_termin(dotyczy):
+    # Arrange — nadanie 25.09 + 14d (szacunek do 9.10), sprawdzenie doręczenia zamknięte ręcznie
+    s = sprawa_z_watkiem()
+    _nadanie_z_recznie_zamknietym_sprawdzeniem(s)
+    # Act
+    komunikaty = dodaj(s, "z2", D(2026, 9, 29), "doreczenie", dotyczy=dotyczy)
+    # Assert
+    (t,) = s.terminy
+    assert (t.data_konca, t.szacunek, t.od_zdarzenia) == (D(2026, 10, 13), False, "z2")
+    assert s.znajdz_zdarzenie("z2").dotyczy == "z1"
+    sprawdz = next(a for a in s.zadania if a.regula == REGULA_DORECZENIE)
+    assert (sprawdz.zrobione, sprawdz.zamkniete_przez) == (D(2026, 10, 1), None)
+    assert any("od doręczenia" in k for k in komunikaty)
+
+
+@pytest.mark.parametrize("dotyczy", [None, "z1"], ids=["bez-wskazania", "ze-wskazaniem"])
+def test_cofniecie_doreczenia_po_recznym_zamknieciu_przywraca_stan_sprzed(dotyczy):
+    # Arrange
+    s = sprawa_z_watkiem()
+    _nadanie_z_recznie_zamknietym_sprawdzeniem(s)
+    przed = copy.deepcopy(s)
+    dodaj(s, "z2", D(2026, 9, 29), "doreczenie", dotyczy=dotyczy)
+    # Act
+    cofnij(s, s.znajdz_zdarzenie("z2"), Kalendarz())
+    # Assert
+    assert s == przed
+    (t,) = s.terminy
+    assert (t.data_konca, t.szacunek, t.od_zdarzenia) == (D(2026, 10, 9), True, "z1")
+
+
+def test_doreczenie_pisma_z_odpowiedzia_mowi_prawde_o_niedoreczonym_nadaniu():
+    # Arrange — odpowiedź przyszła, doręczenia nikt nie wpisał
+    s = sprawa_z_watkiem()
+    dodaj(s, "z1", D(2026, 10, 1), "nadanie", SPEC)
+    dodaj(s, "z2", D(2026, 10, 10), "odpowiedz")
+    # Act
+    komunikaty = dodaj(s, "z3", D(2026, 10, 3), "doreczenie")
+    # Assert
+    tekst = " ".join(komunikaty)
+    assert "nie ma niedoręczonego nadania" not in tekst
+    assert "z1" in tekst and "--dotyczy" in tekst
