@@ -165,3 +165,39 @@ def test_teraz_przeterminowany_termin_na_gorze_potem_nadchodzacy_potem_bez_termi
     p = co_robic([s], DZIS)
     # Assert
     assert [x.zadanie.opis for x in p.teraz] == ["przeterminowany", "termin 25", "bez terminu"]
+
+
+def test_sprawa_bez_ruchu_ponad_30_dni():
+    # Arrange
+    stara = Sprawa(id="s1", tytul="Stara", wlasciciel="w", strona_przeciwna="X",
+                   zdarzenia=[Zdarzenie("z1", D(2026, 9, 1), "fakt")])
+    zywa = Sprawa(id="s2", tytul="Żywa", wlasciciel="w", strona_przeciwna="X",
+                  zdarzenia=[Zdarzenie("z1", D(2026, 10, 15), "fakt")])
+    # Act
+    p = co_robic([stara, zywa], D(2026, 10, 20))
+    # Assert
+    assert [(b.sprawa, b.sprawa_id, b.ostatni_ruch) for b in p.bez_ruchu] == [("Stara", "s1", D(2026, 9, 1))]
+
+
+def test_bez_ruchu_pomija_zamknieta_otwarte_zadanie_i_sprawe_bez_zdarzen_wypisuje_pierwsza():
+    # Arrange
+    stare = [Zdarzenie("z1", D(2026, 8, 1), "fakt")]
+    zamknieta = Sprawa(id="a", tytul="A", wlasciciel="w", strona_przeciwna="X", zdarzenia=stare, zamknieta=True)
+    z_zadaniem = Sprawa(id="b", tytul="B", wlasciciel="w", strona_przeciwna="X", zdarzenia=stare,
+                        zadania=[Zadanie("a1", "x", D(2026, 12, 1))])
+    pusta = Sprawa(id="c", tytul="C", wlasciciel="w", strona_przeciwna="X")
+    stara = Sprawa(id="d", tytul="D", wlasciciel="w", strona_przeciwna="X", zdarzenia=stare)
+    # Act
+    p = co_robic([zamknieta, z_zadaniem, stara, pusta], D(2026, 10, 20))
+    # Assert
+    assert [(b.sprawa_id, b.ostatni_ruch) for b in p.bez_ruchu] == [("c", None), ("d", D(2026, 8, 1))]
+
+
+def test_pozycje_niosa_id_sprawy():
+    # Arrange
+    s = Sprawa(id="abc", tytul="T", wlasciciel="w", strona_przeciwna="X",
+               zadania=[Zadanie("a1", "x", D(2026, 10, 1))])
+    # Act
+    p = co_robic([s], D(2026, 10, 20))
+    # Assert
+    assert p.teraz[0].sprawa_id == "abc"

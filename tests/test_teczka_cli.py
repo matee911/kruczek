@@ -4,6 +4,7 @@ import json
 import pytest
 
 import teczka
+from kruczek_core import widok
 
 
 def uruchom(capsys, *argv):
@@ -339,3 +340,141 @@ def test_cofnij_zle_wpisane_doreczenie_cli(projekt, capsys):
     dane = json.loads((projekt / "spamer" / "sprawa.json").read_text(encoding="utf-8"))
     assert kod == 0 and "cofnięto z2" in out
     assert (dane["terminy"][0]["od_zdarzenia"], dane["terminy"][0]["szacunek"]) == ("z1", True)
+
+
+def test_co_robic_pokazuje_folder_po_terminie_i_termin_w_wkrotce(projekt, capsys):
+    # Arrange
+    sprawa = str(projekt / "spamer")
+    uruchom(capsys, "zadanie", sprawa, "odwołanie", "--aktywne-od", "2026-10-01", "--termin", "2026-10-15")
+    uruchom(capsys, "zadanie", sprawa, "snapshot", "--aktywne-od", "+3d", "--termin", "+5d")
+    # Act
+    _, out, _ = uruchom(capsys, "co-robic", str(projekt))
+    # Assert
+    teraz, reszta = out.split("CZEKAM")
+    assert "spamer:" in teraz and "PO TERMINIE (5 dni)" in teraz
+    assert "termin 2026-10-25" in reszta.split("WKRÓTCE")[1]
+
+
+def test_co_robic_sekcja_bez_ruchu_z_liczba_dni_ze_stalej(projekt, capsys):
+    # Arrange
+    uruchom(capsys, "zdarzenie", str(projekt / "spamer"), "--typ", "fakt", "--data", "2026-08-01")
+    # Act
+    _, out, _ = uruchom(capsys, "co-robic", str(projekt))
+    # Assert
+    assert f"BEZ RUCHU (ponad {widok.DNI_BEZ_RUCHU} dni)" in out
+    assert "spamer: Spamer — ostatni ruch 2026-08-01" in out
+
+
+def test_co_robic_etykiety_podprojektu_i_pominiete_foldery_bez_indexu(projekt, capsys):
+    # Arrange
+    podprojekt = projekt / "podprojekt"
+    podprojekt.mkdir()
+    (podprojekt / "index.md").write_text("# Rejestr spraw\n", encoding="utf-8")
+    uruchom(capsys, "nowa", str(podprojekt / "sprawa-a"), "--tytul", "A", "--strona", "Y")
+    uruchom(capsys, "zadanie", str(podprojekt / "sprawa-a"), "zrób to")
+    (projekt / "kopia 2").mkdir()
+    # Act
+    kod, out, _ = uruchom(capsys, "co-robic", str(projekt))
+    # Assert
+    assert kod == 0
+    assert "podprojekt/sprawa-a: A — zrób to" in out
+    assert "POMINIĘTO (brak index.md)" in out and "kopia 2" in out.split("POMINIĘTO")[1]
+
+
+def test_co_robic_bez_pominietych_nie_wypisuje_sekcji(projekt, capsys):
+    # Arrange / Act
+    _, out, _ = uruchom(capsys, "co-robic", str(projekt))
+    # Assert
+    assert "POMINIĘTO" not in out
+
+
+def test_co_robic_stary_format_w_podprojekcie_z_etykieta(projekt, capsys):
+    # Arrange
+    stara = projekt / "podprojekt" / "sprawa-b"
+    stara.mkdir(parents=True)
+    (projekt / "podprojekt" / "index.md").write_text("# Rejestr spraw\n", encoding="utf-8")
+    (stara / "index.md").write_text("# Sprawa: B\n", encoding="utf-8")
+    # Act
+    _, out, _ = uruchom(capsys, "co-robic", str(projekt))
+    # Assert
+    assert "podprojekt/sprawa-b" in out.split("STARY FORMAT")[1]
+
+
+def test_duplikat_id_sprawy_w_dwoch_folderach_to_blad_z_obiema_nazwami(projekt, capsys):
+    # Arrange — kopia folderu razem z sprawa.json
+    kopia = projekt / "spamer 2"
+    kopia.mkdir()
+    (kopia / "sprawa.json").write_text((projekt / "spamer" / "sprawa.json").read_text(encoding="utf-8"),
+                                       encoding="utf-8")
+    uruchom(capsys, "zadanie", str(kopia), "tylko w kopii")
+    # Act
+    kod, out, _ = uruchom(capsys, "co-robic", str(projekt))
+    # Assert
+    assert kod == 1
+    bledy = out.split("BŁĘDY")[1]
+    assert "spamer 2" in bledy and "spamer" in bledy.replace("spamer 2", "")
+    assert "spamer 2: Spamer — tylko w kopii" in out
+
+
+def test_projekt_to_najbardziej_zewnetrzny_rejestr_spraw(tmp_path):
+    # Arrange
+    (tmp_path / "podprojekt" / "sprawa-a").mkdir(parents=True)
+    (tmp_path / "index.md").write_text("# Rejestr spraw\n", encoding="utf-8")
+    (tmp_path / "podprojekt" / "index.md").write_text("# Rejestr spraw\n", encoding="utf-8")
+    inna = tmp_path / "inna"
+    inna.mkdir()
+    # Act / Assert
+    assert teczka._projekt(tmp_path / "podprojekt" / "sprawa-a") == tmp_path.resolve()
+    assert teczka._projekt(inna) == tmp_path.resolve()
+
+
+def test_zapis_odswieza_index_md(projekt, capsys):
+    # Arrange
+    index = projekt / "spamer" / "index.md"
+    index.write_text("# SPRAWA: Spamer\n\nnotatki\n", encoding="utf-8")
+    # Act
+    kod, _, _ = uruchom(capsys, "zdarzenie", str(projekt / "spamer"), "--typ", "fakt", "--opis", "coś się stało")
+    # Assert
+    assert kod == 0 and "coś się stało" in index.read_text(encoding="utf-8")
+
+
+def test_dzien_wolny_odswieza_index_md_spraw(projekt, capsys):
+    # Arrange
+    index = projekt / "spamer" / "index.md"
+    index.write_text("# SPRAWA: Spamer\n\nnotatki\n", encoding="utf-8")
+    uruchom(capsys, "zadanie", str(projekt / "spamer"), "zadanie z dnia wolnego")
+    # Act
+    kod, _, _ = uruchom(capsys, "dzien-wolny", "2026-12-24", "--podstawa", "test", "--projekt", str(projekt))
+    # Assert
+    assert kod == 0 and "zadanie z dnia wolnego" in index.read_text(encoding="utf-8")
+
+
+def test_zapis_udany_mimo_zepsutych_znacznikow_kod_0_z_uwaga(projekt, capsys):
+    # Arrange
+    index = projekt / "spamer" / "index.md"
+    index.write_text("# SPRAWA: Spamer\n<!-- kruczek:zadania -->\n", encoding="utf-8")
+    # Act
+    kod, _, err = uruchom(capsys, "zadanie", str(projekt / "spamer"), "x")
+    # Assert
+    dane = json.loads((projekt / "spamer" / "sprawa.json").read_text(encoding="utf-8"))
+    assert kod == 0 and len(dane["zadania"]) == 1
+    assert "zapisano, ale index.md nie odświeżony" in err
+
+
+def test_renderuj_w_folderze_bez_sprawy_nie_zostawia_blokady(tmp_path, capsys):
+    # Arrange
+    (tmp_path / "x").mkdir()
+    # Act
+    kod, _, _ = uruchom(capsys, "renderuj", str(tmp_path / "x"))
+    # Assert
+    assert kod == 1
+    assert not (tmp_path / "x" / ".sprawa.lock").exists()
+
+
+def test_wlasciciel_domyslnie_biezacy_uzytkownik(tmp_path, capsys, monkeypatch):
+    # Arrange
+    monkeypatch.setattr(teczka, "_uzytkownik", lambda: "ktos")
+    # Act
+    uruchom(capsys, "nowa", str(tmp_path / "s"), "--tytul", "T", "--strona", "X")
+    # Assert
+    assert json.loads((tmp_path / "s" / "sprawa.json").read_text(encoding="utf-8"))["wlasciciel"] == "ktos"

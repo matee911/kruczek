@@ -8,6 +8,7 @@ from kruczek_core.model import SCHEMA_VERSION, BladSprawy, Sprawa, Zadanie, kole
 from kruczek_core.repozytorium import (
     PLIK_SPRAWY,
     KonfliktRewizji,
+    czy_folder_sprawy,
     lista_spraw,
     wczytaj,
     zapisz,
@@ -290,3 +291,46 @@ def test_plik_w_wersji_1_wczytany_jako_v2(tmp_path):
     assert s.znajdz_zdarzenie("z2").dotyczy == "z1"
     assert s.znajdz_zdarzenie("z1").godzina is None
     assert json.loads((katalog / PLIK_SPRAWY).read_text(encoding="utf-8"))["schema_version"] == 2
+
+
+def _index(katalog, tresc):
+    katalog.mkdir(parents=True, exist_ok=True)
+    (katalog / "index.md").write_text(tresc, encoding="utf-8")
+
+
+def test_lista_spraw_schodzi_do_podprojektu_o_jeden_poziom(tmp_path):
+    # Arrange
+    _index(tmp_path / "podprojekt", "﻿\n# Rejestr spraw\n")
+    nowa(tmp_path / "podprojekt", "sprawa-a")
+    _index(tmp_path / "podprojekt" / "sprawa-b", "# Sprawa: B\n")
+    for ukryty in ("_SZABLONY", ".git", "BAZA_WIEDZY"):
+        nowa(tmp_path / "podprojekt", ukryty)
+    nowa(tmp_path / "podprojekt" / "sprawa-a", "za-gleboko")
+    # Act
+    lista = lista_spraw(tmp_path)
+    # Assert
+    assert [p.relative_to(tmp_path).as_posix() for p in lista.sprawy] == ["podprojekt/sprawa-a"]
+    assert [p.relative_to(tmp_path).as_posix() for p in lista.stary_format] == ["podprojekt/sprawa-b"]
+
+
+def test_czy_folder_sprawy_ignoruje_wielkosc_liter_naglowka(tmp_path):
+    # Arrange
+    _index(tmp_path / "duze", "# SPRAWA: A\n")
+    _index(tmp_path / "male", "# Sprawa: A\n")
+    _index(tmp_path / "rejestr", "# Rejestr spraw\n")
+    # Act / Assert
+    assert czy_folder_sprawy(tmp_path / "duze") and czy_folder_sprawy(tmp_path / "male")
+    assert not czy_folder_sprawy(tmp_path / "rejestr")
+
+
+def test_lista_spraw_zbiera_foldery_bez_indexu_i_sprawa_json(tmp_path):
+    # Arrange
+    nowa(tmp_path, "sprawa-a")
+    (tmp_path / "kopia 2").mkdir()
+    for ukryty in ("_to_delete", ".git", "BAZA_WIEDZY"):
+        (tmp_path / ukryty).mkdir()
+    # Act
+    lista = lista_spraw(tmp_path)
+    # Assert
+    assert [p.name for p in lista.bez_indexu] == ["kopia 2"]
+    assert [p.name for p in lista.sprawy] == ["sprawa-a"]
