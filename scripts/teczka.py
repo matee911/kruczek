@@ -42,6 +42,7 @@ from kruczek_core.dni_wolne import PLIK_PROJEKTU, DzienJednorazowy, Kalendarz, k
 from kruczek_core.migracja import (
     Podsumowanie,
     kopia_zapasowa,
+    oznacz_sprzed_migracji,
     tytul_z_naglowka,
     wczytaj_propozycje,
     wstaw_znaczniki_chronologii,
@@ -85,7 +86,10 @@ def parsuj_date(tekst: str, dzis: dt.date) -> dt.date:
     m = _WZGLEDNA.match(tekst)
     if m:
         n = int(m.group(1))
-        return dzis + dt.timedelta(days=n if m.group(2) == "d" else 7 * n)
+        try:
+            return dzis + dt.timedelta(days=n if m.group(2) == "d" else 7 * n)
+        except OverflowError:
+            raise BladSprawy(f"data {tekst!r} poza zakresem dat — podaj mniejsze przesunięcie") from None
     try:
         return dt.date.fromisoformat(tekst)
     except ValueError:
@@ -304,13 +308,14 @@ def _migruj(a: argparse.Namespace, dzis: dt.date) -> int:
         raise BladSprawy(f"{index}: nie jest w UTF-8 — nic nie zapisano") from None
     propozycja = wczytaj_propozycje(a.propozycja)
     tytul = tytul_z_naglowka(tekst)
-    if "tytul" not in propozycja and tytul:
+    if propozycja.get("tytul") is None and tytul:
         propozycja["tytul"] = tytul
     kalendarz = kalendarz_sprawy(a.sprawa)
     wlasciciel = a.wlasciciel if a.wlasciciel is not None else _uzytkownik()
     pods = zbuduj_sprawe(propozycja, kalendarz, dzis, wlasciciel)
     _wypisz_podsumowanie(pods, kalendarz)
     nowy, wstawiono = wstaw_znaczniki_chronologii(tekst)
+    nowy = oznacz_sprzed_migracji(nowy)
     if not wstawiono and "<!-- kruczek:chronologia -->" not in tekst:
         print("uwaga: nie znaleziono nagłówka „Chronologia” — blok trafi na koniec, stara tabela bez zmian")
     try:
@@ -323,7 +328,7 @@ def _migruj(a: argparse.Namespace, dzis: dt.date) -> int:
     kopia = kopia_zapasowa(a.sprawa, dzis)
     zapisz_nowa(a.sprawa, pods.sprawa)
     print(f"zapisano {a.sprawa / PLIK_SPRAWY}; kopia starego index.md: {kopia}")
-    _odswiez(a.sprawa, przed=lambda t: wstaw_znaczniki_chronologii(t)[0])
+    _odswiez(a.sprawa, przed=lambda t: oznacz_sprzed_migracji(wstaw_znaczniki_chronologii(t)[0]))
     return 0
 
 
@@ -365,8 +370,12 @@ def _wykonaj(a: argparse.Namespace, dzis: dt.date) -> int:
         z = oznacz_zrobione(a.sprawa, a.id, dzis)
         print(f"zrobione {z.id}: {z.opis}")
     elif a.komenda == "zamknij":
-        zamknij_sprawe(a.sprawa, a.wynik)
+        z_terminem = zamknij_sprawe(a.sprawa, a.wynik)
         print(f"zamknięto sprawę {a.sprawa.name} ({a.wynik})")
+        if z_terminem:
+            lista = "; ".join(f"[{z.id}] {z.opis} — termin {z.termin.isoformat()}" for z in z_terminem)
+            print(f"uwaga: sprawa miała otwarte zadania z Twoim terminem (znikają z przeglądu): {lista}",
+                  file=sys.stderr)
     elif a.komenda == "otworz":
         otworz_sprawe(a.sprawa)
         print(f"otwarto sprawę {a.sprawa.name}")

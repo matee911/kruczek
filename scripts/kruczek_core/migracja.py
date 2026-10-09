@@ -30,6 +30,11 @@ _NAGLOWEK_CHRONOLOGII = re.compile(r"^##[ \t]+(?:\d+\.[ \t]*)?Chronologia[ \t]*\
 _ZNACZNIK_CHRONOLOGII = "<!-- kruczek:chronologia -->"
 _NAGLOWEK_ARCHIWALNY = "### Chronologia sprzed migracji (archiwalna — nie dopisuj)"
 _NAGLOWEK_SPRAWY = "# sprawa:"
+_DOPISEK = " (sprzed migracji)"
+_NAGLOWEK_TODO = re.compile(r"^##[ \t]+(?:\d+\.[ \t]*)?TODO[ \t]*$", re.IGNORECASE)
+# Wiersz tabeli nagłówka: grupa 1 — treść, grupa 2 — końcowy „|” z otaczającymi spacjami.
+_WIERSZ_NAGLOWKA = re.compile(r"^(\|[ \t]*\*\*(?:Status|Najbliższy termin)\*\*[ \t]*\|.*?)([ \t]*\|?[ \t]*)$",
+                              re.IGNORECASE)
 _ID_ZDARZENIA = re.compile(r"\bz\d+\b")
 _STARE_ZADANIA_DNI = 30
 
@@ -271,6 +276,30 @@ def wstaw_znaczniki_chronologii(tekst: str) -> tuple[str, bool]:
     wstawka = nl.join([m.group(0).removesuffix("\r"), "", _ZNACZNIK_CHRONOLOGII, "<!-- /kruczek:chronologia -->",
                        "", _NAGLOWEK_ARCHIWALNY]) + ("\r" if crlf else "")
     return tekst[:m.start()] + wstawka + tekst[m.end():], True
+
+
+def oznacz_sprzed_migracji(tekst: str) -> str:
+    """Stare `## … TODO` i wiersze nagłówka „Status” / „Najbliższy termin” dostają dopisek
+    „(sprzed migracji)” — od migracji aktualne są bloki generowane z sprawa.json. Żadna linia
+    nie znika ani nie zmienia się poza dopiskiem; ponowne wywołanie niczego nie dokłada.
+
+    >>> oznacz_sprzed_migracji("| **Status** | w toku |\\n## 5. TODO\\n")
+    '| **Status** | w toku (sprzed migracji) |\\n## 5. TODO (sprzed migracji)\\n'
+    """
+    linie = tekst.splitlines(keepends=True)
+    for i, linia in enumerate(linie):
+        tresc = linia.rstrip("\r\n")
+        if _DOPISEK in tresc:
+            continue
+        if _NAGLOWEK_TODO.match(tresc):
+            nowa = tresc.rstrip() + _DOPISEK + tresc[len(tresc.rstrip()):]
+        else:
+            m = _WIERSZ_NAGLOWKA.match(tresc)
+            if m is None:
+                continue
+            nowa = m.group(1) + _DOPISEK + m.group(2)
+        linie[i] = nowa + linia[len(tresc):]
+    return "".join(linie)
 
 
 def kopia_zapasowa(katalog: Path, dzis: dt.date) -> Path | None:
