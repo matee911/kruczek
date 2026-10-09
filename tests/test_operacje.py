@@ -15,6 +15,7 @@ from kruczek_core.operacje import (
     nowa_sprawa,
     otworz_sprawe,
     oznacz_zrobione,
+    popraw_zdarzenie,
     utworz_sprawe,
     zamknij_sprawe,
 )
@@ -335,3 +336,28 @@ def test_zamknij_zamknieta_odrzucone(katalog):
     # Act / Assert
     with pytest.raises(BladSprawy, match="już zamknięta"):
         zamknij_sprawe(katalog, "ugoda")
+
+
+def test_popraw_opis_godzine_i_wyczysc_pewnosc(katalog):
+    # Arrange
+    dodaj_zdarzenie(katalog, "telefon", D(2026, 10, 8), Kalendarz(), DZIS, opis="x", godzina="10:00",
+                    pewnosc="poszlaka")
+    # Act
+    popraw_zdarzenie(katalog, "z1", Kalendarz(), DZIS, opis="dzwonił dział reklamacji", godzina="10:15", pewnosc="")
+    # Assert
+    z = wczytaj(katalog).znajdz_zdarzenie("z1")
+    assert (z.opis, z.godzina, z.pewnosc) == ("dzwonił dział reklamacji", "10:15", None)
+
+
+@pytest.mark.parametrize(
+    "zmiany, komunikat",
+    [({}, "nic do poprawienia"), ({"data": D(2026, 10, 21)}, "w przyszłości"), ({"godzina": "7"}, "GG:MM")],
+)
+def test_popraw_zle_dane_odrzucone_nic_nie_zapisane(katalog, zmiany, komunikat):
+    # Arrange
+    dodaj_zdarzenie(katalog, "fakt", D(2026, 10, 8), Kalendarz(), DZIS)
+    rewizja = wczytaj(katalog).rewizja
+    # Act / Assert
+    with pytest.raises(BladSprawy, match=komunikat):
+        popraw_zdarzenie(katalog, "z1", Kalendarz(), DZIS, **zmiany)
+    assert wczytaj(katalog).rewizja == rewizja

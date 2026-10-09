@@ -239,3 +239,26 @@ def przelicz(sprawa: Sprawa, kalendarz: Kalendarz) -> list[str]:
             elif t.czyj == "moj":
                 a.termin = nowy
     return zmiany
+
+
+def zmien_date(sprawa: Sprawa, z: Zdarzenie, nowa: dt.date, kalendarz: Kalendarz) -> list[str]:
+    """Poprawia datę zdarzenia i przelicza to, co z niej wynika. Nie przepina zdarzeń między
+    pismami (do tego cofnij-zdarzenie i wpis od nowa). Walidacja przed jakąkolwiek zmianą."""
+    for d in sprawa.zdarzenia:
+        if d.dotyczy == z.id and d.data < nowa:
+            raise BladSprawy(f"{d.typ} {d.id} ({d.data}) byłoby wcześniej niż {z.typ} {z.id} — popraw najpierw {d.id}")
+    if z.dotyczy is not None:
+        n = sprawa.znajdz_zdarzenie(z.dotyczy)
+        if nowa < n.data:
+            raise BladSprawy(f"{z.typ} {z.id} byłoby wcześniej niż nadanie {n.id} ({n.data})")
+    stara, z.data = z.data, nowa
+    for a in sprawa.zadania:
+        if a.zamkniete_przez == z.id:
+            a.zrobione = nowa
+        if a.zdarzenie_id != z.id or a.zrobione is not None:
+            continue
+        if a.regula == REGULA_DORECZENIE:
+            a.aktywne_od = nowa + _DZIEN
+        elif a.regula == REGULA_ANALIZA:
+            a.aktywne_od = nowa
+    return [f"{z.id}: data {stara.isoformat()} → {nowa.isoformat()}", *przelicz(sprawa, kalendarz)]
