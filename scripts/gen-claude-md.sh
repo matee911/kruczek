@@ -60,7 +60,7 @@ $(cd "$ROOT" && find . -maxdepth 3 \
     | sort | sed 's|^\./||' | grep -v '^$')
 \`\`\`
 
-- **index.md** — rejestr wszystkich spraw (status, terminy)
+- **index.md** — rejestr wszystkich spraw (lista; status, terminy i zadania pokazuje \`/kruczek:status\`, liczone z \`sprawa.json\`)
 - **BAZA_WIEDZY/** — przepisy i orzecznictwo wielokrotnego użytku; sprawdź tu zanim zaczniesz research
 - **_SZABLONY/dane-nadawcy.md** — dane nadawcy do pism (NIP, adres, e-mail, preferencje)
 - **KONWENCJE.md** — zasady prowadzenia archiwum, nazewnictwa, chronologii — przeczytaj przed każdą pracą na plikach

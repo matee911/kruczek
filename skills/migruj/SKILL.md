@@ -5,7 +5,7 @@ argument-hint: "[sprawa albo katalog projektu]"
 disable-model-invocation: true
 model: sonnet
 effort: medium
-allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/teczka.py *) Bash(date *) Bash(ls *) Read Write Edit
+allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/teczka.py *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/gen-claude-md.sh *) Bash(diff *) Bash(cp *) Bash(date *) Bash(ls *) Read Write Edit
 ---
 
 # Migracja teczki na sprawa.json
@@ -21,7 +21,22 @@ po akceptacji użytkownika.
 
 ## 0. Przygotuj projekt
 
-W `.gitignore` projektu muszą być linie `.sprawa.lock` i `.*.tmp` — dopisz brakujące (Edit), nie ruszaj reszty.
+Projekt to katalog z rejestrem spraw (`index.md` „# Rejestr spraw”, obok `KONWENCJE.md`); przy `$1` będącym
+sprawą — jej katalog nadrzędny. Bez zgody użytkownika niczego tu nie nadpisujesz.
+
+1. **`.gitignore`** — muszą w nim być linie `.sprawa.lock` i `.*.tmp`. Nie ma pliku → utwórz go (Write) z tymi
+   dwiema liniami. Jest → dopisz brakujące (Edit), nie ruszaj reszty.
+2. **`KONWENCJE.md`** — `diff -u <projekt>/KONWENCJE.md ${CLAUDE_PLUGIN_ROOT}/templates/KONWENCJE.md`. Bez różnic
+   albo brak pliku w projekcie → dalej (brak: zaproponuj `cp` wzorca). Różnice → pokaż je zwięźle (co się zmieniło
+   w zasadach, nie cały diff) i jedno AskUserQuestion: **Odśwież** / **Zostaw**. Po „Odśwież”:
+   - `cp <projekt>/KONWENCJE.md <projekt>/KONWENCJE.md.<dziś>.bak` (dziś z `date +%F`; plik o tej nazwie już
+     jest → dodaj `-2`, `-3`…), potem `cp ${CLAUDE_PLUGIN_ROOT}/templates/KONWENCJE.md <projekt>/KONWENCJE.md`;
+   - `CLAUDE.md`: `gen-claude-md.sh` nadpisuje go w całości, więc najpierw
+     `cp <projekt>/CLAUDE.md <projekt>/CLAUDE.md.<dziś>.bak` (jeśli istnieje), potem
+     `${CLAUDE_PLUGIN_ROOT}/scripts/gen-claude-md.sh <projekt>`, potem `diff -u` kopii z nowym plikiem. Jeśli
+     w kopii są fragmenty dopisane ręcznie (spoza tego, co generuje skrypt) — pokaż je i zapytaj, czy przenieść
+     je do nowego `CLAUDE.md` (Edit).
+   Podaj ścieżki kopii. Po „Zostaw” — powiedz jednym zdaniem, że obowiązuje wzorzec z pluginu, i idź dalej.
 
 ## 1. Lista spraw
 
@@ -56,9 +71,12 @@ Przeczytaj `index.md` sprawy i listę plików `ARCHIWUM/` (`ls`). Jeśli `index.
 
 Reguły przepisywania:
 - Nagłówek `# SPRAWA:` albo `# Sprawa:` — wielkość liter bez znaczenia; z niego bierz tytuł.
-- Wiersze w przyszłości typu „UPŁYW terminu …” **nie są zdarzeniami** — to `termin` przy nadaniu,
-  którego dotyczą (długość i podstawa z pisma/przepisu; jeśli ich nie ma w teczce — bez terminu
-  i zadanie „ustal termin odpowiedzi na <pismo>”).
+- Wiersze w przyszłości typu „UPŁYW terminu …” **nie są zdarzeniami** — to `termin` przy zdarzeniu,
+  od którego biegną (nadanie: termin adresata; `wplyw`/`odpowiedz`: Twój termin), z długością i podstawą
+  z pisma albo przepisu. Nie ma ich w teczce → najpierw zapytaj użytkownika o podstawę (AskUserQuestion,
+  z cytatem wiersza). Dalej brak → zadanie z datą z wiersza:
+  `{"opis": "ustal podstawę terminu: <treść wiersza>", "aktywne_od": "<dziś>", "termin": "<data z wiersza>"}`.
+  Nigdy zadanie bez daty, gdy data była w wierszu — to ona trzyma termin w przeglądzie.
 - Potwierdzenie odbioru / EPO → `doreczenie` z `dotyczy` = `klucz` nadania (nie id — id powstaje dopiero
   przy zapisie). Gdy podgląd prosi o wskazanie nadania, bo czekają naraz dwa Twoje pisma, ustaw
   `"dotyczy": "<klucz nadania>"` w propozycji.
