@@ -1,3 +1,4 @@
+import copy
 import datetime as dt
 
 import pytest
@@ -10,6 +11,7 @@ from kruczek_core.reguly import (
     REGULA_DORECZENIE,
     REGULA_ODPOWIEDZ,
     SpecTerminu,
+    cofnij,
     przelicz,
     zastosuj,
     zmien_date,
@@ -488,3 +490,37 @@ def test_zmiana_daty_odpowiedzi_na_wczesniejsza_niz_nadanie_odrzucona():
     with pytest.raises(BladSprawy, match="z1"):
         zmien_date(s, s.znajdz_zdarzenie("z2"), D(2026, 10, 7), Kalendarz())
     assert s.znajdz_zdarzenie("z2").data == D(2026, 10, 15)
+
+
+@pytest.mark.parametrize(
+    "ostatnie",
+    [("z3", D(2026, 10, 3), "doreczenie"), ("z3", D(2026, 10, 10), "odpowiedz"),
+     ("z3", D(2026, 10, 9), "nadanie"), ("z3", D(2026, 10, 12), "wplyw")],
+    ids=["doreczenie", "odpowiedz", "nadanie", "wplyw"],
+)
+def test_cofniecie_przywraca_dokladnie_stan_sprzed(ostatnie):
+    # Arrange — korespondencja tam i z powrotem w jednym wątku
+    s = sprawa_z_watkiem()
+    dodaj(s, "z1", D(2026, 10, 1), "nadanie", SPEC)
+    dodaj(s, "z2", D(2026, 10, 2), "fakt")
+    przed = copy.deepcopy(s)
+    id_, data, typ = ostatnie
+    dodaj(s, id_, data, typ, SPEC if typ in ("nadanie", "wplyw") else None)
+    # Act
+    cofnij(s, s.znajdz_zdarzenie(id_), Kalendarz())
+    # Assert
+    assert s == przed
+
+
+def test_cofniecie_doreczenia_po_odpowiedzi_nie_otwiera_zamknietego_odpowiedzia():
+    # Arrange
+    s = sprawa_z_watkiem()
+    dodaj(s, "z1", D(2026, 10, 1), "nadanie", SPEC)
+    dodaj(s, "z2", D(2026, 10, 8), "nadanie", SpecTerminu("30d", "wezwanie"))
+    dodaj(s, "z3", D(2026, 10, 15), "odpowiedz")
+    przed = copy.deepcopy(s)
+    dodaj(s, "z4", D(2026, 10, 3), "doreczenie")
+    # Act
+    cofnij(s, s.znajdz_zdarzenie("z4"), Kalendarz())
+    # Assert
+    assert s == przed

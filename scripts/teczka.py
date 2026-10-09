@@ -10,6 +10,7 @@ Podkomendy:
                                                        --termin przy nadaniu = termin adresata,
                                                        przy odpowiedz/wplyw = Twój termin
   popraw-zdarzenie <sprawa> <id> [--data D] [--opis O] [--godzina G] [--pewnosc P] [--dowod P ...]
+  cofnij-zdarzenie <sprawa> <id>                       cofnij ostatnio wpisane zdarzenie razem ze skutkami
   zadanie <sprawa> <opis> [--aktywne-od D|+Nd] [--termin D|+Nd] [--watek W]
   zrobione <sprawa> <id-zadania>
   zamknij <sprawa> --wynik {wygrana,ugoda,porzucona}   zamknij sprawę (znika z przeglądu)
@@ -35,6 +36,7 @@ from pathlib import Path
 from kruczek_core.dni_wolne import PLIK_PROJEKTU, DzienJednorazowy, wczytaj_kalendarz, zapisz_jednorazowy
 from kruczek_core.model import PEWNOSCI, TYPY_ZDARZEN, WYNIKI_SPRAWY, BladSprawy
 from kruczek_core.operacje import (
+    cofnij_zdarzenie,
     dodaj_watek,
     dodaj_zadanie,
     dodaj_zdarzenie,
@@ -109,6 +111,10 @@ def _parser() -> argparse.ArgumentParser:
                                      "tylko, gdy w wątku czeka naraz kilka pism")
     s.add_argument("--godzina", help="GG:MM, jeśli znana (maile, telefony)")
     s.add_argument("--pewnosc", choices=PEWNOSCI, help="dowod / poszlaka / wlasne_oswiadczenie (fakt bez pliku)")
+
+    s = sub.add_parser("cofnij-zdarzenie", help="cofnij ostatnio wpisane zdarzenie razem z jego skutkami")
+    s.add_argument("sprawa", type=Path)
+    s.add_argument("id")
 
     s = sub.add_parser("popraw-zdarzenie", help="popraw błędnie wpisane zdarzenie (data, opis, godzina, pewność, dowody)")
     s.add_argument("sprawa", type=Path)
@@ -221,6 +227,9 @@ def _wykonaj(a: argparse.Namespace, dzis: dt.date) -> int:
         data = parsuj_date(a.data, dzis) if a.data else None
         for k in popraw_zdarzenie(a.sprawa, a.id, wczytaj_kalendarz(_projekt(a.sprawa)), dzis, data=data,
                                   opis=a.opis, godzina=a.godzina, pewnosc=a.pewnosc, dowody=a.dowod):
+            print(k)
+    elif a.komenda == "cofnij-zdarzenie":
+        for k in cofnij_zdarzenie(a.sprawa, a.id, wczytaj_kalendarz(_projekt(a.sprawa))):
             print(k)
     elif a.komenda == "zadanie":
         termin = parsuj_date(a.termin, dzis) if a.termin else None
