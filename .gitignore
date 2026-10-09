@@ -20,3 +20,6 @@ do_not_commit/
 # środowisko uv i cache pytesta
 .venv/
 .pytest_cache/
+
+# lokalny katalog roboczy (plany, raporty) — zawiera dane robocze
+.superpowers/
