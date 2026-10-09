@@ -19,6 +19,9 @@ Podkomendy:
   renderuj <sprawa>                                    odśwież bloki w index.md
   dzien-wolny <data> --podstawa P [--projekt K] [--tylko-urzedy]
   przelicz <sprawa>                                    przelicz terminy
+  migruj <sprawa> <propozycja.json> [--zapisz] [--wlasciciel W]
+                                                       stara teczka (index.md) → sprawa.json;
+                                                       bez --zapisz tylko podgląd
 
 Kody wyjścia: 0 OK, 1 błąd sprawy (komunikat na stderr), 2 złe argumenty.
 Tylko stdlib.
@@ -36,6 +39,14 @@ from dataclasses import replace
 from pathlib import Path
 
 from kruczek_core.dni_wolne import PLIK_PROJEKTU, DzienJednorazowy, Kalendarz, kalendarz_sprawy, zapisz_jednorazowy
+from kruczek_core.migracja import (
+    Podsumowanie,
+    kopia_zapasowa,
+    tytul_z_naglowka,
+    wczytaj_propozycje,
+    wstaw_znaczniki_chronologii,
+    zbuduj_sprawe,
+)
 from kruczek_core.model import PEWNOSCI, TYPY_ZDARZEN, WYNIKI_SPRAWY, BladSprawy
 from kruczek_core.operacje import (
     cofnij_zdarzenie,
@@ -51,7 +62,15 @@ from kruczek_core.operacje import (
 )
 from kruczek_core.reguly import SpecTerminu
 from kruczek_core.render import renderuj
-from kruczek_core.repozytorium import czy_folder_sprawy, lista_spraw, przetworz_tekst, wczytaj
+from kruczek_core.repozytorium import (
+    PLIK_SPRAWY,
+    czy_folder_sprawy,
+    czy_rejestr_spraw,
+    lista_spraw,
+    przetworz_tekst,
+    wczytaj,
+    zapisz_nowa,
+)
 from kruczek_core.widok import DNI_BEZ_RUCHU, PozycjaZadania, Przeglad, co_robic
 
 _WZGLEDNA = re.compile(r"^\+(\d+)([dt])$")
@@ -159,6 +178,12 @@ def _parser() -> argparse.ArgumentParser:
 
     s = sub.add_parser("przelicz", help="przelicz terminy sprawy")
     s.add_argument("sprawa", type=Path)
+
+    s = sub.add_parser("migruj", help="stara teczka (index.md) → sprawa.json; bez --zapisz tylko podgląd")
+    s.add_argument("sprawa", type=Path)
+    s.add_argument("propozycja", type=Path, help="JSON z propozycją (pisze go /kruczek:migruj)")
+    s.add_argument("--zapisz", action="store_true", help="zapisz po akceptacji podglądu")
+    s.add_argument("--wlasciciel")
     return p
 
 
@@ -224,7 +249,7 @@ def _wypisz(przeglad: Przeglad, stary_format: list[str], bez_indexu: list[str], 
             kiedy = b.ostatni_ruch.isoformat() if b.ostatni_ruch else "brak zdarzeń"
             print(f"  {b.sprawa_id}: {b.sprawa} — ostatni ruch {kiedy}")
     if stary_format:
-        print("STARY FORMAT (bez sprawa.json — migracja w kolejnej wersji; nowa sprawa: teczka.py nowa)")
+        print("STARY FORMAT (bez sprawa.json — przenieś: /kruczek:migruj)")
         for k in stary_format:
             print(f"  {k}")
     if bez_indexu:
@@ -248,6 +273,56 @@ def _wypisz_bledy(bledy: list[tuple[str, str]]) -> int:
         print(f"  {etykieta}: {komunikat}")
         print(f"błąd: {komunikat}", file=sys.stderr)
     return 1
+
+
+def _wypisz_podsumowanie(p: Podsumowanie, kal: Kalendarz) -> None:
+    s = p.sprawa
+    print(f"SPRAWA: {s.tytul} — {s.strona_przeciwna}{' (zamknięta: ' + s.wynik + ')' if s.zamknieta else ''}")
+    print(f"wątki: {', '.join(f'{w.id} ({w.adresat})' for w in s.watki) or '—'}; "
+          f"zdarzeń: {len(s.zdarzenia)}, terminów: {len(s.terminy)}, "
+          f"otwartych zadań: {sum(1 for a in s.zadania if a.zrobione is None)}")
+    print(renderuj("", s, kal).strip())
+    for o in p.ostrzezenia:
+        print(f"uwaga: {o}")
+
+
+def _migruj(a: argparse.Namespace, dzis: dt.date) -> int:
+    """Kolejność zapisu: kopia → sprawa.json → index.md. Wszystko, co może się nie udać, jest
+    sprawdzane przed kopią; nieudane odświeżenie index.md to już tylko uwaga (kod 0)."""
+    index = a.sprawa / "index.md"
+    if (a.sprawa / PLIK_SPRAWY).exists():
+        raise BladSprawy(f"{a.sprawa}: już zmigrowana (jest {PLIK_SPRAWY})")
+    if not index.is_file():
+        raise BladSprawy(f"{a.sprawa}: brak index.md — to nie stara teczka; nową sprawę zakłada teczka.py nowa")
+    if czy_rejestr_spraw(a.sprawa):
+        raise BladSprawy(f"{a.sprawa}: to podprojekt („# Rejestr spraw”) — migruj osobno każdą sprawę z jego środka")
+    try:
+        tekst = index.read_text(encoding="utf-8")
+    except UnicodeDecodeError:
+        raise BladSprawy(f"{index}: nie jest w UTF-8 — nic nie zapisano") from None
+    propozycja = wczytaj_propozycje(a.propozycja)
+    tytul = tytul_z_naglowka(tekst)
+    if "tytul" not in propozycja and tytul:
+        propozycja["tytul"] = tytul
+    kalendarz = kalendarz_sprawy(a.sprawa)
+    wlasciciel = a.wlasciciel if a.wlasciciel is not None else _uzytkownik()
+    pods = zbuduj_sprawe(propozycja, kalendarz, dzis, wlasciciel)
+    _wypisz_podsumowanie(pods, kalendarz)
+    nowy, wstawiono = wstaw_znaczniki_chronologii(tekst)
+    if not wstawiono and "<!-- kruczek:chronologia -->" not in tekst:
+        print("uwaga: nie znaleziono nagłówka „Chronologia” — blok trafi na koniec, stara tabela bez zmian")
+    try:
+        renderuj(nowy, pods.sprawa, kalendarz)
+    except BladSprawy as e:
+        print(f"uwaga: sprawa.json zostanie zapisana, ale index.md nie odświeżony: {e}")
+    if not a.zapisz:
+        print(f"\npodgląd — nic nie zapisano. Zapis: teczka.py migruj {a.sprawa} {a.propozycja} --zapisz")
+        return 0
+    kopia = kopia_zapasowa(a.sprawa, dzis)
+    zapisz_nowa(a.sprawa, pods.sprawa)
+    print(f"zapisano {a.sprawa / PLIK_SPRAWY}; kopia starego index.md: {kopia}")
+    _odswiez(a.sprawa, przed=lambda t: wstaw_znaczniki_chronologii(t)[0])
+    return 0
 
 
 _ZAPISUJACE = {"nowa", "watek", "zdarzenie", "zadanie", "zrobione", "przelicz", "zamknij", "otworz",
@@ -339,6 +414,8 @@ def _wykonaj(a: argparse.Namespace, dzis: dt.date) -> int:
                 bledy.append((etykieta, str(e)))
         if bledy:
             return _wypisz_bledy(bledy)
+    elif a.komenda == "migruj":
+        return _migruj(a, dzis)
     elif a.komenda == "przelicz":
         for zmiana in przelicz_sprawe(a.sprawa, kalendarz_sprawy(a.sprawa)) or ["bez zmian"]:
             print(zmiana)
