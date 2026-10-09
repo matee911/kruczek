@@ -74,6 +74,7 @@ i odczytu skanów.
 /kruczek:chronologia           # dopisz nadanie i doręczenie
 /kruczek:status                # co się dzieje we wszystkich sprawach
 /kruczek:eskalacja             # co dalej, gdy termin minął
+/kruczek:migruj                # stara teczka → sprawa.json (po aktualizacji z 0.8.x)
 ```
 
 `/kruczek:komendy` wypisuje pełny spis w każdej chwili.
@@ -95,8 +96,9 @@ moje-sprawy/
 ├── _SZABLONY/
 │   └── dane-nadawcy.md            tożsamości: Ty, Twoja działalność, osoby reprezentowane
 └── nazwa-firmy/
-    ├── index.md                   chronologia, ustalenia, hipotezy, manifest, TODO, eskalacja
+    ├── index.md                   chronologia, terminy i zadania (generowane), ustalenia, hipotezy, manifest, eskalacja
     │                              oraz „Występuję jako" — rola w TEJ sprawie
+    ├── sprawa.json                zdarzenia, terminy, zadania — zapisuje wyłącznie teczka.py
     ├── ARCHIWUM/                  oryginały dowodów — append-only
     ├── ROBOCZE/
     └── 2026_08_18-WEZWANIE-FIRMA-DO_WYSYLKI/

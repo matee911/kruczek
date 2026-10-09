@@ -12,14 +12,14 @@ Wartości dopuszczalne w Claude Code: `haiku`, `sonnet`, `opus`, `inherit`.
 |---|---|---|---|---|
 | `komendy` | skill | `haiku` | low | wypisanie statycznej tabeli |
 | `dowod` | skill | `haiku` | low | kopiowanie, sumy, wywołanie skryptu — ustalona sekwencja |
-| `chronologia` | skill | `haiku` | low | jeden wiersz w tabeli, znany format |
-| `status` | skill | `haiku` | low | zebranie pól z plików i posortowanie |
+| `chronologia` | skill | `haiku` | low | jedno wywołanie `teczka.py zdarzenie` — typ, wątek, data; tabelę w `index.md` generuje kod |
+| `status` | skill | `haiku` | low | uporządkowanie wyniku `teczka.py co-robic`; terminy liczy kod |
 | `analiza-eml` | skill | `haiku` | low | całą pracę wykonuje `eml_forensics.py` |
 | `zrodla-dns-poczta` | skill | `haiku` | low | odpytanie DoH i przepisanie rekordów |
 | `kontrola` | skill | `haiku` | low | porównywanie łańcuchów, zero uznaniowości |
 | `analizuj-eml` | agent | `haiku` | — | uruchamia skrypt i zestawia wyniki |
 | `archiwizuj` | agent | `haiku` | — | porównywanie sum, deterministyczne |
-| `dopisz-chronologie` | agent | `haiku` | — | wstawianie wierszy, arytmetyka dat |
+| `dopisz-chronologie` | agent | `haiku` | — | zapis zdarzeń przez `teczka.py`, zamiana dat względnych na bezwzględne; terminy liczy kod |
 | `fakt` | skill | `haiku` | low | dopisanie jednego faktu do chronologii — ustalony format |
 | `metadane` | skill | `haiku` | low | ekstrakcja metadanych pliku, wynik deterministyczny |
 | `ustal-strone` | agent | `haiku` | — | wywołanie API i przepisanie pól JSON |
