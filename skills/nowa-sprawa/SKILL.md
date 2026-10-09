@@ -71,7 +71,7 @@ Ustalenie tożsamości bywa samodzielnym celem pierwszego pisma.
 
 Zajrzyj do `BAZA_WIEDZY/index.md`. Jeśli są tam już przepisy pasujące do tego typu sprawy —
 wypisz je w sekcji „Podstawa prawna" `index.md` sprawy jako punkt wyjścia. Jeśli baza jest pusta
-w tym zakresie, zapisz zadanie: `teczka.py zadanie <sprawa> "Uzupełnić BAZĘ WIEDZY: <zakres>"`. **Nie rób teraz researchu prawnego** — to zadanie na etapie pisma.
+w tym zakresie, powiedz użytkownikowi, jakiego zakresu brakuje (startowe zadanie „Sprawdzić BAZĘ WIEDZY, uzupełnić brakujące przepisy” już jest — nie dubluj go). Dopiero gdy to zadanie jest już zrobione, zapisz `teczka.py zadanie <sprawa> "Uzupełnić BAZĘ WIEDZY: <zakres>"`. **Nie rób teraz researchu prawnego** — to zadanie na etapie pisma.
 
 ## 5. Kanały kontaktu — tabelka gotowa do pisma
 

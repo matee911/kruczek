@@ -29,7 +29,10 @@ zgłoś każdą niezgodną sumę (plik zmieniony po zaewidencjonowaniu albo niea
 **⏳ Czekam** — `CZEKAM` (data i „szacunek”, jeśli jest). **🗓 Wkrótce** — `WKRÓTCE`.
 **⚪ Bez ruchu** — `BEZ RUCHU`. **📦 Stary format** — `STARY FORMAT` → `/kruczek:migruj`.
 **⚠ Problemy techniczne** — `BŁĘDY`, niezgodne sumy.
+**Pominięte** — `POMINIĘTO (brak index.md)`: wypisz te foldery jednym zdaniem (to zwykle kopie albo duplikaty,
+nie ma czego migrować). Nie proponuj ich migracji.
 
-Każda pozycja z nazwą folderu i id zadania, żeby dało się odpisać `teczka.py zrobione <folder> <id>`.
+Każda pozycja ze ścieżką sprawy (folder z `co-robic`, względem katalogu projektu) i id zadania, żeby dało się
+odpisać `teczka.py zrobione <ścieżka sprawy> <id>`.
 Na końcu **jedna** rekomendacja: co najpilniejsze i jaka komenda to posunie. Wszystko w porządku —
 jedno zdanie.
