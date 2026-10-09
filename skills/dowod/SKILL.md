@@ -1,11 +1,11 @@
 ---
 name: dowod
-description: Wciąga dowód do archiwum sprawy — kopiuje oryginał, liczy sumę kontrolną, robi OCR/transkrypcję dla plików nietekstowych, aktualizuje manifest i dopisuje zdarzenie do chronologii. Użyj przy każdym nowym mailu, skanie, zdjęciu, nagraniu, PDF-ie czy zrzucie ekranu w sprawie.
+description: Wciąga dowód do archiwum sprawy — kopiuje oryginał, liczy sumę kontrolną, robi OCR/transkrypcję dla plików nietekstowych, aktualizuje manifest i zapisuje zdarzenie w teczce. Użyj przy każdym nowym mailu, skanie, zdjęciu, nagraniu, PDF-ie czy zrzucie ekranu w sprawie.
 argument-hint: "[ścieżka do pliku] [katalog sprawy]"
 disable-model-invocation: true
 model: haiku
 effort: low
-allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/eml_forensics.py *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/manifest.py *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/metadane.sh *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/archiwa.sh *) Bash(cp *) Bash(mkdir *) Bash(sha256sum *) Bash(file *) Bash(ls *) Bash(qpdf *) Bash(unzip *) Bash(7z *) Read Write Edit
+allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/eml_forensics.py *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/manifest.py *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/metadane.sh *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/archiwa.sh *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/teczka.py *) Bash(cp *) Bash(mkdir *) Bash(sha256sum *) Bash(file *) Bash(ls *) Bash(qpdf *) Bash(unzip *) Bash(7z *) Read Write Edit
 ---
 
 # Wciągnięcie dowodu do archiwum
@@ -133,7 +133,7 @@ ani żadnej konfiguracji i zapisuje treść, nagłówki, kod HTTP, łańcuch prz
 Nieudany `save` **nie jest** porażką zabezpieczenia dowodu — odnotuj go i idź dalej.
 
 `--kontakt` (tylko dla `save`) to e-mail w sprawach spornych z `_SZABLONY/dane-nadawcy.md`.
-Gdy dane nadawcy są puste — zrób sam zrzut lokalny, a `save` dopisz do TODO.
+Gdy dane nadawcy są puste — zrób sam zrzut lokalny, a `save` zapisz jako zadanie: `teczka.py zadanie <sprawa> "Wayback save: <url>"`.
 
 ## 7. Wersja tekstowa dla plików nietekstowych
 
@@ -178,9 +178,16 @@ Przy każdym typie pliku — zaproponuj co mogłoby uzupełnić dowód:
 | zrzut ekranu | „Czy zrobiłeś zrzut 'przed' i 'po' zmianie?" |
 | nagranie | „Czy masz potwierdzenie mailowe lub SMS nawiązujące do tej rozmowy?" |
 
-## 10. Dopisz do chronologii
+## 10. Zapisz zdarzenie w teczce
 
-Jeden wiersz: data i godzina **zdarzenia** (nie dodania), opis, odesłanie do pliku. Porządek chronologiczny.
+Data i godzina **zdarzenia** (nie dodania). Typ według kierunku (`konwencje-teczki`): pismo od drugiej
+strony → `odpowiedz` (albo `wplyw` dla decyzji/wezwania — zapytaj, czy wyznacza Tobie termin);
+potwierdzenie odbioru Twojego pisma → `doreczenie`; inne → `fakt`.
+
+```
+${CLAUDE_PLUGIN_ROOT}/scripts/teczka.py zdarzenie <sprawa> --typ <typ> --data <data> [--godzina GG:MM] \
+  [--watek <id>] --opis "<opis>" --dowod ARCHIWUM/<plik> [--termin … --podstawa …]
+```
 
 ## 11. Raport końcowy
 
