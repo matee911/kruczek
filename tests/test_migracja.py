@@ -130,7 +130,7 @@ def test_bez_naglowka_albo_ze_znacznikami_nic_nie_wstawia(tekst):
 
 @pytest.mark.parametrize("tekst, tytul", [
     ("# SPRAWA: X sp. z o.o.\n", "X sp. z o.o."),
-    ("﻿\n# Sprawa:  Reklamacja butów \n## 1. Chronologia\n", "Reklamacja butów"),
+    ("\ufeff\n# Sprawa:  Reklamacja butów \n## 1. Chronologia\n", "Reklamacja butów"),
     ("# Rejestr spraw\n", None),
     ("", None),
 ])
@@ -156,3 +156,54 @@ def test_kopia_zapasowa_bez_index_md(tmp_path):
     # Act / Assert
     assert kopia_zapasowa(tmp_path, DZIS) is None
     assert not (tmp_path / "ROBOCZE").exists()
+
+
+_NADANIE_10 = {"klucz": "n", "data": "2026-10-01", "godzina": "10:00", "typ": "nadanie", "watek": "firma",
+               "termin": {"dlugosc": "14d", "podstawa": "x"}}
+_DORECZENIE_TEGO_DNIA = {"data": "2026-10-01", "typ": "doreczenie", "watek": "firma"}
+
+
+@pytest.mark.parametrize("zdarzenia", [
+    [_NADANIE_10, {**_DORECZENIE_TEGO_DNIA, "dotyczy": "n"}],
+    [_NADANIE_10, _DORECZENIE_TEGO_DNIA],
+    [{**_DORECZENIE_TEGO_DNIA, "dotyczy": "n"}, _NADANIE_10],
+], ids=["z-dotyczy", "bez-dotyczy-fifo", "doreczenie-wpisane-przed-nadaniem"])
+def test_doreczenie_tego_samego_dnia_bez_godziny_po_nadaniu(zdarzenia):
+    # Act
+    s = zbuduj_sprawe(propozycja(zdarzenia=zdarzenia), Kalendarz(), DZIS, "opiekun1").sprawa
+    # Assert
+    nadanie, doreczenie = s.zdarzenia
+    assert (nadanie.typ, doreczenie.typ, doreczenie.dotyczy) == ("nadanie", "doreczenie", nadanie.id)
+    assert (s.terminy[0].od_zdarzenia, s.terminy[0].szacunek) == (doreczenie.id, False)
+
+
+def test_w_jednym_dniu_kolejnosc_z_propozycji_a_nie_godzina():
+    # Arrange
+    zdarzenia = [{"data": "2026-10-01", "godzina": "15:00", "typ": "fakt", "opis": "pierwszy"},
+                 {"data": "2026-10-01", "typ": "fakt", "opis": "drugi"}]
+    # Act
+    s = zbuduj_sprawe(propozycja(zdarzenia=zdarzenia), Kalendarz(), DZIS, "opiekun1").sprawa
+    # Assert
+    assert [z.opis for z in s.zdarzenia] == ["pierwszy", "drugi"]
+
+
+def test_dotyczy_zdarzenia_z_pozniejszej_daty_to_blad():
+    # Arrange
+    zdarzenia = [{**_DORECZENIE_TEGO_DNIA, "dotyczy": "n"}, {**_NADANIE_10, "data": "2026-10-02"}]
+    # Act / Assert
+    with pytest.raises(BladSprawy, match="dotyczy 'n' — nie ma wcześniejszego"):
+        zbuduj_sprawe(propozycja(zdarzenia=zdarzenia), Kalendarz(), DZIS, "opiekun1")
+
+
+@pytest.mark.parametrize("odpowiedz, ostrzega", [(True, False), (False, True)],
+                         ids=["z-odpowiedzia", "bez-odpowiedzi"])
+def test_ostrzezenie_o_minionym_szacunku_tylko_dla_pisma_bez_odpowiedzi(odpowiedz, ostrzega):
+    # Arrange — nadanie bez daty doręczenia, termin szacunkowy minął
+    zdarzenia = [{"data": "2026-09-01", "typ": "nadanie", "watek": "firma",
+                  "termin": {"dlugosc": "14d", "podstawa": "x"}}]
+    if odpowiedz:
+        zdarzenia.append({"data": "2026-09-10", "typ": "odpowiedz", "watek": "firma"})
+    # Act
+    wynik = zbuduj_sprawe(propozycja(zdarzenia=zdarzenia, zadania=[]), Kalendarz(), DZIS, "opiekun1")
+    # Assert
+    assert any("liczony od nadania i już minął" in o for o in wynik.ostrzezenia) is ostrzega
