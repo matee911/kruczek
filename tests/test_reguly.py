@@ -436,3 +436,55 @@ def test_zmiana_daty_sprzeczna_z_powiazanym_zdarzeniem_odrzucona(id_, nowa, komu
     with pytest.raises(BladSprawy, match=komunikat):
         zmien_date(s, s.znajdz_zdarzenie(id_), nowa, Kalendarz())
     assert s.znajdz_zdarzenie(id_).data != nowa
+
+
+def test_zmiana_daty_nadania_po_doreczeniu_nie_zmienia_terminu_liczonego_od_doreczenia():
+    # Arrange
+    s = sprawa_z_watkiem()
+    dodaj(s, "z1", D(2026, 10, 1), "nadanie", SPEC)
+    dodaj(s, "z2", D(2026, 10, 3), "doreczenie")
+    # Act
+    zmien_date(s, s.znajdz_zdarzenie("z1"), D(2026, 10, 2), Kalendarz())
+    # Assert
+    (t,) = s.terminy
+    assert (t.od_zdarzenia, t.data_konca) == ("z2", D(2026, 10, 19))
+
+
+def test_zmiana_daty_doreczenia_przesuwa_oczekiwanie_na_odpowiedz_i_zamkniete_sprawdzenie():
+    # Arrange
+    s = sprawa_z_watkiem()
+    dodaj(s, "z1", D(2026, 10, 1), "nadanie", SPEC)
+    dodaj(s, "z2", D(2026, 10, 3), "doreczenie")
+    # Act
+    zmien_date(s, s.znajdz_zdarzenie("z2"), D(2026, 10, 6), Kalendarz())
+    # Assert
+    (t,) = s.terminy
+    odpowiedz = next(a for a in s.zadania if a.regula == REGULA_ODPOWIEDZ)
+    sprawdz = next(a for a in s.zadania if a.regula == REGULA_DORECZENIE)
+    assert odpowiedz.aktywne_od == t.data_konca + dt.timedelta(days=1)
+    assert sprawdz.zrobione == D(2026, 10, 6)
+
+
+def test_zmiana_daty_odpowiedzi_przesuwa_zamkniete_zadania_i_analize():
+    # Arrange
+    s = sprawa_z_watkiem()
+    dodaj(s, "z1", D(2026, 10, 8), "nadanie", SPEC)
+    dodaj(s, "z2", D(2026, 10, 15), "odpowiedz")
+    # Act
+    zmien_date(s, s.znajdz_zdarzenie("z2"), D(2026, 10, 16), Kalendarz())
+    # Assert
+    reguly = {a.regula: a for a in s.zadania}
+    assert reguly[REGULA_ODPOWIEDZ].zrobione == D(2026, 10, 16)
+    assert reguly[REGULA_DORECZENIE].zrobione == D(2026, 10, 16)
+    assert reguly[REGULA_ANALIZA].aktywne_od == D(2026, 10, 16)
+
+
+def test_zmiana_daty_odpowiedzi_na_wczesniejsza_niz_nadanie_odrzucona():
+    # Arrange
+    s = sprawa_z_watkiem()
+    dodaj(s, "z1", D(2026, 10, 8), "nadanie", SPEC)
+    dodaj(s, "z2", D(2026, 10, 15), "odpowiedz")
+    # Act / Assert
+    with pytest.raises(BladSprawy, match="z1"):
+        zmien_date(s, s.znajdz_zdarzenie("z2"), D(2026, 10, 7), Kalendarz())
+    assert s.znajdz_zdarzenie("z2").data == D(2026, 10, 15)
