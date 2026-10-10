@@ -65,6 +65,7 @@ from kruczek_core.operacje import (
     przelicz_sprawe,
     zamknij_sprawe,
 )
+from kruczek_core.projekt import odswiez_index
 from kruczek_core.reguly import SpecTerminu
 from kruczek_core.render import renderuj
 from kruczek_core.repozytorium import (
@@ -210,15 +211,10 @@ def _etykieta(sprawa: Path, projekt: Path) -> str:
 
 
 def _odswiez(katalog: Path, przed: Callable[[str], str] = lambda t: t) -> None:
-    """Po udanym zapisie odśwież bloki index.md (jeśli istnieje). Błąd tutaj NIE jest błędem
-    zapisu — kod 0, inaczej skill powtórzyłby polecenie i zdublował zdarzenie."""
-    if not (katalog / "index.md").exists():
-        return
-    try:
-        kalendarz = kalendarz_sprawy(katalog)
-        przetworz_tekst(katalog, "index.md", lambda tekst: renderuj(przed(tekst), wczytaj(katalog), kalendarz))
-    except (BladSprawy, OSError) as e:
-        print(f"uwaga: zapisano, ale index.md nie odświeżony: {e}", file=sys.stderr)
+    """Po udanym zapisie odśwież bloki index.md. Błąd tutaj NIE jest błędem zapisu — kod 0."""
+    uwaga = odswiez_index(katalog, przed)
+    if uwaga is not None:
+        print(f"uwaga: {uwaga}", file=sys.stderr)
 
 
 def _linia_zadania(p: PozycjaZadania, kal: Kalendarz, dzis: dt.date) -> str:
