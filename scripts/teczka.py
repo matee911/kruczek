@@ -42,7 +42,13 @@ from collections.abc import Callable
 from dataclasses import replace
 from pathlib import Path
 
-from kruczek_core.dni_wolne import PLIK_PROJEKTU, DzienJednorazowy, Kalendarz, kalendarz_sprawy, zapisz_jednorazowy
+from kruczek_core.dni_wolne import (
+    PLIK_PROJEKTU,
+    DzienJednorazowy,
+    Kalendarz,
+    kalendarz_sprawy,
+    zapisz_jednorazowy,
+)
 from kruczek_core.migracja import (
     Podsumowanie,
     kopia_zapasowa,

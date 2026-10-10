@@ -92,3 +92,16 @@ def test_odswiez_index_zle_znaczniki_zwraca_ostrzezenie(projekt):
     uwaga = odswiez_index(projekt / "sprawa-a")
     # Assert
     assert uwaga is not None and "nie odświeżony" in uwaga
+
+
+def test_odswiez_index_poprawne_znaczniki_aktualizuja_sekcje(projekt):
+    # Arrange
+    index = projekt / "sprawa-a" / "index.md"
+    index.write_text("<!-- kruczek:zadania -->\nstare\n<!-- /kruczek:zadania -->\n", encoding="utf-8")
+    # Act
+    uwaga = odswiez_index(projekt / "sprawa-a")
+    # Assert
+    assert uwaga is None
+    tekst = index.read_text(encoding="utf-8")
+    assert "stare" not in tekst
+    assert "<!-- kruczek:zadania -->" in tekst
