@@ -8,8 +8,9 @@ Klucz spoza spisu projektu jest odrzucany, zanim cokolwiek zostanie przeczytane.
 
 from __future__ import annotations
 
+import datetime as dt
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Protocol, TypeVar
 
@@ -17,6 +18,7 @@ from kruczek_core import repozytorium
 from kruczek_core.dni_wolne import Kalendarz, kalendarz_sprawy
 from kruczek_core.model import BladSprawy, Sprawa
 from kruczek_core.render import renderuj
+from kruczek_core.widok import Przeglad, co_robic
 
 T = TypeVar("T")
 
@@ -87,3 +89,34 @@ class PlikoweRepozytorium:
 
     def odswiez_widok(self, klucz: str) -> str | None:
         return odswiez_index(self.katalog(klucz))
+
+
+@dataclass(frozen=True)
+class PrzegladProjektu:
+    przeglad: Przeglad
+    stary_format: list[str]
+    bez_indexu: list[str]
+    bledy: list[tuple[str, str]] = field(default_factory=list)
+    kalendarze: dict[str, Kalendarz] = field(default_factory=dict)
+    sprawy: dict[str, Sprawa] = field(default_factory=dict)
+
+
+def przeglad_projektu(repo: RepozytoriumSpraw, dzis: dt.date) -> PrzegladProjektu:
+    """To, co pokazuje `teczka.py co-robic` i strona: jedna nieczytelna sprawa trafia do błędów,
+    reszta jest pokazana; kopia folderu z tym samym id sprawy też jest błędem (obie widoczne)."""
+    spis = repo.spis()
+    pary, bledy, kalendarze, sprawy, widziane = [], [], {}, {}, {}
+    for klucz in spis.sprawy:
+        try:
+            s = repo.wczytaj(klucz)
+            kalendarze[klucz] = repo.kalendarz(klucz)
+        except BladSprawy as e:
+            bledy.append((klucz, str(e)))
+            continue
+        if s.id in widziane:
+            bledy.append((klucz, f"to samo id sprawy ({s.id}) co w {widziane[s.id]} — jeden z folderów to kopia"))
+        else:
+            widziane[s.id] = klucz
+        pary.append((klucz, s))
+        sprawy[klucz] = s
+    return PrzegladProjektu(co_robic(pary, dzis), spis.stary_format, spis.bez_indexu, bledy, kalendarze, sprawy)

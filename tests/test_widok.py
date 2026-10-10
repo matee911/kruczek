@@ -14,6 +14,10 @@ def sprawa(tytul, zadania=(), zamknieta=False) -> Sprawa:
                   watki=[Watek("firma", "X")], zadania=list(zadania), zamknieta=zamknieta)
 
 
+def pary(*sprawy):
+    return [(s.id, s) for s in sprawy]
+
+
 def test_teraz_tylko_aktywne_i_niezrobione_wkrotce_w_horyzoncie():
     # Arrange
     a = sprawa("A", [Zadanie("a1", "aktywne", D(2026, 10, 19)),
@@ -21,7 +25,7 @@ def test_teraz_tylko_aktywne_i_niezrobione_wkrotce_w_horyzoncie():
     b = sprawa("B", [Zadanie("a1", "za tydzień", D(2026, 10, 27)),
                      Zadanie("a2", "za miesiąc", D(2026, 11, 30))])
     # Act
-    p = co_robic([a, b], DZIS)
+    p = co_robic(pary(a, b), DZIS)
     # Assert
     assert [(x.sprawa, x.zadanie.opis) for x in p.teraz] == [("A", "aktywne")]
     assert [(x.sprawa, x.zadanie.opis) for x in p.wkrotce] == [("B", "za tydzień")]
@@ -32,7 +36,7 @@ def test_teraz_sortowane_po_terminie():
     s = sprawa("A", [Zadanie("a1", "bez terminu", D(2026, 10, 1)),
                      Zadanie("a2", "pilne", D(2026, 10, 10), termin=D(2026, 10, 21))])
     # Act
-    p = co_robic([s], DZIS)
+    p = co_robic(pary(s), DZIS)
     # Assert
     assert [x.zadanie.opis for x in p.teraz] == ["pilne", "bez terminu"]
 
@@ -41,7 +45,7 @@ def test_zamknieta_sprawa_pomijana():
     # Arrange
     s = sprawa("A", [Zadanie("a1", "x", D(2026, 10, 1))], zamknieta=True)
     # Act
-    p = co_robic([s], DZIS)
+    p = co_robic(pary(s), DZIS)
     # Assert
     assert p.teraz == [] and p.czekam == []
 
@@ -70,7 +74,7 @@ def test_moj_termin_na_gorze_teraz_i_nie_w_czekam():
     s.zdarzenia.append(z)
     zastosuj(s, z, SpecTerminu("14d", "pouczenie"), Kalendarz())
     # Act
-    p = co_robic([s], DZIS)
+    p = co_robic(pary(s), DZIS)
     # Assert
     assert p.teraz[0].zadanie.termin == D(2026, 10, 26)
     assert p.czekam == []
@@ -83,7 +87,7 @@ def test_czekam_zawiera_watki_z_pilka_u_adresata():
     s.zdarzenia.append(z1)
     zastosuj(s, z1, SpecTerminu("14d", "test"), Kalendarz())
     # Act
-    p = co_robic([s], DZIS)
+    p = co_robic(pary(s), DZIS)
     # Assert
     assert [(c.sprawa, c.watek.id, c.czekam_do) for c in p.czekam] == [("A", "firma", D(2026, 10, 22))]
 
@@ -150,7 +154,7 @@ def test_granica_horyzontu_wlacza_dzien_14_i_wyklucza_dzien_15():
     a = sprawa("A", [Zadanie("a1", "w granicy", D(2026, 11, 3)),
                      Zadanie("a2", "za daleko", D(2026, 11, 4))])
     # Act
-    p = co_robic([a], DZIS)
+    p = co_robic(pary(a), DZIS)
     # Assert
     assert p.teraz == []
     assert [x.zadanie.opis for x in p.wkrotce] == ["w granicy"]
@@ -162,7 +166,7 @@ def test_teraz_przeterminowany_termin_na_gorze_potem_nadchodzacy_potem_bez_termi
                      Zadanie("a2", "przeterminowany", D(2026, 10, 10), termin=D(2026, 10, 18)),
                      Zadanie("a3", "bez terminu", D(2026, 9, 1))])
     # Act
-    p = co_robic([s], DZIS)
+    p = co_robic(pary(s), DZIS)
     # Assert
     assert [x.zadanie.opis for x in p.teraz] == ["przeterminowany", "termin 25", "bez terminu"]
 
@@ -174,7 +178,7 @@ def test_sprawa_bez_ruchu_ponad_30_dni():
     zywa = Sprawa(id="s2", tytul="Żywa", wlasciciel="w", strona_przeciwna="X",
                   zdarzenia=[Zdarzenie("z1", D(2026, 10, 15), "fakt")])
     # Act
-    p = co_robic([stara, zywa], D(2026, 10, 20))
+    p = co_robic(pary(stara, zywa), D(2026, 10, 20))
     # Assert
     assert [(b.sprawa, b.sprawa_id, b.ostatni_ruch) for b in p.bez_ruchu] == [("Stara", "s1", D(2026, 9, 1))]
 
@@ -188,7 +192,7 @@ def test_bez_ruchu_pomija_zamknieta_otwarte_zadanie_i_sprawe_bez_zdarzen_wypisuj
     pusta = Sprawa(id="c", tytul="C", wlasciciel="w", strona_przeciwna="X")
     stara = Sprawa(id="d", tytul="D", wlasciciel="w", strona_przeciwna="X", zdarzenia=stare)
     # Act
-    p = co_robic([zamknieta, z_zadaniem, stara, pusta], D(2026, 10, 20))
+    p = co_robic(pary(zamknieta, z_zadaniem, stara, pusta), D(2026, 10, 20))
     # Assert
     assert [(b.sprawa_id, b.ostatni_ruch) for b in p.bez_ruchu] == [("c", None), ("d", D(2026, 8, 1))]
 
@@ -198,6 +202,30 @@ def test_pozycje_niosa_id_sprawy():
     s = Sprawa(id="abc", tytul="T", wlasciciel="w", strona_przeciwna="X",
                zadania=[Zadanie("a1", "x", D(2026, 10, 1))])
     # Act
-    p = co_robic([s], D(2026, 10, 20))
+    p = co_robic(pary(s), D(2026, 10, 20))
     # Assert
     assert p.teraz[0].sprawa_id == "abc"
+
+
+def test_pozycje_niosa_klucz_i_prawdziwe_id():
+    # Arrange
+    s = Sprawa(id="abc", tytul="T", wlasciciel="w", strona_przeciwna="X",
+               zadania=[Zadanie("a1", "zrób", D(2026, 10, 1))])
+    # Act
+    p = co_robic([("podprojekt/sprawa-b", s)], D(2026, 10, 9))
+    # Assert
+    assert (p.teraz[0].klucz, p.teraz[0].sprawa_id) == ("podprojekt/sprawa-b", "abc")
+
+
+def test_stan_watku_i_bez_ruchu_niosa_klucz_pary():
+    # Arrange
+    czekajaca = sprawa("A")
+    z = Zdarzenie("z1", D(2026, 10, 8), "nadanie", watek="firma")
+    czekajaca.zdarzenia.append(z)
+    zastosuj(czekajaca, z, SpecTerminu("14d", "test"), Kalendarz())
+    pusta = Sprawa(id="c", tytul="C", wlasciciel="w", strona_przeciwna="X")
+    # Act
+    p = co_robic([("katalog/a", czekajaca), ("katalog/c", pusta)], DZIS)
+    # Assert
+    assert [c.klucz for c in p.czekam] == ["katalog/a"]
+    assert [b.klucz for b in p.bez_ruchu] == ["katalog/c"]

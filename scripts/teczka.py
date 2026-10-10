@@ -39,7 +39,6 @@ import getpass
 import re
 import sys
 from collections.abc import Callable
-from dataclasses import replace
 from pathlib import Path
 
 from kruczek_core.dni_wolne import (
@@ -71,7 +70,7 @@ from kruczek_core.operacje import (
     przelicz_sprawe,
     zamknij_sprawe,
 )
-from kruczek_core.projekt import odswiez_index
+from kruczek_core.projekt import PlikoweRepozytorium, odswiez_index, przeglad_projektu
 from kruczek_core.reguly import SpecTerminu
 from kruczek_core.render import renderuj
 from kruczek_core.repozytorium import (
@@ -83,7 +82,7 @@ from kruczek_core.repozytorium import (
     wczytaj,
     zapisz_nowa,
 )
-from kruczek_core.widok import DNI_BEZ_RUCHU, PozycjaZadania, Przeglad, co_robic
+from kruczek_core.widok import DNI_BEZ_RUCHU, PozycjaZadania, Przeglad
 
 _WZGLEDNA = re.compile(r"^\+(\d+)([dt])$")
 
@@ -233,33 +232,32 @@ def _linia_zadania(p: PozycjaZadania, kal: Kalendarz, dzis: dt.date) -> str:
             dopiski.append(f"PO TERMINIE ({(dzis - z.termin).days} dni)")
         dopiski += kal.ostrzezenia(z.termin)
     reszta = f"  {'; '.join(dopiski)}" if dopiski else ""
-    return f"[{z.id}] {p.sprawa_id}: {p.sprawa}{watek} — {z.opis}{reszta}"
+    return f"[{z.id}] {p.klucz}: {p.sprawa}{watek} — {z.opis}{reszta}"
 
 
 def _wypisz(przeglad: Przeglad, stary_format: list[str], bez_indexu: list[str], kals: dict[str, Kalendarz],
             dzis: dt.date) -> None:
-    """`sprawa_id` w przeglądzie to etykieta folderu (patrz `co-robic`), nie `Sprawa.id`."""
     print("TERAZ")
     for p in przeglad.teraz:
-        print(f"  {_linia_zadania(p, kals[p.sprawa_id], dzis)}")
+        print(f"  {_linia_zadania(p, kals[p.klucz], dzis)}")
     if not przeglad.teraz:
         print("  —")
     print("CZEKAM")
     for c in przeglad.czekam:
         do = f"do {c.czekam_do.isoformat()}" if c.czekam_do else "bez terminu"
-        print(f"  {c.sprawa_id}: {c.sprawa} / {c.watek.id} ({c.watek.adresat}) — {do}{' (szacunek)' if c.szacunek else ''}")
+        print(f"  {c.klucz}: {c.sprawa} / {c.watek.id} ({c.watek.adresat}) — {do}{' (szacunek)' if c.szacunek else ''}")
     if not przeglad.czekam:
         print("  —")
     print("WKRÓTCE")
     for p in przeglad.wkrotce:
-        print(f"  od {p.zadanie.aktywne_od.isoformat()}  {_linia_zadania(p, kals[p.sprawa_id], dzis)}")
+        print(f"  od {p.zadanie.aktywne_od.isoformat()}  {_linia_zadania(p, kals[p.klucz], dzis)}")
     if not przeglad.wkrotce:
         print("  —")
     if przeglad.bez_ruchu:
         print(f"BEZ RUCHU (ponad {DNI_BEZ_RUCHU} dni)")
         for b in przeglad.bez_ruchu:
             kiedy = b.ostatni_ruch.isoformat() if b.ostatni_ruch else "brak zdarzeń"
-            print(f"  {b.sprawa_id}: {b.sprawa} — ostatni ruch {kiedy}")
+            print(f"  {b.klucz}: {b.sprawa} — ostatni ruch {kiedy}")
     if stary_format:
         print("STARY FORMAT (bez sprawa.json — przenieś: /kruczek:migruj)")
         for k in stary_format:
@@ -390,28 +388,13 @@ def _wykonaj(a: argparse.Namespace, dzis: dt.date) -> int:
         print(f"otwarto sprawę {a.sprawa.name}")
     elif a.komenda == "co-robic":
         projekt = _projekt_z_argumentu(a.projekt)
-        lista = lista_spraw(projekt)
-        if not (lista.sprawy or lista.stary_format or lista.bez_indexu):
+        p = przeglad_projektu(PlikoweRepozytorium(projekt), dzis)
+        if not (p.sprawy or p.bledy or p.stary_format or p.bez_indexu):
             print(f"brak spraw w {projekt}")
             return 0
-        sprawy, bledy, widziane, kals = [], [], {}, {}
-        for k in lista.sprawy:
-            etykieta = _etykieta(k, projekt)
-            try:
-                s = wczytaj(k)
-                kals[etykieta] = kalendarz_sprawy(k)
-            except BladSprawy as e:
-                bledy.append((etykieta, str(e)))
-                continue
-            if s.id in widziane:
-                bledy.append((etykieta, f"to samo id sprawy ({s.id}) co w {widziane[s.id]} — jeden z folderów to kopia"))
-            else:
-                widziane[s.id] = etykieta
-            sprawy.append(replace(s, id=etykieta))  # id = etykieta folderu, by kopie nie myliły linii
-        _wypisz(co_robic(sprawy, dzis), [_etykieta(k, projekt) for k in lista.stary_format],
-                [_etykieta(k, projekt) for k in lista.bez_indexu], kals, dzis)
-        if bledy:
-            return _wypisz_bledy(bledy)
+        _wypisz(p.przeglad, p.stary_format, p.bez_indexu, p.kalendarze, dzis)
+        if p.bledy:
+            return _wypisz_bledy(p.bledy)
     elif a.komenda == "renderuj":
         wczytaj(a.sprawa)  # BladSprawy bez brania blokady, gdy to nie folder sprawy
         kalendarz = kalendarz_sprawy(a.sprawa)
