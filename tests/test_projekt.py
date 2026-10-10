@@ -1,9 +1,15 @@
 import datetime as dt
+import shutil
 
 import pytest
 from kruczek_core.model import BladSprawy
-from kruczek_core.operacje import nowa_sprawa
-from kruczek_core.projekt import PlikoweRepozytorium, RepozytoriumSpraw, odswiez_index
+from kruczek_core.operacje import dodaj_zadanie, nowa_sprawa
+from kruczek_core.projekt import (
+    PlikoweRepozytorium,
+    RepozytoriumSpraw,
+    odswiez_index,
+    przeglad_projektu,
+)
 
 
 def _sprawa(katalog, tytul="T"):
@@ -105,3 +111,28 @@ def test_odswiez_index_poprawne_znaczniki_aktualizuja_sekcje(projekt):
     tekst = index.read_text(encoding="utf-8")
     assert "stare" not in tekst
     assert "<!-- kruczek:zadania -->" in tekst
+
+
+def test_przeglad_projektu_jedna_zepsuta_sprawa_nie_ukrywa_reszty(projekt):
+    # Arrange
+    dodaj_zadanie(projekt / "sprawa-a", "zrób coś", dt.date(2026, 10, 1))
+    (projekt / "podprojekt" / "sprawa-b" / "sprawa.json").write_text("{", encoding="utf-8")
+    repo = PlikoweRepozytorium(projekt)
+    # Act
+    p = przeglad_projektu(repo, dt.date(2026, 10, 9))
+    # Assert
+    assert [x.klucz for x in p.przeglad.teraz] == ["sprawa-a"]
+    assert p.bledy[0][0] == "podprojekt/sprawa-b"
+    assert p.stary_format == ["stara"] and p.bez_indexu == ["kopia 2"]
+    assert set(p.kalendarze) == {"sprawa ze spacją ąę", "sprawa-a"}
+    assert p.sprawy["sprawa-a"].rewizja == 1
+
+
+def test_przeglad_projektu_kopia_folderu_z_tym_samym_id_to_blad(projekt):
+    # Arrange
+    shutil.copytree(projekt / "sprawa-a", projekt / "sprawa-a-kopia")
+    repo = PlikoweRepozytorium(projekt)
+    # Act
+    p = przeglad_projektu(repo, dt.date(2026, 10, 9))
+    # Assert
+    assert any(k == "sprawa-a-kopia" and "to samo id" in m for k, m in p.bledy)

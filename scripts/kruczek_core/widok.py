@@ -10,6 +10,7 @@ to najwcześniejszy termin adresata, którego zadanie odpowiedzi jest jeszcze ot
 from __future__ import annotations
 
 import datetime as dt
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 
 from kruczek_core.model import Sprawa, Watek, Zadanie
@@ -26,6 +27,7 @@ class StanWatku:
     czekam_do: dt.date | None
     szacunek: bool
     sprawa_id: str = ""
+    klucz: str = ""
 
 
 @dataclass(frozen=True)
@@ -33,6 +35,7 @@ class PozycjaZadania:
     sprawa: str
     zadanie: Zadanie
     sprawa_id: str = ""
+    klucz: str = ""
 
 
 @dataclass(frozen=True)
@@ -40,6 +43,7 @@ class BezRuchu:
     sprawa: str
     sprawa_id: str
     ostatni_ruch: dt.date | None
+    klucz: str = ""
 
 
 @dataclass(frozen=True)
@@ -50,44 +54,44 @@ class Przeglad:
     bez_ruchu: list[BezRuchu] = field(default_factory=list)
 
 
-def stan_watku(sprawa: Sprawa, watek_id: str) -> StanWatku:
+def stan_watku(sprawa: Sprawa, watek_id: str, klucz: str = "") -> StanWatku:
     watek = sprawa.znajdz_watek(watek_id)
     otwarte = [a for a in sprawa.zadania if a.watek == watek_id and a.zrobione is None]
     if not any(a.regula in (REGULA_ODPOWIEDZ, REGULA_DORECZENIE) for a in otwarte):
-        return StanWatku(sprawa.tytul, watek, "moja", None, False, sprawa.id)
+        return StanWatku(sprawa.tytul, watek, "moja", None, False, sprawa.id, klucz)
     czekajace = [
         t for t in sprawa.terminy
         if t.watek == watek_id and t.czyj == "adresata"
         and any(a.termin_id == t.id and a.regula == REGULA_ODPOWIEDZ for a in otwarte)
     ]
     if not czekajace:
-        return StanWatku(sprawa.tytul, watek, "adresata", None, False, sprawa.id)
+        return StanWatku(sprawa.tytul, watek, "adresata", None, False, sprawa.id, klucz)
     najblizszy = min(czekajace, key=lambda t: t.data_konca)
-    return StanWatku(sprawa.tytul, watek, "adresata", najblizszy.data_konca, najblizszy.szacunek, sprawa.id)
+    return StanWatku(sprawa.tytul, watek, "adresata", najblizszy.data_konca, najblizszy.szacunek, sprawa.id, klucz)
 
 
-def co_robic(sprawy: list[Sprawa], dzis: dt.date, horyzont_dni: int = 14,
+def co_robic(sprawy: Sequence[tuple[str, Sprawa]], dzis: dt.date, horyzont_dni: int = 14,
              bez_ruchu_dni: int = DNI_BEZ_RUCHU) -> Przeglad:
     granica = dzis + dt.timedelta(days=horyzont_dni)
     teraz, wkrotce, czekam, bez_ruchu = [], [], [], []
-    for s in sprawy:
+    for klucz, s in sprawy:
         if s.zamknieta:
             continue
         for a in s.zadania:
             if a.zrobione is not None:
                 continue
             if a.aktywne_od <= dzis:
-                teraz.append(PozycjaZadania(s.tytul, a, s.id))
+                teraz.append(PozycjaZadania(s.tytul, a, s.id, klucz))
             elif a.aktywne_od <= granica:
-                wkrotce.append(PozycjaZadania(s.tytul, a, s.id))
-        czeka = [st for w in s.watki if (st := stan_watku(s, w.id)).pilka == "adresata"]
+                wkrotce.append(PozycjaZadania(s.tytul, a, s.id, klucz))
+        czeka = [st for w in s.watki if (st := stan_watku(s, w.id, klucz)).pilka == "adresata"]
         czekam += czeka
         if not czeka and all(a.zrobione is not None for a in s.zadania):
             ostatni = max((z.data for z in s.zdarzenia), default=None)
             if ostatni is None or (dzis - ostatni).days > bez_ruchu_dni:
-                bez_ruchu.append(BezRuchu(s.tytul, s.id, ostatni))
-    teraz.sort(key=lambda p: (p.zadanie.termin or dt.date.max, p.zadanie.aktywne_od, p.sprawa))
-    wkrotce.sort(key=lambda p: (p.zadanie.aktywne_od, p.sprawa))
-    czekam.sort(key=lambda st: (st.czekam_do or dt.date.max, st.sprawa))
-    bez_ruchu.sort(key=lambda b: (b.ostatni_ruch is not None, b.ostatni_ruch or dt.date.min, b.sprawa))
+                bez_ruchu.append(BezRuchu(s.tytul, s.id, ostatni, klucz))
+    teraz.sort(key=lambda p: (p.zadanie.termin or dt.date.max, p.zadanie.aktywne_od, p.sprawa, p.klucz))
+    wkrotce.sort(key=lambda p: (p.zadanie.aktywne_od, p.sprawa, p.klucz))
+    czekam.sort(key=lambda st: (st.czekam_do or dt.date.max, st.sprawa, st.klucz))
+    bez_ruchu.sort(key=lambda b: (b.ostatni_ruch is not None, b.ostatni_ruch or dt.date.min, b.sprawa, b.klucz))
     return Przeglad(teraz, czekam, wkrotce, bez_ruchu)
