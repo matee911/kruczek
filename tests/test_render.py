@@ -1,10 +1,9 @@
 import datetime as dt
 
 import pytest
-
-from kruczek_core.dni_wolne import Kalendarz
+from kruczek_core.dni_wolne import DzienJednorazowy, Kalendarz
 from kruczek_core.model import BladSprawy, Sprawa, Termin, Watek, Zadanie, Zdarzenie
-from kruczek_core.render import renderuj
+from kruczek_core.render import renderuj, uwagi_terminu
 
 D = dt.date
 
@@ -112,3 +111,14 @@ def test_godzina_i_pewnosc_w_chronologii():
     # Assert
     assert "| 2026-10-08 | 14:32 | telefon | — | dzwonili | — (własne oświadczenie — brak pliku) |" in wynik
     assert wynik.index("09:05") < wynik.index("14:32")
+
+
+def test_uwagi_terminu_szacunek_i_dzien_tylko_dla_urzedow():
+    # Arrange
+    kal = Kalendarz((DzienJednorazowy(D(2026, 10, 22), "test", True),))
+    t = Termin("t1", "x", "z1", "14d", D(2026, 10, 22), "firma", True)
+    # Act
+    uwagi = uwagi_terminu(t, kal)
+    # Assert
+    assert uwagi[0] == "szacunek"
+    assert "urzędy zamknięte 2026-10-22" in uwagi[1]
