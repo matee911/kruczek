@@ -1,10 +1,9 @@
 import datetime as dt
 
 import pytest
-
-from kruczek_core.dni_wolne import Kalendarz
 from kruczek_core import operacje
-from kruczek_core.model import BladSprawy, Sprawa
+from kruczek_core.dni_wolne import Kalendarz
+from kruczek_core.model import BladSprawy, Sprawa, Zadanie
 from kruczek_core.operacje import (
     cofnij_zdarzenie,
     dodaj_watek,
@@ -19,9 +18,10 @@ from kruczek_core.operacje import (
     popraw_zdarzenie,
     utworz_sprawe,
     zamknij_sprawe,
+    zaznacz_zrobione,
 )
 from kruczek_core.reguly import SpecTerminu
-from kruczek_core.repozytorium import wczytaj
+from kruczek_core.repozytorium import KonfliktRewizji, wczytaj
 
 D = dt.date
 DZIS = D(2026, 10, 20)
@@ -208,7 +208,7 @@ def test_blad_w_zmianie_nic_nie_zapisuje_i_rewizja_bez_zmian(katalog):
 
 def test_wyjatek_po_mutacji_wycofuje_zapis(katalog, monkeypatch):
     # Arrange
-    import kruczek_core.operacje as operacje
+    from kruczek_core import operacje
 
     rewizja = wczytaj(katalog).rewizja
 
@@ -405,3 +405,31 @@ def test_nowa_sprawa_z_zadaniami_startowymi(tmp_path):
     assert {a.regula for a in s.zadania[:-1]} == {operacje.REGULA_START}
     assert s.zadania[-1].regula == operacje.REGULA_START_NADANIE
     assert all(a.aktywne_od == DZIS and a.zdarzenie_id is None for a in s.zadania)
+
+
+def test_zaznacz_zrobione_inny_opis_to_konflikt():
+    # Arrange
+    s = Sprawa(id="s1", tytul="T", wlasciciel="opiekun1", strona_przeciwna="X",
+               zadania=[Zadanie("a1", "nowe zadanie", D(2026, 10, 1))])
+    # Act / Assert
+    with pytest.raises(KonfliktRewizji, match="zmieniła się"):
+        zaznacz_zrobione(s, "a1", DZIS, oczekiwany_opis="stare zadanie")
+    assert s.zadania[0].zrobione is None
+
+
+def test_zaznacz_zrobione_brak_zadania_przy_oczekiwanym_opisie_to_konflikt():
+    # Arrange
+    s = Sprawa(id="s1", tytul="T", wlasciciel="opiekun1", strona_przeciwna="X")
+    # Act / Assert
+    with pytest.raises(KonfliktRewizji):
+        zaznacz_zrobione(s, "a9", DZIS, oczekiwany_opis="coś")
+
+
+def test_zaznacz_zrobione_zgodny_opis_oznacza():
+    # Arrange
+    s = Sprawa(id="s1", tytul="T", wlasciciel="opiekun1", strona_przeciwna="X",
+               zadania=[Zadanie("a1", "zrób", D(2026, 10, 1))])
+    # Act
+    z = zaznacz_zrobione(s, "a1", DZIS, oczekiwany_opis="zrób")
+    # Assert
+    assert z.zrobione == DZIS

@@ -8,7 +8,7 @@ strategia, notatki) zostaje nietknięte.
 from __future__ import annotations
 
 from kruczek_core.dni_wolne import Kalendarz
-from kruczek_core.model import BladSprawy, Sprawa
+from kruczek_core.model import BladSprawy, Sprawa, Termin
 
 BLOKI = ("chronologia", "terminy", "zadania")
 _NAGLOWKI = {"chronologia": "Chronologia", "terminy": "Terminy", "zadania": "Zadania"}
@@ -38,10 +38,15 @@ def _chronologia(s: Sprawa) -> str:
     return "\n".join(wiersze)
 
 
+def uwagi_terminu(t: Termin, kal: Kalendarz) -> list[str]:
+    """Uwagi do terminu wspólne dla index.md i strony: szacunek (liczony od nadania) i dni wolne tylko dla urzędów."""
+    return (["szacunek"] if t.szacunek else []) + kal.ostrzezenia(t.data_konca)
+
+
 def _terminy(s: Sprawa, kal: Kalendarz) -> str:
     wiersze = ["| Termin | Czyj | Wątek | Podstawa | Długość | Koniec | Uwagi |", "|---|---|---|---|---|---|---|"]
     for t in sorted(s.terminy, key=lambda t: t.data_konca):
-        uwagi = (["szacunek"] if t.szacunek else []) + kal.ostrzezenia(t.data_konca)
+        uwagi = uwagi_terminu(t, kal)
         czyj = "mój" if t.czyj == "moj" else "adresata"
         watek = _komorka(t.watek or "—")
         podstawa = _komorka(t.podstawa)

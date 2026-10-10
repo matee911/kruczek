@@ -15,8 +15,8 @@ from kruczek_core.dni_wolne import PIERWSZY_ROK, Kalendarz
 from kruczek_core.model import (
     PEWNOSCI,
     TYPY_ZDARZEN,
-    ZDARZENIA_PRZYCHODZACE,
     WYNIKI_SPRAWY,
+    ZDARZENIA_PRZYCHODZACE,
     ZDARZENIA_WATKU,
     BladSprawy,
     Sprawa,
@@ -27,9 +27,16 @@ from kruczek_core.model import (
     czy_godzina,
     kolejne_id,
 )
-from kruczek_core.reguly import (REGULA_START, REGULA_START_NADANIE, SpecTerminu, cofnij, przelicz, zastosuj,
-                                 zmien_date)
-from kruczek_core.repozytorium import PLIK_SPRAWY, zapisz_nowa, zmien
+from kruczek_core.reguly import (
+    REGULA_START,
+    REGULA_START_NADANIE,
+    SpecTerminu,
+    cofnij,
+    przelicz,
+    zastosuj,
+    zmien_date,
+)
+from kruczek_core.repozytorium import PLIK_SPRAWY, KonfliktRewizji, zapisz_nowa, zmien
 from kruczek_core.terminy import koniec_terminu, parsuj_dlugosc
 
 
@@ -208,15 +215,22 @@ def otworz_sprawe(katalog: Path) -> None:
     zmien(katalog, zmiana)
 
 
-def oznacz_zrobione(katalog: Path, zadanie_id: str, dzis: dt.date) -> Zadanie:
-    def zmiana(s: Sprawa) -> Zadanie:
-        zadanie = s.znajdz_zadanie(zadanie_id)
-        if zadanie.zrobione is not None:
-            raise BladSprawy(f"zadanie {zadanie_id} już zrobione ({zadanie.zrobione})")
-        zadanie.zrobione = dzis
-        return zadanie
+def zaznacz_zrobione(s: Sprawa, zadanie_id: str, dzis: dt.date, *, oczekiwany_opis: str | None = None) -> Zadanie:
+    """Oznacz zadanie jako zrobione w pamięci. `oczekiwany_opis` (strona): zadanie o tym id musi
+    nadal mieć ten opis — inaczej ktoś je w międzyczasie cofnął, a numer trafił do innego zadania."""
+    if oczekiwany_opis is not None:
+        zadanie = next((a for a in s.zadania if a.id == zadanie_id), None)
+        if zadanie is None or zadanie.opis != oczekiwany_opis:
+            raise KonfliktRewizji(f"sprawa zmieniła się w międzyczasie: zadanie {zadanie_id} to już nie „{oczekiwany_opis}”")
+    zadanie = s.znajdz_zadanie(zadanie_id)
+    if zadanie.zrobione is not None:
+        raise BladSprawy(f"zadanie {zadanie_id} już zrobione ({zadanie.zrobione})")
+    zadanie.zrobione = dzis
+    return zadanie
 
-    return zmien(katalog, zmiana)
+
+def oznacz_zrobione(katalog: Path, zadanie_id: str, dzis: dt.date) -> Zadanie:
+    return zmien(katalog, lambda s: zaznacz_zrobione(s, zadanie_id, dzis))
 
 
 def przelicz_sprawe(katalog: Path, kalendarz: Kalendarz) -> list[str]:
