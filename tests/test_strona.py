@@ -7,7 +7,12 @@ import re
 
 import pytest
 from fastapi.testclient import TestClient
-from kruczek_core.dni_wolne import Kalendarz
+from kruczek_core.dni_wolne import (
+    PLIK_PROJEKTU,
+    DzienJednorazowy,
+    Kalendarz,
+    zapisz_jednorazowy,
+)
 from kruczek_core.operacje import (
     cofnij_zdarzenie,
     dodaj_watek,
@@ -95,17 +100,67 @@ def test_przeglad_pokazuje_sekcje_i_problemy_projektu(klient):
     assert "wtorek" in html and "20.10.2026" in html
 
 
-def test_przeglad_ta_sama_lista_zadan_co_co_robic(projekt, klient, capsys):
-    # Arrange — TERAZ i WKRÓTCE z CLI: „[a1] klucz: tytuł / wątek — opis  dopiski”
+def _sekcje_cli(cli):
+    """co-robic → {sekcja: {(klucz, id)}} i zadania z ostrzeżeniem. Linia zadania:
+    „[a1] klucz: tytuł / wątek — opis  dopiski”; PO TERMINIE to dopisek w TERAZ."""
+    teraz, reszta = cli.split("\nCZEKAM\n")
+    czekam, wkrotce = reszta.split("\nWKRÓTCE\n")
+    zadania = re.compile(r"^\s+(?:od \S+\s+)?\[(a\d+)\] (\S+): (.*)$", re.MULTILINE)
+
+    def linie_sekcji(tekst):  # (klucz, id zadania, reszta linii)
+        return [(k, z, r) for z, k, r in zadania.findall(tekst)]
+
+    linie = {"teraz": linie_sekcji(teraz), "wkrotce": linie_sekcji(wkrotce)}
+    return {
+        "po_terminie": {(k, z) for k, z, r in linie["teraz"] if "PO TERMINIE" in r},
+        "teraz": {(k, z) for k, z, r in linie["teraz"] if "PO TERMINIE" not in r},
+        "wkrotce": {(k, z) for k, z, _ in linie["wkrotce"]},
+        "czekam": set(re.findall(r"^\s+(\S+): .*? / (\S+) \(", czekam, re.MULTILINE)),
+        "uwagi": {(k, z) for k, z, r in linie["teraz"] + linie["wkrotce"] if "urzędy zamknięte" in r},
+    }
+
+
+def _sekcje_strony(html):
+    """Ta sama struktura z HTML przeglądu: sekcje po aria-labelledby, karty po CaseRef."""
+    nazwy = {"s-po": "po_terminie", "s-teraz": "teraz", "s-wkrotce": "wkrotce", "s-czekam": "czekam"}
+    wynik = {n: set() for n in [*nazwy.values(), "uwagi"]}
+    karta = re.compile(r'<a href="/sprawa/([^"]+)">[^<]+</a>(?:<span class="k-ref__sep">/</span>(\S+?))?'
+                       r"(?: · (a\d+))?</span>")
+    for sid, tresc in re.findall(r'<section aria-labelledby="(s-[a-z]+)"(.*?)</section>', html, re.DOTALL):
+        if sid not in nazwy:
+            continue
+        if sid == "s-czekam":
+            wynik["czekam"] |= {(klucz, watek) for klucz, watek, _ in karta.findall(tresc)}
+            continue
+        for art in re.findall(r'<article class="k-task".*?</article>', tresc, re.DOTALL):
+            klucz, _, zid = karta.search(art).groups()
+            wynik[nazwy[sid]].add((klucz, zid))
+            if "urzędy zamknięte" in art:
+                wynik["uwagi"].add((klucz, zid))
+    return wynik
+
+
+def test_przeglad_te_same_sekcje_i_ostrzezenia_co_co_robic(projekt, klient, capsys):
+    # Arrange — oprócz projektu z fixture: sprawa z minionym terminem firmy (Po terminie) i zadanie
+    # z własnym terminem; oba terminy wypadają w dni zamknięcia urzędów
+    b = projekt / "sprawa-b"
+    b.mkdir()
+    nowa_sprawa(b, "Sprawa testowa B", "Firma X sp. z o.o.", "opiekun1")
+    dodaj_watek(b, "firma", "Firma X sp. z o.o.")
+    dodaj_zdarzenie(b, "nadanie", dt.date(2026, 10, 1), Kalendarz(), DZIS, watek="firma",
+                    termin=SpecTerminu("14d", "art. 7 u.r."))
+    dodaj_zadanie(projekt / "sprawa-a", "złóż wniosek", dt.date(2026, 10, 1), termin=dt.date(2026, 10, 23))
+    for d in (dt.date(2026, 10, 15), dt.date(2026, 10, 23)):
+        zapisz_jednorazowy(projekt / PLIK_PROJEKTU, DzienJednorazowy(d, "test", True))
     import teczka
     teczka.main(["--dzis", DZIS.isoformat(), "co-robic", str(projekt)])
-    cli = capsys.readouterr().out
-    opisy_cli = re.findall(r"^\s+(?:od \S+\s+)?\[a\d+\] [^\n]*? — (.+?)(?:  .*)?$", cli, re.MULTILINE)
+    cli = _sekcje_cli(capsys.readouterr().out)
     # Act
-    html = klient.get("/").text
+    strona = _sekcje_strony(klient.get("/").text)
     # Assert
-    assert len(opisy_cli) == 3  # 2 w TERAZ, 1 w WKRÓTCE
-    assert all(opis in html for opis in opisy_cli)
+    assert strona == cli
+    assert cli["po_terminie"] and cli["czekam"] and cli["wkrotce"]
+    assert cli["uwagi"] == {("sprawa-a", zadanie(projekt, "złóż wniosek")["id"])}
 
 
 def test_dowody_jako_tekst_bez_linkow(projekt, klient):
