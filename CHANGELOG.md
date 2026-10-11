@@ -30,6 +30,13 @@ wersjonowanie wg [SemVer](https://semver.org/lang/pl/).
   „PO TERMINIE” z datą terminu adresata i nie wypisuje już w „Czekam” wątku, w którym termin
   adresata minął — tak jak strona.
 
+### Poprawione
+- `CLAUDE.md` projektu wypisuje w nawigacji tylko główne katalogi i pliki, bez plików w sprawach —
+  w większym projekcie pełne drzewo dawało setki linii w każdej sesji. Odśwież: `/kruczek:dane-nadawcy`
+  albo `gen-claude-md.sh`.
+- `/kruczek:migruj` nie zamienia terminu liczonego od niewysłanego pisma w zaległe zadanie z fikcyjną
+  datą — wiersz trafia do „nieprzeniesione”, a termin liczy się przy nadaniu.
+
 ## [0.9.0] — 2026-10-09
 
 ### Aktualizacja z 0.8.x
