@@ -23,6 +23,7 @@ from kruczek_strona.ekrany import (
     BLAD_SERWERA_TRESC,
     BLAD_SERWERA_TYTUL,
     BLEDY_HTTP,
+    FORMULARZ_ZA_DUZY,
     NIE_MA_SPRAWY_TRESC,
     NIE_MA_SPRAWY_TYTUL,
     NIE_ZAPISANO,
@@ -87,18 +88,17 @@ class Naglowki:
 
 
 class LimitFormularza:
-    """Ciało żądania zapisu: z podaną długością i najwyżej MAKS_FORMULARZ bajtów. FastAPI czyta formularz,
+    """Ciało żądania zapisu (POST): z podaną długością i najwyżej MAKS_FORMULARZ bajtów. FastAPI czyta formularz,
     zanim zadziała jakakolwiek zależność, więc limit stoi przed aplikacją."""
 
     def __init__(self, app: ASGIApp) -> None:
         self.app = app
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        if scope["type"] == "http" and scope["method"] not in ("GET", "HEAD"):
+        if scope["type"] == "http" and scope["method"] == "POST":
             dlugosc = Headers(scope=scope).get("content-length", "")
             if not dlugosc.isdigit() or int(dlugosc) > MAKS_FORMULARZ:
-                await PlainTextResponse(f"{NIE_ZAPISANO}: formularz jest za duży.", status_code=413)(
-                    scope, receive, send)
+                await PlainTextResponse(FORMULARZ_ZA_DUZY, status_code=413)(scope, receive, send)
                 return
         await self.app(scope, receive, send)
 
