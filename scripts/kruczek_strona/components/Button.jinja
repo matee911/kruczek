@@ -1,0 +1,6 @@
+{#def variant="", icon="", href="" #}
+{% if href -%}
+<a {{ attrs.render(class="btn", href=href, data_variant=variant or False) }}>{% if icon %}<Icon name={{ icon }} />{% endif %}{{ content }}</a>
+{%- else -%}
+<button {{ attrs.render(class="btn", type="submit", data_variant=variant or False) }}>{% if icon %}<Icon name={{ icon }} />{% endif %}{{ content }}</button>
+{%- endif %}

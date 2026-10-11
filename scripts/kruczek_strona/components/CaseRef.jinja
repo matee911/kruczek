@@ -1,0 +1,9 @@
+{#def url, klucz, watek="", zadanie_id="", pokaz_sprawe=True #}
+{#- Odwołanie do sprawy: link i wątek (w widoku sprawy sam wątek), opcjonalnie numer zadania.
+    Bez linku, wątku i numeru nie renderuje nic. -#}
+{% if pokaz_sprawe or watek or zadanie_id -%}
+<span class="k-ref">
+  {%- if pokaz_sprawe %}<a href="{{ url }}">{{ klucz }}</a>{% if watek %}<span class="k-ref__sep">/</span>{{ watek }}{% endif %}
+  {%- elif watek %}wątek: {{ watek }}{% endif %}{% if zadanie_id %} · {{ zadanie_id }}{% endif -%}
+</span>
+{%- endif %}

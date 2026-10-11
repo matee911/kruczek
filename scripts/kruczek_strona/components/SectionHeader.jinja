@@ -1,0 +1,6 @@
+{#def name, count, id, hint="" #}
+<header class="k-section">
+  <h2 class="k-section__name section-label" id="{{ id }}">{{ name }}</h2>
+  <span class="k-section__count">{{ count }}</span>
+  {% if hint %}<p class="k-section__hint">{{ hint }}</p>{% endif %}
+</header>

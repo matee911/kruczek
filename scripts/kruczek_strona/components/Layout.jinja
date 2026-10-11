@@ -1,0 +1,19 @@
+{#def tytul, current="" #}
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ tytul }} — Kruczek</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/static/kruczek.css">
+  <script src="/static/kruczek.js"></script>
+  <script src="/static/htmx.min.js" defer></script>
+  <script src="/static/basecoat.min.js" defer></script>
+</head>
+<body>
+  <SkipLink />
+  <AppHeader current={{ current }} />
+  <main id="tresc" class="mx-auto flex max-w-[760px] flex-col gap-8 px-4 pt-8 pb-12">{{ content }}</main>
+</body>
+</html>

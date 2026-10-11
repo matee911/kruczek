@@ -1,0 +1,35 @@
+{#def ekran, alert=None, powiadomienie=None, bledy={}, wartosci={} #}
+<div id="tresc-dynamiczna" class="flex flex-col gap-8">
+  <div class="flex flex-col gap-1">
+    <h1 class="title">Co robić</h1>
+    <p class="small text-ink-muted">{{ ekran.dzis | dzien_tygodnia }}, <span class="date">{{ ekran.dzis | data_pl }}</span>
+      · {{ ekran.liczba_spraw | odmiana(("sprawa", "sprawy", "spraw")) }}
+      {%- if ekran.sekcje.po_terminie %} · {{ ekran.sekcje.po_terminie | length }} po terminie{% endif %}</p>
+  </div>
+  {% if alert %}<PageAlert alert={{ alert }} />{% endif %}
+  {% if ekran.bledy %}
+  <Alert variant="destructive" title="Nie da się odczytać części spraw">
+    <ul>{% for klucz, komunikat in ekran.bledy %}<li><span class="k-ref">{{ klucz }}</span>: {{ komunikat }}</li>{% endfor %}</ul>
+  </Alert>
+  {% endif %}
+  {% if ekran.liczba_spraw or ekran.bledy or ekran.stary_format or ekran.bez_indexu %}
+  <Sections s={{ ekran.sekcje }} bledy={{ bledy }} wartosci={{ wartosci }} />
+  {% else %}
+  <EmptyState title="Nie ma tu jeszcze spraw" icon="folder">Załóż pierwszą w rozmowie z Claude.</EmptyState>
+  <CommandCopy value="/kruczek:nowa-sprawa" id="polecenie-nowa-sprawa" hint="Wklej w rozmowie z Claude:" variant="" />
+  {% endif %}
+  {% if ekran.stary_format %}
+  <Banner>
+    {{ ekran.stary_format | length | odmiana(("sprawa", "sprawy", "spraw")) }} w starym formacie, poza przeglądem:
+    <span class="k-ref">{{ ekran.stary_format | join(", ") }}</span>. Przenieś je w rozmowie z Claude:
+    <CommandCopy value="/kruczek:migruj" id="polecenie-migruj" />
+  </Banner>
+  {% endif %}
+  {% if ekran.bez_indexu %}
+  <section aria-labelledby="s-pominieto" class="flex flex-col gap-2">
+    <SectionHeader name="Pominięto" count={{ ekran.bez_indexu | length }} id="s-pominieto" hint="Foldery bez index.md i bez sprawa.json — to nie są teczki spraw." />
+    <ul>{% for klucz in ekran.bez_indexu %}<li class="k-ref">{{ klucz }}</li>{% endfor %}</ul>
+  </section>
+  {% endif %}
+  <Toaster powiadomienie={{ powiadomienie }} />
+</div>

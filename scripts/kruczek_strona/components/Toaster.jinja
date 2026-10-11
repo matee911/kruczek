@@ -1,0 +1,14 @@
+{#def powiadomienie=None #}
+{#- Toaster jest w podmienianym fragmencie: nowy toast przychodzi razem z odświeżonym widokiem. -#}
+<div id="toaster" class="toaster">
+  {% if powiadomienie %}
+  <Toast tekst={{ powiadomienie.tekst }}>
+    {% if powiadomienie.akcja %}
+    <ActionForm akcja={{ powiadomienie.akcja }}>
+      {% for nazwa, wartosc in powiadomienie.pola.items() %}<input type="hidden" name="{{ nazwa }}" value="{{ wartosc }}">{% endfor %}
+      <Button>Cofnij</Button>
+    </ActionForm>
+    {% endif %}
+  </Toast>
+  {% endif %}
+</div>

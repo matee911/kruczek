@@ -1,0 +1,7 @@
+{#def karta, blad="", wartosc="" #}
+<ActionForm akcja={{ karta.url ~ "/zadania/" ~ karta.zadanie.id ~ "/doreczenie" }} class="flex flex-col gap-3">
+  <input type="hidden" name="opis" value="{{ karta.zadanie.opis }}">
+  <DateField name="data" id={{ karta.dom_id ~ "-data" }} label="Data doręczenia" value={{ wartosc }} error={{ blad }}
+             hint="dd.mm.rrrr, np. 29.09.2026 — z potwierdzenia odbioru albo śledzenia przesyłki." />
+  <div class="k-task__actions"><Button>Zapisz doręczenie</Button></div>
+</ActionForm>

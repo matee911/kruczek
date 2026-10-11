@@ -1,0 +1,10 @@
+{#def title, details="" #}
+<section class="empty" data-error>
+  <header>
+    <figure class="text-danger"><Icon name="triangle-alert" /></figure>
+    <h1 class="heading">{{ title }}</h1>
+    {% if content %}<p>{{ content }}</p>{% endif %}
+  </header>
+  <footer><Button variant="outline" href="/">Wróć do „Co robić”</Button></footer>
+  {% if details %}<details class="k-details"><summary>Szczegóły techniczne</summary><pre>{{ details }}</pre></details>{% endif %}
+</section>
