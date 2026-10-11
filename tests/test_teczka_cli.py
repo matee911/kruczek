@@ -2,7 +2,6 @@ import datetime as dt
 import json
 
 import pytest
-
 import teczka
 from dane_migracji import STARY_INDEX, propozycja
 from kruczek_core import widok
@@ -357,6 +356,20 @@ def test_co_robic_pokazuje_folder_po_terminie_i_termin_w_wkrotce(projekt, capsys
     assert "termin 2026-10-25" in reszta.split("WKRÓTCE")[1]
 
 
+def test_co_robic_sprawdzenie_odpowiedzi_po_terminie_adresata_jest_po_terminie_i_nie_czeka(projekt, capsys):
+    # Arrange — nadanie 01.10 z terminem 14d, dziś 20.10
+    sprawa = str(projekt / "spamer")
+    uruchom(capsys, "zdarzenie", sprawa, "--typ", "nadanie", "--data", "2026-10-01", "--watek", "firma",
+            "--termin", "14d", "--podstawa", "art. 7 u.r.")
+    # Act
+    _, out, _ = uruchom(capsys, "co-robic", str(projekt))
+    # Assert
+    teraz, reszta = out.split("CZEKAM")
+    linia = next(w for w in teraz.splitlines() if "sprawdź, czy przyszła odpowiedź" in w)
+    assert "PO TERMINIE (5 dni)" in linia
+    assert reszta.split("WKRÓTCE")[0].strip() == "—"
+
+
 def test_co_robic_sekcja_bez_ruchu_z_liczba_dni_ze_stalej(projekt, capsys):
     # Arrange
     uruchom(capsys, "zdarzenie", str(projekt / "spamer"), "--typ", "fakt", "--data", "2026-08-01")
@@ -548,7 +561,7 @@ def test_migruj_zapisz_kopia_bajt_w_bajt_i_nic_nie_ginie(projekt, capsys):
     # Arrange
     k, plik = _stara_sprawa(projekt)
     # Act
-    kod, out, _ = uruchom(capsys, "migruj", str(k), str(plik), "--zapisz")
+    kod, _out, _ = uruchom(capsys, "migruj", str(k), str(plik), "--zapisz")
     # Assert
     assert kod == 0
     (kopia,) = (k / "ROBOCZE").glob("index.przed-migracja-*.md")
