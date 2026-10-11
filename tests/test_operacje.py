@@ -12,6 +12,8 @@ from kruczek_core.model import (
 )
 from kruczek_core.operacje import (
     NieOstatnieZdarzenie,
+    ZadanieJuzZrobione,
+    ZadanieNieZrobione,
     cofnij_zdarzenie,
     dodaj_watek,
     dodaj_zadanie,
@@ -122,7 +124,7 @@ def test_oznacz_zrobione_dwa_razy_to_blad(katalog):
     zadanie = dodaj_zadanie(katalog, "x", D(2026, 10, 1))
     oznacz_zrobione(katalog, zadanie.id, DZIS)
     # Act / Assert
-    with pytest.raises(BladSprawy, match="już zrobione"):
+    with pytest.raises(ZadanieJuzZrobione, match="już zrobione"):
         oznacz_zrobione(katalog, zadanie.id, DZIS)
 
 
@@ -531,6 +533,15 @@ def test_odznacz_zrobione_otwiera_zadanie_zamkniete_recznie():
     assert s.zadania[0].zrobione is None
 
 
+def test_odznacz_zrobione_otwartego_zadania_to_osobny_blad():
+    # Arrange — zadanie otwarte już wcześniej (np. „Cofnij” w drugiej karcie)
+    s = Sprawa(id="s1", tytul="T", wlasciciel="opiekun1", strona_przeciwna="X",
+               zadania=[Zadanie("a1", "zrób", D(2026, 10, 1))])
+    # Act / Assert
+    with pytest.raises(ZadanieNieZrobione, match="nie jest zrobione"):
+        odznacz_zrobione(s, "a1", oczekiwany_opis="zrób")
+
+
 def test_odznacz_zrobione_zamkniete_zdarzeniem_odmawia():
     # Arrange
     s = Sprawa(id="s1", tytul="T", wlasciciel="opiekun1", strona_przeciwna="X",
@@ -545,7 +556,7 @@ def test_zapisz_doreczenie_dwa_razy_to_blad_i_nie_dubluje_zdarzenia(katalog):
     s, sprawdzenie = _po_nadaniu(katalog)
     zapisz_doreczenie(s, sprawdzenie.id, D(2026, 10, 10), Kalendarz(), DZIS, oczekiwany_opis=sprawdzenie.opis)
     # Act / Assert
-    with pytest.raises(BladSprawy, match="już zrobione"):
+    with pytest.raises(ZadanieJuzZrobione, match="już zrobione"):
         zapisz_doreczenie(s, sprawdzenie.id, D(2026, 10, 10), Kalendarz(), DZIS, oczekiwany_opis=sprawdzenie.opis)
     assert [z.typ for z in s.zdarzenia] == ["nadanie", "doreczenie"]
 

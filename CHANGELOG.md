@@ -19,6 +19,9 @@ wersjonowanie wg [SemVer](https://semver.org/lang/pl/).
 - Dzień zamknięcia urzędów w dniu terminu: strona pokazuje go z datą dd.mm.rrrr, a „wyślij wcześniej”
   radzi tylko przy Twoim terminie. Karta zadania ostrzega, tak jak `co-robic`, tylko o własnym terminie
   zadania — nie o terminie adresata przy „sprawdź, czy przyszła odpowiedź”.
+- Gdy strona nie zapisze zmiany (np. zadanie zamknięte już w drugiej karcie) albo zapisze, ale nie
+  odświeży `index.md`, mówi, co się stało i co zrobić dalej; tekst techniczny jest zwinięty
+  w „Szczegółach technicznych”.
 
 ### Zmienione
 - Rdzeń teczki wskazuje sprawy kluczem (folder względem projektu) i liczy „po terminie” oraz sekcje

@@ -6,5 +6,5 @@
     {% if content %}<p>{{ content }}</p>{% endif %}
   </header>
   <footer><Button variant="outline" href="/">Wróć do „Co robić”</Button></footer>
-  {% if details %}<details class="k-details"><summary>Szczegóły techniczne</summary><pre>{{ details }}</pre></details>{% endif %}
+  {% if details %}<TechDetails text={{ details }} />{% endif %}
 </section>

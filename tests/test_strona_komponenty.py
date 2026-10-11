@@ -188,6 +188,25 @@ def test_komunikat_z_poleceniem_dla_claude(katalog):
     assert 'value="/kruczek:chronologia sprawa-a"' in html
 
 
+@pytest.mark.parametrize("nazwa, dane", [
+    ("PageAlert", {"alert": Komunikat("Nie zapisano", "Pokazuję aktualny stan.", szczegoly="zadanie a2 już zrobione")}),
+    ("ErrorPage", {"title": "Nie zapisano", "details": "zadanie a2 już zrobione"}),
+], ids=["alert", "strona-bledu"])
+def test_szczegoly_techniczne_zwiniete_tym_samym_komponentem(katalog, nazwa, dane):
+    # Act
+    html = render(katalog, nazwa, **dane)
+    # Assert
+    assert ('<details class="k-details"><summary>Szczegóły techniczne</summary>'
+            "<pre>zadanie a2 już zrobione</pre></details>") in html
+
+
+def test_komunikat_bez_szczegolow_nie_ma_details(katalog):
+    # Act
+    html = render(katalog, "PageAlert", alert=Komunikat("Nie zapisano", "Pokazuję aktualny stan."))
+    # Assert
+    assert "<details" not in html
+
+
 def test_layout_bez_kodu_inline_i_bez_zasobow_z_sieci(katalog):
     # Act
     html = render(katalog, "Layout", tytul="Co robić", _content="<p>x</p>")

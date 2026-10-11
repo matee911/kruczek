@@ -16,12 +16,14 @@ from urllib.parse import quote
 from kruczek_core.dni_wolne import DzienJednorazowy, Kalendarz
 from kruczek_core.model import (
     ZDARZENIA_PRZYCHODZACE,
+    BladSprawy,
     Sprawa,
     Termin,
     Zadanie,
     Zdarzenie,
     chronologia,
 )
+from kruczek_core.operacje import ZadanieJuzZrobione, ZadanieNieZrobione
 from kruczek_core.projekt import PrzegladProjektu
 from kruczek_core.reguly import REGULA_ANALIZA, REGULA_DORECZENIE, REGULA_ODPOWIEDZ
 from kruczek_core.widok import (
@@ -39,6 +41,7 @@ from kruczek_strona.format import (
     dalej_ze_sprawa,
     data_pl,
     dlugosc_slownie,
+    odswiez_index_w_sprawie,
     polecenie,
     temu,
     za,
@@ -168,11 +171,13 @@ class Wpis:
 
 @dataclass(frozen=True)
 class Komunikat:
-    """Alert nad treścią po akcji (PageAlert); `polecenie` — gdy dalej trzeba działać w Claude."""
+    """Alert nad treścią po akcji (PageAlert); `polecenie` — gdy dalej trzeba działać w Claude;
+    `szczegoly` — surowy tekst błędu, zwinięty pod „Szczegóły techniczne”."""
     tytul: str
     tresc: str
     wariant: str = "warning"
     polecenie: str = ""
+    szczegoly: str = ""
 
 
 @dataclass(frozen=True)
@@ -321,14 +326,27 @@ ODRZUCONE_TRESC = ("Formularz pochodzi ze starej karty (kruczek był uruchomiony
 POLA_FORMULARZA = {"widok": "widok", "opis": "opis zadania", "data": "data", "typ": "rodzaj wpisu"}
 
 
-def alert_bez_zapisu(powod: object) -> Komunikat:
-    """Zapis odrzucony przez rdzeń (np. zadanie już zrobione)."""
-    return Komunikat(NIE_ZAPISANO, f"{powod}.", "destructive")
+BEZ_ZAPISU = {
+    ZadanieJuzZrobione: "To zadanie jest już zamknięte — pokazuję aktualny stan.",
+    ZadanieNieZrobione: "To zadanie jest już otwarte — pokazuję aktualny stan.",
+}
+BEZ_ZAPISU_INNE = ("Tego nie da się zapisać — pokazuję aktualny stan. Jeśli to się powtarza, "
+                   "zrób to w rozmowie z Claude.")
+INDEX_NIEAKTUALNY_TYTUL = "Zapisano, ale index.md nie jest aktualny"
+INDEX_NIEAKTUALNY_TRESC = ("Zmiana jest już w sprawa.json — nie klikaj jeszcze raz. Tabele w index.md "
+                           "odświeży Claude, wklej w rozmowie:")
 
 
-def alert_index_nieaktualny(uwaga: str) -> Komunikat:
-    """Zapis się udał, ale odświeżenie index.md nie."""
-    return Komunikat("Zapisano, ale index.md nie jest aktualny", f"{uwaga}.")
+def alert_bez_zapisu(e: BladSprawy) -> Komunikat:
+    """Zapis odrzucony przez rdzeń (np. zadanie zamknięte w drugiej karcie). Strona i tak pokazuje
+    świeży stan, więc tekst to mówi; tekst rdzenia tylko w szczegółach."""
+    return Komunikat(NIE_ZAPISANO, BEZ_ZAPISU.get(type(e), BEZ_ZAPISU_INNE), "destructive", szczegoly=str(e))
+
+
+def alert_index_nieaktualny(klucz: str, uwaga: str) -> Komunikat:
+    """Zapis się udał, ale odświeżenie index.md nie — co zrobić, a powód w szczegółach."""
+    return Komunikat(INDEX_NIEAKTUALNY_TYTUL, INDEX_NIEAKTUALNY_TRESC, polecenie=odswiez_index_w_sprawie(klucz),
+                     szczegoly=uwaga)
 
 
 def powiadomienie_zrobione(klucz: str, zadanie_id: str, opis: str) -> Powiadomienie:
