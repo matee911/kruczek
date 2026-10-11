@@ -18,6 +18,7 @@ from kruczek_core.operacje import (
 from kruczek_core.projekt import SpisProjektu
 from kruczek_core.reguly import SpecTerminu
 from kruczek_strona.app import utworz_aplikacje
+from kruczek_strona.ekrany import BLAD_SERWERA_TYTUL
 from kruczek_strona.zaleznosci import Ustawienia, dzis, repozytorium
 
 DZIS = dt.date(2026, 10, 20)
@@ -125,3 +126,20 @@ def test_podmiany_zaleznosci_nie_przechodza_miedzy_aplikacjami():
     druga = utworz_aplikacje(Ustawienia(projekt=Path("/nie-ma-takiego-katalogu"), token=TOKEN))
     # Assert
     assert pierwsza.dependency_overrides and druga.dependency_overrides == {}
+
+
+def test_nieobsluzony_wyjatek_strona_bledu_po_polsku_z_naglowkami(repo):
+    # Arrange
+    def zepsute():
+        raise OSError("dysk niedostępny")
+
+    app = klient_z(repo).app
+    app.dependency_overrides[repozytorium] = zepsute
+    k = TestClient(app, base_url="http://127.0.0.1", raise_server_exceptions=False)
+    # Act
+    r = k.get("/")
+    # Assert
+    assert r.status_code == 500 and BLAD_SERWERA_TYTUL in r.text and "dysk niedostępny" not in r.text
+    assert r.headers["content-type"].startswith("text/html")
+    assert "frame-ancestors 'none'" in r.headers["content-security-policy"]
+    assert r.headers["x-frame-options"] == "DENY"

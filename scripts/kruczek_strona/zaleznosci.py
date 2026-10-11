@@ -72,7 +72,8 @@ def strona_bledu(kat: jinjax.Catalog, request: Request, status: int, tytul: str,
 
 @dataclass(frozen=True)
 class Strona:
-    """Odpowiedzi HTML: cały dokument albo — gdy pyta htmx — fragment #tresc-dynamiczna."""
+    """Odpowiedzi HTML: `html()` renderuje komponent wskazany przez trasę (cały dokument albo fragment —
+    zależnie od komponentu); przełączanie na fragment dla htmx robi tylko `strona_bledu`."""
 
     request: Request
     katalog: jinjax.Catalog
