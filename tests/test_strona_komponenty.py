@@ -207,6 +207,15 @@ def test_komunikat_bez_szczegolow_nie_ma_details(katalog):
     assert "<details" not in html
 
 
+def test_formularz_akcji_bez_przenoszenia_atrybutow_starego_elementu(katalog):
+    # Arrange — htmx 4 w fazie settle kopiuje atrybuty ze starego elementu o tym samym id na nowy
+    # (pole daty po 422 pokazywało starą wartość); settle:0 to wyłącza
+    # Act
+    html = render(katalog, "ActionForm", akcja="/sprawa/sprawa-a/zadania/a3/zrobione")
+    # Assert
+    assert 'hx-swap="outerHTML settle:0"' in html and 'hx-target="#tresc-dynamiczna"' in html
+
+
 def test_layout_bez_kodu_inline_i_bez_zasobow_z_sieci(katalog):
     # Act
     html = render(katalog, "Layout", tytul="Co robić", _content="<p>x</p>")
