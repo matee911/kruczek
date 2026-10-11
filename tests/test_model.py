@@ -1,7 +1,6 @@
 import datetime as dt
 
 import pytest
-
 from kruczek_core.model import (
     SCHEMA_VERSION,
     BladSprawy,
@@ -13,6 +12,7 @@ from kruczek_core.model import (
     Watek,
     Zadanie,
     Zdarzenie,
+    chronologia,
     do_slownika,
     kolejne_id,
     z_slownika,
@@ -120,3 +120,18 @@ def test_nieznany_wynik_sprawy_odrzucony_przy_odczycie():
     # Act / Assert
     with pytest.raises(ValueError, match="wynik"):
         z_slownika(dane)
+
+
+def test_chronologia_sortuje_po_dacie_godzinie_i_kolejnosci_wpisu():
+    # Arrange
+    s = pelna_sprawa()
+    s.zdarzenia = [
+        Zdarzenie("z1", D(2026, 10, 9), "fakt", "późno", godzina="15:00"),
+        Zdarzenie("z2", D(2026, 10, 9), "fakt", "bez godziny"),
+        Zdarzenie("z3", D(2026, 10, 8), "fakt", "wcześniej"),
+        Zdarzenie("z4", D(2026, 10, 9), "fakt", "bez godziny, drugie"),
+    ]
+    # Act
+    kolejnosc = [z.id for z in chronologia(s)]
+    # Assert
+    assert kolejnosc == ["z3", "z2", "z4", "z1"]
