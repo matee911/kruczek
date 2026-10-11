@@ -4,6 +4,6 @@
 {% if pokaz_sprawe or watek or zadanie_id -%}
 <span class="k-ref">
   {%- if pokaz_sprawe %}<a href="{{ url }}">{{ klucz }}</a>{% if watek %}<span class="k-ref__sep">/</span>{{ watek }}{% endif %}
-  {%- elif watek %}wątek: {{ watek }}{% endif %}{% if zadanie_id %} · {{ zadanie_id }}{% endif -%}
+  {%- elif watek %}wątek: {{ watek }}{% endif %}{% if zadanie_id %}{% if pokaz_sprawe or watek %} · {% endif %}{{ zadanie_id }}{% endif -%}
 </span>
 {%- endif %}
