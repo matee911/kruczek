@@ -1,0 +1,69 @@
+:root, [data-theme="light"] {
+  --bg: #f5f6f8;
+  --surface: #ffffff;
+  --surface-sunken: #eceef2;
+  --ink: #15171c;
+  --ink-muted: #575b66;
+  --line: #dcdfe5;
+  --line-strong: #80859a;
+  --accent: #2347d6;
+  --accent-hover: #1b38b0;
+  --on-accent: #ffffff;
+  --accent-text: #2347d6;
+  --accent-soft: #e3e9fc;
+  --focus: #15171c;
+  --danger: #b3261e;
+  --danger-soft: #fce4e2;
+  --warning: #8a4b00;
+  --warning-soft: #fcefd2;
+  --scrim: rgba(21, 23, 28, 0.48);
+  --shadow-float: 0 8px 24px rgba(21, 23, 28, 0.16);
+}
+[data-theme="dark"] {
+  --bg: #111317;
+  --surface: #1a1d23;
+  --surface-sunken: #0c0e11;
+  --ink: #eceef2;
+  --ink-muted: #a2a7b2;
+  --line: #2a2f38;
+  --line-strong: #6a7080;
+  --accent: #7c9bff;
+  --accent-hover: #9db4ff;
+  --on-accent: #111317;
+  --accent-text: #9db4ff;
+  --accent-soft: #1e2a4d;
+  --focus: #eceef2;
+  --danger: #ff8a80;
+  --danger-soft: #3a1a18;
+  --warning: #f2b33a;
+  --warning-soft: #3a2d12;
+  --scrim: rgba(0, 0, 0, 0.64);
+  --shadow-float: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+:root {
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-full: 999px;
+  --control-height: 44px;
+  --measure: 65ch;
+  --focus-width: 3px;
+  --font-display: "Archivo", "Arial Narrow", system-ui, sans-serif;
+  --font-text: "Atkinson Hyperlegible Next", "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-data: "Atkinson Hyperlegible Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+.title { font-family: var(--font-display); font-size: 32px; line-height: 36px; font-weight: 800; letter-spacing: -0.01em; }
+.heading { font-family: var(--font-display); font-size: 22px; line-height: 28px; font-weight: 750; }
+.section-label { font-family: var(--font-display); font-size: 15px; line-height: 20px; font-weight: 750; letter-spacing: 0.08em; }
+.body { font-family: var(--font-text); font-size: 17px; line-height: 27px; font-weight: 400; }
+.body-strong { font-family: var(--font-text); font-size: 17px; line-height: 24px; font-weight: 600; }
+.label { font-family: var(--font-text); font-size: 15px; line-height: 20px; font-weight: 600; }
+.small { font-family: var(--font-text); font-size: 14px; line-height: 20px; font-weight: 400; }
+.date { font-family: var(--font-data); font-size: 15px; line-height: 20px; font-weight: 500; }
+.ref { font-family: var(--font-data); font-size: 13px; line-height: 18px; font-weight: 400; letter-spacing: 0.02em; }

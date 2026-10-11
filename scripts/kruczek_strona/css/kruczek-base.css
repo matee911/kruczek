@@ -1,0 +1,160 @@
+/*
+  Kruczek — baza dla Basecoat (zastępuje basecoat-css/dist/base/base.css).
+  Zmienne shadcn/Basecoat wskazują na tokeny Kruczka (tokens.json → tokens.css),
+  więc zmiana tokenu zmienia komponenty. Ciemny motyw: [data-theme="dark"], nie .dark.
+  Wartości po przecinku w var() to kopia tokenów — działają, gdy tokens.css nie jest wczytany.
+*/
+
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+:root,
+[data-theme] {
+  --radius: var(--radius-md, 10px);
+  --background: var(--bg, #f5f6f8);
+  --foreground: var(--ink, #15171c);
+  --card: var(--surface, #ffffff);
+  --card-foreground: var(--ink, #15171c);
+  --popover: var(--surface, #ffffff);
+  --popover-foreground: var(--ink, #15171c);
+  --primary: var(--accent, #2347d6);
+  --primary-foreground: var(--on-accent, #ffffff);
+  --secondary: var(--surface-sunken, #eceef2);
+  --secondary-foreground: var(--ink, #15171c);
+  --muted: var(--surface-sunken, #eceef2);
+  --muted-foreground: var(--ink-muted, #575b66);
+  --destructive: var(--danger, #b3261e);
+  --border: var(--line, #dcdfe5);
+  --input: var(--line-strong, #80859a);
+  --ring: var(--focus, #15171c);
+  --sidebar: var(--surface, #ffffff);
+  --sidebar-foreground: var(--ink, #15171c);
+  --sidebar-primary: var(--accent, #2347d6);
+  --sidebar-primary-foreground: var(--on-accent, #ffffff);
+  --sidebar-accent: var(--surface-sunken, #eceef2);
+  --sidebar-accent-foreground: var(--ink, #15171c);
+  --sidebar-border: var(--line, #dcdfe5);
+  --sidebar-ring: var(--focus, #15171c);
+  --sidebar-width: 16rem;
+  --sidebar-mobile-width: 18rem;
+  --scrollbar-track: transparent;
+  --scrollbar-thumb: var(--line-strong, #80859a);
+  --scrollbar-width: 0.625rem;
+  --scrollbar-sm-width: 0.375rem;
+  --scrollbar-radius: 9999px;
+  /* Lucide chevron-down i check (0.460.0) w kolorze ink-muted; w url() nie da się użyć var(). */
+  --chevron-down-icon: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="%23575b66" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>');
+  --chevron-down-icon-50: var(--chevron-down-icon);
+  --check-icon: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="%23ffffff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>');
+}
+
+[data-theme="dark"] {
+  --chevron-down-icon: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="%23a2a7b2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>');
+  --check-icon: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="%23111317" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>');
+  color-scheme: dark;
+}
+
+@theme {
+  /* Kroje: tokeny type.families (tokens.css: --font-<key>). */
+  --font-sans: var(--font-text, "Atkinson Hyperlegible Next", "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", sans-serif);
+  --font-heading: var(--font-display, "Archivo", "Arial Narrow", system-ui, sans-serif);
+  --font-mono: var(--font-data, "Atkinson Hyperlegible Mono", ui-monospace, "SF Mono", Menlo, monospace);
+
+  /* Skala tekstu: mniej czytania = większy tekst. text-sm to 15 px, nie 14. */
+  --text-xs: 13px;
+  --text-xs--line-height: 18px;
+  --text-sm: 15px;
+  --text-sm--line-height: 20px;
+  --text-base: 17px;
+  --text-base--line-height: 27px;
+  --text-lg: 22px;
+  --text-lg--line-height: 28px;
+  --text-xl: 22px;
+  --text-xl--line-height: 28px;
+  --text-2xl: 32px;
+  --text-2xl--line-height: 36px;
+
+  /* Promienie: tokeny radius-*. Basecoat liczy z --radius (= radius-md). */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 10px;
+  --radius-xl: 14px;
+  --radius-2xl: 14px;
+  --radius-4xl: 999px;
+
+  /* Obrys zamiast cieni: drobne cienie wyłączone, większe = shadow-float (tylko warstwy pływające). */
+  --shadow-2xs: 0 0 #0000;
+  --shadow-xs: 0 0 #0000;
+  --shadow-sm: 0 0 #0000;
+  --shadow-md: var(--shadow-float, 0 8px 24px rgba(21, 23, 28, 0.16));
+  --shadow-lg: var(--shadow-float, 0 8px 24px rgba(21, 23, 28, 0.16));
+  --shadow-xl: var(--shadow-float, 0 8px 24px rgba(21, 23, 28, 0.16));
+}
+
+/* inline: utility czytają var(--primary) w miejscu użycia, więc data-theme działa też na elemencie
+   w środku strony (nie tylko na <html>); bez inline --color-* liczyłyby się przy :root w jasnym motywie. */
+@theme inline {
+  /* Kolory Tailwinda → zmienne Basecoat → tokeny Kruczka. */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  /* shadcn „accent” (tło hover) ≠ token Kruczka „accent” (kobalt): nazwa --accent należy do tokenów. */
+  --color-accent: var(--surface-sunken, #eceef2);
+  --color-accent-foreground: var(--ink, #15171c);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  /* Kolory Kruczka jako utility (text-danger, bg-warning-soft …). */
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-surface: var(--surface);
+  --color-surface-sunken: var(--surface-sunken);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-brand: var(--accent);
+  --color-brand-hover: var(--accent-hover);
+  --color-brand-text: var(--accent-text);
+  --color-brand-soft: var(--accent-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  html {
+    @apply scroll-smooth;
+  }
+  body {
+    @apply bg-background text-foreground overscroll-none font-sans text-base;
+  }
+  :is(h1, h2, h3).title,
+  :is(h1, h2, h3, p).heading,
+  .section-label {
+    font-variation-settings: "wdth" 116;
+  }
+  a {
+    color: var(--accent-text);
+    text-underline-offset: 3px;
+  }
+}
