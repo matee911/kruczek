@@ -462,6 +462,7 @@ def test_zapisz_doreczenie_z_zadania_przelicza_termin_i_zamyka_sprawdzenie(katal
                                       oczekiwany_opis=sprawdzenie.opis)
     # Assert
     assert (z.typ, z.data, z.dotyczy, z.watek) == ("doreczenie", D(2026, 10, 10), "z1", "firma")
+    assert z.opis == "X sp. z o.o.: pismo nadane 08.10.2026"
     assert s.terminy[0].szacunek is False and s.terminy[0].data_konca == D(2026, 10, 26)  # 24.10 to sobota (art. 115 k.c.)
     assert s.znajdz_zadanie(sprawdzenie.id).zrobione == D(2026, 10, 10)
     assert any("od doręczenia" in k for k in komunikaty)
