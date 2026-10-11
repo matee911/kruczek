@@ -8,8 +8,10 @@ name: Smoketest
 # Job ubuntu-owy mierzy przy okazji pokrycie testami i wysyła je do codecov.io.
 # Zakres pomiaru i powód, dla którego nie obejmuje skryptów CLI — w .coveragerc.
 
+# push tylko na main — gałąź z PR testuje pull_request; oba naraz uruchamiały każdy job dwa razy.
 on:
   push:
+    branches: [main]
   pull_request:
 
 jobs:
