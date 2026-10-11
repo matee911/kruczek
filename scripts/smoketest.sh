@@ -36,6 +36,19 @@ TIMEOUT_BIN=""
 command -v timeout >/dev/null 2>&1 && TIMEOUT_BIN="timeout"
 command -v gtimeout >/dev/null 2>&1 && TIMEOUT_BIN="gtimeout"
 
+# Grupy niżej idą równolegle — każda w swoim podprocesie, z wyjściem do osobnego logu,
+# wypisywanego potem w kolejności uruchomienia. Wewnątrz grupy kolejność zostaje, więc
+# żadna usługa trzecia nie dostaje więcej zapytań naraz niż przy biegu sekwencyjnym.
+# FAIL z podprocesu nie wraca do rodzica — błąd zostawia znacznik w pliku.
+LOGI=$(mktemp -d)
+BLAD_ZNACZNIK="$LOGI/blad"
+NR_GRUPY=0
+oznacz_blad() { FAIL=1; : > "$BLAD_ZNACZNIK"; }
+rownolegle() {
+  NR_GRUPY=$((NR_GRUPY + 1))
+  ( "$1" ) >"$(printf '%s/%03d.log' "$LOGI" "$NR_GRUPY")" 2>&1 &
+}
+
 report() {
   # $1=etykieta $2=exit-code $3=plik-ze-stderr $4=tryb (strict|soft, domyślnie strict)
   #
@@ -47,7 +60,7 @@ report() {
   if grep -qEi "$CRASH_SIGNATURES" "$errfile"; then
     echo "✗ CRASH  $label  (exit=$ec)"
     sed 's/^/    /' "$errfile"
-    FAIL=1
+    oznacz_blad
   elif [ "$ec" -gt 2 ]; then
     if [ "$mode" = soft ]; then
       echo "⚠ FLAKY  $label  (exit=$ec — usługa trzecia niedostępna/wolna, nie liczymy jako błąd)"
@@ -55,7 +68,7 @@ report() {
     else
       echo "✗ EXIT?  $label  (exit=$ec, spodziewano 0/1/2)"
       sed 's/^/    /' "$errfile"
-      FAIL=1
+      oznacz_blad
     fi
   else
     echo "✓ ok     $label  (exit=$ec)"
@@ -136,7 +149,7 @@ for f in "$SCRIPTS_DIR"/*.sh; do
     echo "✓ syntax $(basename "$f")"
   else
     echo "✗ syntax $(basename "$f")"
-    FAIL=1
+    oznacz_blad
   fi
 done
 
@@ -147,7 +160,7 @@ for f in "$SCRIPTS_DIR"/*.py; do
     echo "✓ syntax $(basename "$f")"
   else
     echo "✗ syntax $(basename "$f")"
-    FAIL=1
+    oznacz_blad
   fi
 done
 
@@ -196,148 +209,171 @@ check_direct_exec() {
   if [ "$ec" -eq 126 ] || grep -qi "permission denied" "$err"; then
     echo "✗ BRAK +x  $(basename "$script")  (exit=$ec) — napraw: chmod +x $script"
     sed 's/^/    /' "$err"
-    FAIL=1
+    oznacz_blad
   else
     echo "✓ ok       $(basename "$script")  (bezpośrednio, exit=$ec)"
   fi
   rm -rf "$tmp" "$out" "$err"
 }
 
-echo
-echo "=== uruchomienie bezpośrednie, sprawdza bit +x (./script, bez interpretera) ==="
-for f in "$SCRIPTS_DIR"/*.sh; do
-  skip_sh "$f" && continue
-  check_direct_exec "$f"
-done
-for f in "$SCRIPTS_DIR"/*.py; do
-  skip_py "$f" && continue
-  check_direct_exec "$f"
-done
-
-echo
-echo "=== uruchomienie bez argumentów (bash domyślny w PATH) ==="
-for f in "$SCRIPTS_DIR"/*.sh; do
-  skip_sh "$f" && continue
-  run_isolated "$f" bash
-done
-
-if [ -x /bin/bash ]; then
+warstwa_bezposrednio() {
   echo
-  echo "=== uruchomienie bez argumentów (/bin/bash — łapie regresje typu bash 3.2 na macOS) ==="
+  echo "=== uruchomienie bezpośrednie, sprawdza bit +x (./script, bez interpretera) ==="
   for f in "$SCRIPTS_DIR"/*.sh; do
     skip_sh "$f" && continue
-    run_isolated "$f" /bin/bash
+    check_direct_exec "$f"
   done
-fi
+  for f in "$SCRIPTS_DIR"/*.py; do
+    skip_py "$f" && continue
+    check_direct_exec "$f"
+  done
+}
 
-echo
-echo "=== uruchomienie bez argumentów (python3) ==="
-for f in "$SCRIPTS_DIR"/*.py; do
-  case "$(basename "$f")" in
-    utils.py|kontrola_logika.py|test_kontrola_logika.py|run_tests.py) continue ;;  # moduły/testy — run_tests.py jest CLI, ale odpala go osobny krok CI
-  esac
-  run_isolated "$f" python3
-done
+warstwa_bez_argumentow_bash() {
+  echo
+  echo "=== uruchomienie bez argumentów (bash domyślny w PATH) ==="
+  for f in "$SCRIPTS_DIR"/*.sh; do
+    skip_sh "$f" && continue
+    run_isolated "$f" bash
+  done
+}
+
+warstwa_bez_argumentow_binbash() {
+  echo
+  if [ -x /bin/bash ]; then
+    echo
+    echo "=== uruchomienie bez argumentów (/bin/bash — łapie regresje typu bash 3.2 na macOS) ==="
+    for f in "$SCRIPTS_DIR"/*.sh; do
+      skip_sh "$f" && continue
+      run_isolated "$f" /bin/bash
+    done
+  fi
+}
+
+warstwa_bez_argumentow_python() {
+  echo
+  echo "=== uruchomienie bez argumentów (python3) ==="
+  for f in "$SCRIPTS_DIR"/*.py; do
+    case "$(basename "$f")" in
+      utils.py|kontrola_logika.py|test_kontrola_logika.py|run_tests.py) continue ;;  # moduły/testy — run_tests.py jest CLI, ale odpala go osobny krok CI
+    esac
+    run_isolated "$f" python3
+  done
+}
 
 # ============================================================================
 # Warstwa 3: każda realna podkomenda, z argumentami, prawdziwe API tylko-do-odczytu.
 # ============================================================================
-echo
-echo "=== realne podkomendy (dns.sh) ==="
-D="$SCRIPTS_DIR/dns.sh"
-smoke_cmd "dns.sh rekordy"  bash "$D" rekordy example.com
-smoke_cmd "dns.sh poczta"   bash "$D" poczta example.com
-smoke_cmd "dns.sh dkim"     bash "$D" dkim example.com default
-smoke_cmd "dns.sh typ"      bash "$D" typ example.com A
-smoke_cmd "dns.sh raport"   bash "$D" raport example.com
-smoke_cmd "dns.sh porownaj" bash "$D" porownaj example.com example.org
 
-echo
-echo "=== realne podkomendy (eli.sh) ==="
-E="$SCRIPTS_DIR/eli.sh"
-smoke_cmd "eli.sh szukaj"       bash "$E" szukaj "Kodeks cywilny"
-smoke_cmd "eli.sh meta"         bash "$E" meta DU 2024 1221
-smoke_cmd "eli.sh teksty"       bash "$E" teksty DU 1964 93
-smoke_cmd "eli.sh ujednolicony" bash "$E" ujednolicony DU 1964 93
-smoke_cmd "eli.sh referencje"   bash "$E" referencje DU 2004 1800
-smoke_cmd "eli.sh obowiazuje"   bash "$E" obowiazuje DU 2004 1800
-smoke_cmd "eli.sh zmiany"       bash "$E" zmiany 2026-08-01
-
-echo
-echo "=== realne podkomendy (eurlex.sh) — tryb soft: EUR-Lex stoi za AWS WAF, który po serii"
-echo "    zapytań czasowo odpowiada 202 (wyzwanie JS); skrypt kończy się wtedy kodem 2 ==="
-EU="$SCRIPTS_DIR/eurlex.sh"
-smoke_cmd_soft "eurlex.sh html" bash "$EU" html 62010CJ0618
-smoke_cmd_soft "eurlex.sh pdf"  bash "$EU" pdf 62010CJ0618
-
-echo
-echo "=== realne podkomendy (orzecznictwo.sh) — tryb soft: bazy orzeczeń stron trzecich"
-echo "    (SAOS, CBOSA, SN) mają udokumentowaną (patrz retrospektywy kruczka) historię"
-echo "    niedostępności/blokad dla automatów, w praktyce bywają wolne/niestabilne pod"
-echo "    obciążeniem (zweryfikowane 2026-08-28: SAOS timeoutował dwukrotnie z rzędu,"
-echo "    po 15s przerwy odpowiedział w 0,27s — realna niestabilność serwisu, nie stała"
-echo "    blokada); timeout/błąd sieci tu ostrzega, nie failuje builda ==="
-O="$SCRIPTS_DIR/orzecznictwo.sh"
-smoke_cmd_soft "orzecznictwo.sh saos"         bash "$O" saos "informacja handlowa"
-smoke_cmd_soft "orzecznictwo.sh saos-tresc"   bash "$O" saos-tresc 123456
-smoke_cmd_soft "orzecznictwo.sh saos-przepis" bash "$O" saos-przepis 2024/1221
-smoke_cmd_soft "orzecznictwo.sh uodo"         bash "$O" uodo marketing
-smoke_cmd_soft "orzecznictwo.sh uodo-tresc"   bash "$O" uodo-tresc DKN.5131.34.2023
-smoke_cmd_soft "orzecznictwo.sh cbosa"        bash "$O" cbosa 6C317F6401
-smoke_cmd_soft "orzecznictwo.sh sn"           bash "$O" sn "III SZP 7/15"
-smoke_cmd_soft "orzecznictwo.sh uke"          bash "$O" uke 2025
-
-echo
-echo "=== realne podkomendy (podmiot.sh) ==="
-P="$SCRIPTS_DIR/podmiot.sh"
-smoke_cmd "podmiot.sh nip"    bash "$P" nip 5252344078
-smoke_cmd "podmiot.sh regon"  bash "$P" regon 140182840
-smoke_cmd "podmiot.sh krs"    bash "$P" krs 0000240611 P
-# ceidg bez tokenu kończy się kontrolowanym exit 1 — to gałąź "brak tokenu", też warta testu
-smoke_cmd "podmiot.sh ceidg (bez tokenu)" bash "$P" ceidg 5252344078
-smoke_cmd "podmiot.sh domena" bash "$P" domena example.pl
-smoke_cmd "podmiot.sh strona" bash "$P" strona https://example.com
-smoke_cmd "podmiot.sh pelny"  bash "$P" pelny 5252344078
-
-echo
-echo "=== realne podkomendy (archiwa.sh) — tryb soft. Zweryfikowane 2026-08-28: endpoint"
-echo "    CDX (historia, cdx-url) bywa degradowany niezależnie od User-Agenta i obciążenia"
-echo "    z naszej strony — web.archive.org/ (strona główna) odpowiadał normalnie (<1s),"
-echo "    ale /cdx/search/cdx timeoutował z 0 bajtów nawet po przerwie i zmianie URL-a."
-echo "    To realna niestabilność konkretnie CDX API, nie throttling za częste odpytania"
-echo "    ani brak zgodnego z archive.org/developers/bots.html UA (archiwa.sh go ustawia)."
-echo "    Pomijamy 'save' (realny zapis u strony trzeciej) ==="
-export KRUCZEK_CONTACT="ci-smoketest@example.invalid"
-A="$SCRIPTS_DIR/archiwa.sh"
-smoke_cmd_soft "archiwa.sh historia" bash "$A" historia example.com
-smoke_cmd_soft "archiwa.sh cdx-url"  bash "$A" cdx-url example.com
-smoke_cmd_soft "archiwa.sh pobierz"  bash "$A" pobierz example.com 20200101000000 .
-unset KRUCZEK_CONTACT
-
-echo
-echo "=== realne podkomendy (manifest.py) ==="
-M="$SCRIPTS_DIR/manifest.py"
-setup_manifest() { echo "przykladowa tresc" > dowod.txt; }
-smoke_cmd_fixture "manifest.py skan"    python3 "$M" setup_manifest skan .
-smoke_cmd_fixture "manifest.py sumy"    python3 "$M" setup_manifest sumy .
-smoke_cmd_fixture "manifest.py sprawdz" python3 "$M" setup_manifest sprawdz .
-setup_manifest_wstaw() {
-  echo "przykladowa tresc" > dowod.txt
-  printf '# SPRAWA\n\n<!-- KRUCZEK:MANIFEST:START -->\n<!-- KRUCZEK:MANIFEST:END -->\n' > index.md
+podkomendy_dns() {
+  echo
+  echo "=== realne podkomendy (dns.sh) ==="
+  D="$SCRIPTS_DIR/dns.sh"
+  smoke_cmd "dns.sh rekordy"  bash "$D" rekordy example.com
+  smoke_cmd "dns.sh poczta"   bash "$D" poczta example.com
+  smoke_cmd "dns.sh dkim"     bash "$D" dkim example.com default
+  smoke_cmd "dns.sh typ"      bash "$D" typ example.com A
+  smoke_cmd "dns.sh raport"   bash "$D" raport example.com
+  smoke_cmd "dns.sh porownaj" bash "$D" porownaj example.com example.org
 }
-smoke_cmd_fixture "manifest.py wstaw" python3 "$M" setup_manifest_wstaw wstaw index.md .
 
-echo
-echo "=== realne podkomendy (metadane.sh) ==="
-ME="$SCRIPTS_DIR/metadane.sh"
-setup_metadane() { echo "tresc" > 2026-01-01_dowod.eml; }
-smoke_cmd_fixture "metadane.sh na .eml" bash "$ME" setup_metadane 2026-01-01_dowod.eml
+podkomendy_eli() {
+  echo
+  echo "=== realne podkomendy (eli.sh) ==="
+  E="$SCRIPTS_DIR/eli.sh"
+  smoke_cmd "eli.sh szukaj"       bash "$E" szukaj "Kodeks cywilny"
+  smoke_cmd "eli.sh meta"         bash "$E" meta DU 2024 1221
+  smoke_cmd "eli.sh teksty"       bash "$E" teksty DU 1964 93
+  smoke_cmd "eli.sh ujednolicony" bash "$E" ujednolicony DU 1964 93
+  smoke_cmd "eli.sh referencje"   bash "$E" referencje DU 2004 1800
+  smoke_cmd "eli.sh obowiazuje"   bash "$E" obowiazuje DU 2004 1800
+  smoke_cmd "eli.sh zmiany"       bash "$E" zmiany 2026-08-01
+}
 
-echo
-echo "=== realne podkomendy (eml_forensics.py) ==="
-EF="$SCRIPTS_DIR/eml_forensics.py"
-setup_eml() {
-  cat > sample.eml <<'EOM'
+podkomendy_eurlex() {
+  echo
+  echo "=== realne podkomendy (eurlex.sh) — tryb soft: EUR-Lex stoi za AWS WAF, który po serii"
+  echo "    zapytań czasowo odpowiada 202 (wyzwanie JS); skrypt kończy się wtedy kodem 2 ==="
+  EU="$SCRIPTS_DIR/eurlex.sh"
+  smoke_cmd_soft "eurlex.sh html" bash "$EU" html 62010CJ0618
+  smoke_cmd_soft "eurlex.sh pdf"  bash "$EU" pdf 62010CJ0618
+}
+
+podkomendy_orzecznictwo() {
+  echo
+  echo "=== realne podkomendy (orzecznictwo.sh) — tryb soft: bazy orzeczeń stron trzecich"
+  echo "    (SAOS, CBOSA, SN) mają udokumentowaną (patrz retrospektywy kruczka) historię"
+  echo "    niedostępności/blokad dla automatów, w praktyce bywają wolne/niestabilne pod"
+  echo "    obciążeniem (zweryfikowane 2026-08-28: SAOS timeoutował dwukrotnie z rzędu,"
+  echo "    po 15s przerwy odpowiedział w 0,27s — realna niestabilność serwisu, nie stała"
+  echo "    blokada); timeout/błąd sieci tu ostrzega, nie failuje builda ==="
+  O="$SCRIPTS_DIR/orzecznictwo.sh"
+  smoke_cmd_soft "orzecznictwo.sh saos"         bash "$O" saos "informacja handlowa"
+  smoke_cmd_soft "orzecznictwo.sh saos-tresc"   bash "$O" saos-tresc 123456
+  smoke_cmd_soft "orzecznictwo.sh saos-przepis" bash "$O" saos-przepis 2024/1221
+  smoke_cmd_soft "orzecznictwo.sh uodo"         bash "$O" uodo marketing
+  smoke_cmd_soft "orzecznictwo.sh uodo-tresc"   bash "$O" uodo-tresc DKN.5131.34.2023
+  smoke_cmd_soft "orzecznictwo.sh cbosa"        bash "$O" cbosa 6C317F6401
+  smoke_cmd_soft "orzecznictwo.sh sn"           bash "$O" sn "III SZP 7/15"
+  smoke_cmd_soft "orzecznictwo.sh uke"          bash "$O" uke 2025
+}
+
+podkomendy_podmiot() {
+  echo
+  echo "=== realne podkomendy (podmiot.sh) ==="
+  P="$SCRIPTS_DIR/podmiot.sh"
+  smoke_cmd "podmiot.sh nip"    bash "$P" nip 5252344078
+  smoke_cmd "podmiot.sh regon"  bash "$P" regon 140182840
+  smoke_cmd "podmiot.sh krs"    bash "$P" krs 0000240611 P
+  # ceidg bez tokenu kończy się kontrolowanym exit 1 — to gałąź "brak tokenu", też warta testu
+  smoke_cmd "podmiot.sh ceidg (bez tokenu)" bash "$P" ceidg 5252344078
+  smoke_cmd "podmiot.sh domena" bash "$P" domena example.pl
+  smoke_cmd "podmiot.sh strona" bash "$P" strona https://example.com
+  smoke_cmd "podmiot.sh pelny"  bash "$P" pelny 5252344078
+}
+
+podkomendy_archiwa() {
+  echo
+  echo "=== realne podkomendy (archiwa.sh) — tryb soft. Zweryfikowane 2026-08-28: endpoint"
+  echo "    CDX (historia, cdx-url) bywa degradowany niezależnie od User-Agenta i obciążenia"
+  echo "    z naszej strony — web.archive.org/ (strona główna) odpowiadał normalnie (<1s),"
+  echo "    ale /cdx/search/cdx timeoutował z 0 bajtów nawet po przerwie i zmianie URL-a."
+  echo "    To realna niestabilność konkretnie CDX API, nie throttling za częste odpytania"
+  echo "    ani brak zgodnego z archive.org/developers/bots.html UA (archiwa.sh go ustawia)."
+  echo "    Pomijamy 'save' (realny zapis u strony trzeciej) ==="
+  export KRUCZEK_CONTACT="ci-smoketest@example.invalid"
+  A="$SCRIPTS_DIR/archiwa.sh"
+  smoke_cmd_soft "archiwa.sh historia" bash "$A" historia example.com
+  smoke_cmd_soft "archiwa.sh cdx-url"  bash "$A" cdx-url example.com
+  smoke_cmd_soft "archiwa.sh pobierz"  bash "$A" pobierz example.com 20200101000000 .
+  unset KRUCZEK_CONTACT
+}
+
+podkomendy_lokalne() {
+  echo
+  echo "=== realne podkomendy (manifest.py) ==="
+  M="$SCRIPTS_DIR/manifest.py"
+  setup_manifest() { echo "przykladowa tresc" > dowod.txt; }
+  smoke_cmd_fixture "manifest.py skan"    python3 "$M" setup_manifest skan .
+  smoke_cmd_fixture "manifest.py sumy"    python3 "$M" setup_manifest sumy .
+  smoke_cmd_fixture "manifest.py sprawdz" python3 "$M" setup_manifest sprawdz .
+  setup_manifest_wstaw() {
+    echo "przykladowa tresc" > dowod.txt
+    printf '# SPRAWA\n\n<!-- KRUCZEK:MANIFEST:START -->\n<!-- KRUCZEK:MANIFEST:END -->\n' > index.md
+  }
+  smoke_cmd_fixture "manifest.py wstaw" python3 "$M" setup_manifest_wstaw wstaw index.md .
+
+  echo
+  echo "=== realne podkomendy (metadane.sh) ==="
+  ME="$SCRIPTS_DIR/metadane.sh"
+  setup_metadane() { echo "tresc" > 2026-01-01_dowod.eml; }
+  smoke_cmd_fixture "metadane.sh na .eml" bash "$ME" setup_metadane 2026-01-01_dowod.eml
+
+  echo
+  echo "=== realne podkomendy (eml_forensics.py) ==="
+  EF="$SCRIPTS_DIR/eml_forensics.py"
+  setup_eml() {
+    cat > sample.eml <<'EOM'
 From: nadawca@example.com
 To: odbiorca@example.com
 Subject: Test smoketestu
@@ -346,56 +382,67 @@ Content-Type: text/plain; charset=utf-8
 
 Tresc testowej wiadomosci.
 EOM
+  }
+  smoke_cmd_fixture "eml_forensics.py" python3 "$EF" setup_eml sample.eml
+
+  echo
+  echo "=== realne podkomendy (build_pismo.py) — bez silnika PDF w CI: oczekiwany kontrolowany błąd ==="
+  BP="$SCRIPTS_DIR/build_pismo.py"
+  setup_pismo() { printf '<html><body><!--KRUCZEK:ZALACZNIKI--><!--KRUCZEK:LISTA_ZALACZNIKOW--></body></html>' > pismo.html; }
+  smoke_cmd_fixture "build_pismo.py" python3 "$BP" setup_pismo pismo.html -o pismo.pdf
+
+  echo
+  echo "=== realne podkomendy (kontrola_pisma.py) — bez pdftotext w CI: oczekiwany kontrolowany błąd ==="
+  KP="$SCRIPTS_DIR/kontrola_pisma.py"
+  setup_kontrola() { mkdir -p ARCHIWUM; echo "%PDF-1.4 fake" > fake.pdf; }
+  smoke_cmd_fixture "kontrola_pisma.py" python3 "$KP" setup_kontrola fake.pdf --sprawa .
+
+  echo
+  echo "=== realne podkomendy (dane_nadawcy_status.py) ==="
+  DS="$SCRIPTS_DIR/dane_nadawcy_status.py"
+  setup_dane() { cp "$SCRIPTS_DIR/../templates/dane-nadawcy.md" dane-nadawcy.md 2>/dev/null || echo "| Imię i nazwisko | |" > dane-nadawcy.md; }
+  smoke_cmd_fixture "dane_nadawcy_status.py" python3 "$DS" setup_dane dane-nadawcy.md
+
+  echo
+  echo "=== realne podkomendy (teczka.py) ==="
+  T="$SCRIPTS_DIR/teczka.py"
+  setup_teczka() {
+    python3 "$T" nowa sprawa --tytul "Test" --strona "Firma" >/dev/null
+    python3 "$T" watek sprawa firma --adresat "Firma" >/dev/null
+  }
+  smoke_cmd_fixture "teczka.py nowa"        python3 "$T" true nowa s2 --tytul X --strona Y
+  smoke_cmd_fixture "teczka.py zdarzenie"   python3 "$T" setup_teczka zdarzenie sprawa --typ nadanie --watek firma --termin 14d --podstawa test
+  smoke_cmd_fixture "teczka.py zadanie"     python3 "$T" setup_teczka zadanie sprawa "snapshot" --aktywne-od +14d
+  smoke_cmd_fixture "teczka.py co-robic"    python3 "$T" setup_teczka co-robic .
+  smoke_cmd_fixture "teczka.py renderuj"    python3 "$T" setup_teczka renderuj sprawa
+  smoke_cmd_fixture "teczka.py przelicz"    python3 "$T" setup_teczka przelicz sprawa
+  smoke_cmd_fixture "teczka.py dzien-wolny" python3 "$T" setup_teczka dzien-wolny 2030-01-02 --podstawa test --projekt .
+
+  echo
+  echo "=== realne podkomendy (kruczek_serve.py) — brak katalogu projektu: kontrolowany błąd, bez bibliotek strony ==="
+  KS="$SCRIPTS_DIR/kruczek_serve.py"
+  smoke_cmd "kruczek_serve.py nie-ma-katalogu" python3 "$KS" nie-ma-katalogu
+
+  echo
+  echo "=== realne podkomendy (nowa-sprawa.sh, gen-claude-md.sh, init-projekt.sh) ==="
+  NS="$SCRIPTS_DIR/nowa-sprawa.sh"
+  smoke_cmd "nowa-sprawa.sh z argumentami" bash "$NS" "Testowa Sp. z o.o." "test smoketestu" .
+  GC="$SCRIPTS_DIR/gen-claude-md.sh"
+  setup_gen_claude() { mkdir -p _SZABLONY; cp "$SCRIPTS_DIR/../templates/dane-nadawcy.md" _SZABLONY/dane-nadawcy.md 2>/dev/null || true; }
+  smoke_cmd_fixture "gen-claude-md.sh z katalogiem" bash "$GC" setup_gen_claude .
+  IP="$SCRIPTS_DIR/init-projekt.sh"
+  smoke_cmd "init-projekt.sh na pustym katalogu" bash "$IP" .
 }
-smoke_cmd_fixture "eml_forensics.py" python3 "$EF" setup_eml sample.eml
 
-echo
-echo "=== realne podkomendy (build_pismo.py) — bez silnika PDF w CI: oczekiwany kontrolowany błąd ==="
-BP="$SCRIPTS_DIR/build_pismo.py"
-setup_pismo() { printf '<html><body><!--KRUCZEK:ZALACZNIKI--><!--KRUCZEK:LISTA_ZALACZNIKOW--></body></html>' > pismo.html; }
-smoke_cmd_fixture "build_pismo.py" python3 "$BP" setup_pismo pismo.html -o pismo.pdf
-
-echo
-echo "=== realne podkomendy (kontrola_pisma.py) — bez pdftotext w CI: oczekiwany kontrolowany błąd ==="
-KP="$SCRIPTS_DIR/kontrola_pisma.py"
-setup_kontrola() { mkdir -p ARCHIWUM; echo "%PDF-1.4 fake" > fake.pdf; }
-smoke_cmd_fixture "kontrola_pisma.py" python3 "$KP" setup_kontrola fake.pdf --sprawa .
-
-echo
-echo "=== realne podkomendy (dane_nadawcy_status.py) ==="
-DS="$SCRIPTS_DIR/dane_nadawcy_status.py"
-setup_dane() { cp "$SCRIPTS_DIR/../templates/dane-nadawcy.md" dane-nadawcy.md 2>/dev/null || echo "| Imię i nazwisko | |" > dane-nadawcy.md; }
-smoke_cmd_fixture "dane_nadawcy_status.py" python3 "$DS" setup_dane dane-nadawcy.md
-
-echo
-echo "=== realne podkomendy (teczka.py) ==="
-T="$SCRIPTS_DIR/teczka.py"
-setup_teczka() {
-  python3 "$T" nowa sprawa --tytul "Test" --strona "Firma" >/dev/null
-  python3 "$T" watek sprawa firma --adresat "Firma" >/dev/null
-}
-smoke_cmd_fixture "teczka.py nowa"        python3 "$T" true nowa s2 --tytul X --strona Y
-smoke_cmd_fixture "teczka.py zdarzenie"   python3 "$T" setup_teczka zdarzenie sprawa --typ nadanie --watek firma --termin 14d --podstawa test
-smoke_cmd_fixture "teczka.py zadanie"     python3 "$T" setup_teczka zadanie sprawa "snapshot" --aktywne-od +14d
-smoke_cmd_fixture "teczka.py co-robic"    python3 "$T" setup_teczka co-robic .
-smoke_cmd_fixture "teczka.py renderuj"    python3 "$T" setup_teczka renderuj sprawa
-smoke_cmd_fixture "teczka.py przelicz"    python3 "$T" setup_teczka przelicz sprawa
-smoke_cmd_fixture "teczka.py dzien-wolny" python3 "$T" setup_teczka dzien-wolny 2030-01-02 --podstawa test --projekt .
-
-echo
-echo "=== realne podkomendy (kruczek_serve.py) — brak katalogu projektu: kontrolowany błąd, bez bibliotek strony ==="
-KS="$SCRIPTS_DIR/kruczek_serve.py"
-smoke_cmd "kruczek_serve.py nie-ma-katalogu" python3 "$KS" nie-ma-katalogu
-
-echo
-echo "=== realne podkomendy (nowa-sprawa.sh, gen-claude-md.sh, init-projekt.sh) ==="
-NS="$SCRIPTS_DIR/nowa-sprawa.sh"
-smoke_cmd "nowa-sprawa.sh z argumentami" bash "$NS" "Testowa Sp. z o.o." "test smoketestu" .
-GC="$SCRIPTS_DIR/gen-claude-md.sh"
-setup_gen_claude() { mkdir -p _SZABLONY; cp "$SCRIPTS_DIR/../templates/dane-nadawcy.md" _SZABLONY/dane-nadawcy.md 2>/dev/null || true; }
-smoke_cmd_fixture "gen-claude-md.sh z katalogiem" bash "$GC" setup_gen_claude .
-IP="$SCRIPTS_DIR/init-projekt.sh"
-smoke_cmd "init-projekt.sh na pustym katalogu" bash "$IP" .
+for grupa in warstwa_bezposrednio warstwa_bez_argumentow_bash warstwa_bez_argumentow_binbash \
+              warstwa_bez_argumentow_python podkomendy_dns podkomendy_eli podkomendy_eurlex \
+              podkomendy_orzecznictwo podkomendy_podmiot podkomendy_archiwa podkomendy_lokalne; do
+  rownolegle "$grupa"
+done
+wait
+for log in "$LOGI"/*.log; do cat "$log"; done
+[ -e "$BLAD_ZNACZNIK" ] && FAIL=1
+rm -rf "$LOGI"
 
 echo
 if [ "$FAIL" -eq 0 ]; then
