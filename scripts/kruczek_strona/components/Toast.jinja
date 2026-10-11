@@ -1,0 +1,8 @@
+{#def tekst #}
+<div class="toast" role="status" aria-atomic="true" aria-hidden="false" data-category="success" data-duration="8000">
+  <div class="toast-content">
+    <Icon name="check" />
+    <section><p>{{ tekst }}</p></section>
+    {% if content %}<footer>{{ content }}</footer>{% endif %}
+  </div>
+</div>

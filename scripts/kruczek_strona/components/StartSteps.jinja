@@ -1,0 +1,12 @@
+{#def kroki, pokaz_sprawe=True #}
+<article class="k-task" id="{{ kroki.dom_id }}">
+  <div class="k-task__top"><span class="k-task__when">{{ kroki.kiedy }}</span></div>
+  <h3 class="k-task__title">Przygotuj i nadaj pierwsze pismo</h3>
+  <ol class="k-startsteps">
+    {% for a in kroki.kroki %}
+    <li{% if a.zrobione %} data-state="done"{% endif %}><Icon name={{ "check" if a.zrobione else "circle" }} /><span>{{ a.opis }}{% if a.zrobione %}<span class="sr-only"> — zrobione</span>{% endif %}</span></li>
+    {% endfor %}
+  </ol>
+  <CaseRef url={{ kroki.url }} klucz={{ kroki.klucz }} pokaz_sprawe={{ pokaz_sprawe }} />
+  <CommandCopy value={{ kroki.polecenie }} id={{ kroki.dom_id ~ "-polecenie" }} hint="Te kroki robisz w rozmowie z Claude. Wklej tam:" variant="" />
+</article>

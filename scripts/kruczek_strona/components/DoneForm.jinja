@@ -1,0 +1,5 @@
+{#def karta, variant="" #}
+<ActionForm akcja={{ karta.url ~ "/zadania/" ~ karta.zadanie.id ~ "/zrobione" }}>
+  <input type="hidden" name="opis" value="{{ karta.zadanie.opis }}">
+  <Button variant={{ variant }} icon="check">Zrobione</Button>
+</ActionForm>

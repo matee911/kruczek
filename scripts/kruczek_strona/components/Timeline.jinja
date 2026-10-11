@@ -1,0 +1,20 @@
+{#def wpisy #}
+<ol class="k-timeline">
+  {% for w in wpisy %}
+  <li>
+    <span class="k-timeline__date">{{ w.data }}</span>
+    <span class="k-timeline__dot"{% if w.rodzaj %} data-kind="{{ w.rodzaj }}"{% endif %}></span>
+    <div>
+      <p class="k-timeline__what">{{ w.co }}</p>
+      {% if w.status or w.meta or w.dowody %}
+      <div class="k-timeline__meta">
+        {% if w.status in ("proof", "clue", "own") %}<CertaintyChip status={{ w.status }} />{% elif w.status %}<StatusChip status={{ w.status }} />{% endif %}
+        {% for m in w.meta %}<span>{{ m }}</span>{% endfor %}
+        {#- Dowody tylko jako nazwy: strona nie udostępnia plików ze spraw. -#}
+        {% for d in w.dowody %}<span class="k-ref"><Icon name="paperclip" />{{ d }}</span>{% endfor %}
+      </div>
+      {% endif %}
+    </div>
+  </li>
+  {% endfor %}
+</ol>

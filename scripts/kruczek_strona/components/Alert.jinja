@@ -1,0 +1,7 @@
+{#def title, variant="info" #}
+{% set ikona = {"destructive": "triangle-alert", "warning": "triangle-alert", "info": "info", "success": "check"}[variant] %}
+<div class="alert" data-variant="{{ variant }}" role="{{ 'alert' if variant in ('destructive', 'warning') else 'status' }}">
+  <Icon name={{ ikona }} />
+  <h2>{{ title }}</h2>
+  {% if content %}<section>{{ content }}</section>{% endif %}
+</div>

@@ -1,0 +1,44 @@
+{#def s, pokaz_sprawe=True, bledy={}, wartosci={} #}
+{#- Sekcje w kolejności z design systemu: PO TERMINIE, TERAZ, CZEKAM, WKRÓTCE, BEZ RUCHU.
+    Pusta sekcja znika; pusta „Teraz” (i nic po terminie) to „Nic na dziś” z najbliższą datą. -#}
+{% if s.po_terminie %}
+<section aria-labelledby="s-po" class="flex flex-col gap-3">
+  <SectionHeader name="Po terminie" count={{ s.po_terminie | length }} id="s-po" />
+  {% for k in s.po_terminie %}<TaskCard karta={{ k }} pokaz_sprawe={{ pokaz_sprawe }} blad={{ bledy.get(k.zadanie.id, "") }} wartosc={{ wartosci.get(k.zadanie.id, "") }} />{% endfor %}
+</section>
+{% endif %}
+{% if s.teraz %}
+<section aria-labelledby="s-teraz" class="flex flex-col gap-3">
+  <SectionHeader name="Teraz" count={{ s.teraz | length }} id="s-teraz" />
+  {% for k in s.teraz %}
+    {% if k.kroki is defined %}<StartSteps kroki={{ k }} pokaz_sprawe={{ pokaz_sprawe }} />
+    {% else %}<TaskCard karta={{ k }} pokaz_sprawe={{ pokaz_sprawe }} blad={{ bledy.get(k.zadanie.id, "") }} wartosc={{ wartosci.get(k.zadanie.id, "") }} />{% endif %}
+  {% endfor %}
+</section>
+{% elif not s.po_terminie %}
+<EmptyState title="Nic na dziś">
+  {%- if s.najblizszy %}Najbliższy termin: <span class="date">{{ s.najblizszy | data_pl }}</span>.{% else %}Nie ma żadnych terminów.{% endif -%}
+</EmptyState>
+{% endif %}
+{% if s.czekam %}
+<section aria-labelledby="s-czekam" class="flex flex-col gap-2">
+  <SectionHeader name="Czekam" count={{ s.czekam | length }} id="s-czekam" hint="Termin ma druga strona. Tu nic nie musisz robić." />
+  {% for w in s.czekam %}<WaitRow wiersz={{ w }} pokaz_sprawe={{ pokaz_sprawe }} />{% endfor %}
+</section>
+{% endif %}
+{% if s.wkrotce %}
+<section aria-labelledby="s-wkrotce" class="flex flex-col gap-3">
+  <SectionHeader name="Wkrótce" count={{ s.wkrotce | length }} id="s-wkrotce" />
+  {% for k in s.wkrotce %}
+    {% if k.kroki is defined %}<StartSteps kroki={{ k }} pokaz_sprawe={{ pokaz_sprawe }} />
+    {% else %}<TaskCard karta={{ k }} pokaz_sprawe={{ pokaz_sprawe }} />{% endif %}
+  {% endfor %}
+</section>
+{% endif %}
+{% if s.bez_ruchu %}
+<section aria-labelledby="s-bez" class="flex flex-col gap-2">
+  <SectionHeader name="Bez ruchu" count={{ s.bez_ruchu | length }} id="s-bez"
+                 hint={{ "Ponad " ~ DNI_BEZ_RUCHU ~ " dni bez zdarzenia. Zamknij sprawę albo dopisz, co się dzieje." }} />
+  {% for w in s.bez_ruchu %}<WaitRow wiersz={{ w }} pokaz_sprawe={{ pokaz_sprawe }} />{% endfor %}
+</section>
+{% endif %}

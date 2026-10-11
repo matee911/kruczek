@@ -1,0 +1,8 @@
+{#def akcja #}
+{#- Formularz akcji zapisu: token sesji, widok do odświeżenia, htmx podmienia #tresc-dynamiczna.
+    Bez JS działa jak zwykły POST (serwer oddaje całą stronę). -#}
+<form {{ attrs.render(method="post", action=akcja, hx_post=akcja, hx_target="#tresc-dynamiczna", hx_swap="outerHTML") }}>
+  <input type="hidden" name="token" value="{{ token }}">
+  <input type="hidden" name="widok" value="{{ widok }}">
+  {{ content }}
+</form>
