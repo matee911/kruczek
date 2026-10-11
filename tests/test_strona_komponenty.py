@@ -54,8 +54,8 @@ def test_case_ref_link_watek_i_id_zadania(katalog):
     # Act
     html = render(katalog, "CaseRef", url="/sprawa/sprawa-a", klucz="sprawa-a", watek="firma", zadanie_id="a3")
     # Assert
-    assert html.count('class="k-ref"') == 1
-    assert '<a href="/sprawa/sprawa-a">sprawa-a</a>' in html and "firma" in html and "a3" in html
+    assert html == ('<span class="k-ref"><a href="/sprawa/sprawa-a">sprawa-a</a>'
+                    '<span class="k-ref__sep">/</span>firma · a3</span>')
 
 
 def test_case_ref_bez_linku_ma_sam_watek_a_bez_niczego_nie_renderuje_sie(katalog):
@@ -63,8 +63,19 @@ def test_case_ref_bez_linku_ma_sam_watek_a_bez_niczego_nie_renderuje_sie(katalog
     sam_watek = render(katalog, "CaseRef", url="/sprawa/sprawa-a", klucz="sprawa-a", watek="firma", pokaz_sprawe=False)
     pusty = render(katalog, "CaseRef", url="/sprawa/sprawa-a", klucz="sprawa-a", pokaz_sprawe=False)
     # Assert
-    assert "wątek: firma" in sam_watek and "href" not in sam_watek
+    assert sam_watek == '<span class="k-ref">wątek: firma</span>'
     assert pusty.strip() == ""
+
+
+def test_case_ref_w_widoku_sprawy_numer_zadania_bez_poprzedzajacego_separatora(katalog):
+    # Act
+    bez_watku = render(katalog, "CaseRef", url="/sprawa/sprawa-a", klucz="sprawa-a", zadanie_id="a3",
+                       pokaz_sprawe=False)
+    z_watkiem = render(katalog, "CaseRef", url="/sprawa/sprawa-a", klucz="sprawa-a", watek="firma", zadanie_id="a3",
+                       pokaz_sprawe=False)
+    # Assert
+    assert bez_watku == '<span class="k-ref">a3</span>'
+    assert z_watkiem == '<span class="k-ref">wątek: firma · a3</span>'
 
 
 def test_task_card_zrobione_formularz_z_tokenem_i_opisem(katalog):
@@ -196,6 +207,17 @@ def test_sekcje_w_widoku_sprawy_przekazuja_blad_i_wartosc_do_karty(katalog):
                   bledy={"a3": "Wpisz datę doręczenia."}, wartosci={"a3": "32.13.2026"})
     # Assert
     assert "Wpisz datę doręczenia." in html and 'value="32.13.2026"' in html
+
+
+def test_sekcje_w_widoku_sprawy_przekazuja_blad_i_wartosc_do_karty_po_terminie(katalog):
+    # Arrange
+    sekcje = EkranSekcji([karta("doreczenie", status="overdue")], [], [], [], [], None)
+    # Act
+    html = render(katalog, "Sections", widok="sprawa", s=sekcje, pokaz_sprawe=False,
+                  bledy={"a3": "Wpisz datę doręczenia."}, wartosci={"a3": "32.13.2026"})
+    # Assert
+    assert 'aria-labelledby="s-po"' in html
+    assert 'aria-invalid="true"' in html and "Wpisz datę doręczenia." in html and 'value="32.13.2026"' in html
 
 
 def test_zaden_komponent_nie_ma_style_ani_handlerow_on():
