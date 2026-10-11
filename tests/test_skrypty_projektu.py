@@ -163,3 +163,20 @@ def test_skill_serve_uruchamia_strone_tylko_lokalnie():
     # Act / Assert
     assert "${CLAUDE_PLUGIN_ROOT}/scripts/kruczek_serve.py" in tekst
     assert "127.0.0.1" in tekst and "--host" not in tekst and "python3 " not in tekst
+
+
+def test_claude_md_nawigacja_tylko_katalogi_glowne(tmp_path):
+    # Arrange
+    (tmp_path / "sprawa-a" / "ARCHIWUM").mkdir(parents=True)
+    (tmp_path / "sprawa-a" / "ARCHIWUM" / "2026-09-01_dowod.pdf").write_bytes(b"%PDF")
+    (tmp_path / "_NARZEDZIA" / "__pycache__").mkdir(parents=True)
+    (tmp_path / "_NARZEDZIA" / "__pycache__" / "utils.cpython-311.pyc").write_bytes(b"")
+    (tmp_path / ".git").mkdir()
+    (tmp_path / "index.md").write_text("# Rejestr spraw\n", encoding="utf-8")
+    # Act
+    wynik = uruchom("gen-claude-md.sh", str(tmp_path), cwd=tmp_path)
+    # Assert
+    assert wynik.returncode == 0, wynik.stderr
+    tekst = (tmp_path / "CLAUDE.md").read_text(encoding="utf-8")
+    nawigacja = tekst.split("## Nawigacja po projekcie", 1)[1].split("```")[1]
+    assert nawigacja.split() == ["_NARZEDZIA/", "index.md", "sprawa-a/"]

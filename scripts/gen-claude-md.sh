@@ -27,6 +27,13 @@ if printf '%s\n' "$STATUS_RAW" | grep -q '^BRAK-PLIK$'; then
 uruchom /kruczek:dane-nadawcy albo zapytaj użytkownika wprost."
 fi
 
+# Nawigacja: tylko główne katalogi i pliki projektu — pełne drzewo z plikami spraw zapychało
+# kontekst każdej sesji i wynosiło nazwy dowodów do pliku, który bywa commitowany.
+NAWIGACJA=$(cd "$ROOT" && for p in *; do
+  if [ "$p" = CLAUDE.md ] || [ "$p" = __pycache__ ]; then continue; fi
+  if [ -d "$p" ]; then echo "$p/"; elif [ -e "$p" ]; then echo "$p"; fi
+done | LC_ALL=C sort)
+
 cat > "$OUT" <<EOF
 # CLAUDE.md — repozytorium spraw kruczek
 <!-- Wygenerowano automatycznie przez gen-claude-md.sh w dniu $DZIS -->
@@ -53,11 +60,7 @@ później, uruchom ponownie \`/kruczek:dane-nadawcy\` (samo odświeży ten plik)
 ## Nawigacja po projekcie
 
 \`\`\`
-$(cd "$ROOT" && find . -maxdepth 3 \
-    -not -path './.git/*' \
-    -not -path './BAZA_WIEDZY/przepisy/*' \
-    -not -path './BAZA_WIEDZY/orzecznictwo/*' \
-    | sort | sed 's|^\./||' | grep -v '^$')
+$NAWIGACJA
 \`\`\`
 
 - **index.md** — rejestr wszystkich spraw (lista; status, terminy i zadania pokazuje \`/kruczek:status\`, liczone z \`sprawa.json\`)
