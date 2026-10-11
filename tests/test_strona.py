@@ -17,6 +17,7 @@ from kruczek_core.operacje import (
 )
 from kruczek_core.reguly import REGULA_DORECZENIE, SpecTerminu
 from kruczek_strona.app import MAKS_FORMULARZ, utworz_aplikacje
+from kruczek_strona.ekrany import FORMULARZ_ZA_DUZY
 from kruczek_strona.zaleznosci import Ustawienia, dzis
 
 DZIS = dt.date(2026, 10, 20)
@@ -222,13 +223,18 @@ def test_zapis_z_obcej_strony_odrzucony(projekt, klient, pola, naglowki):
     assert zadanie(projekt, "snapshot Web Archive")["zrobione"] is None
 
 
-def test_za_duzy_formularz_odrzucony_bez_zapisu(projekt, klient):
-    # Arrange — FastAPI czyta cały formularz przed zależnościami; limit stoi przed aplikacją
+@pytest.mark.parametrize("naglowki, poczatek", [(HX, '<div id="tresc-dynamiczna"'), ({}, "<!doctype html>")],
+                         ids=["htmx-fragment", "bez-htmx-cala-strona"])
+def test_za_duzy_formularz_odrzucony_bez_zapisu_strona_bledu(projekt, klient, naglowki, poczatek):
+    # Arrange — FastAPI czyta cały formularz przed zależnościami; limit stoi przed aplikacją.
+    # htmx podmienia #tresc-dynamiczna odpowiedzią — fragment musi go zachować
     zid = zadanie(projekt, "snapshot Web Archive")["id"]
     # Act
-    r = post(klient, f"/sprawa/sprawa-a/zadania/{zid}/zrobione", opis="x" * (MAKS_FORMULARZ + 1))
+    r = post(klient, f"/sprawa/sprawa-a/zadania/{zid}/zrobione", naglowki=naglowki, opis="x" * (MAKS_FORMULARZ + 1))
     # Assert
-    assert r.status_code == 413 and "frame-ancestors 'none'" in r.headers["content-security-policy"]
+    assert r.status_code == 413 and r.headers["content-type"].startswith("text/html")
+    assert r.text.startswith(poczatek) and "Nie zapisano" in r.text and FORMULARZ_ZA_DUZY in r.text
+    assert "frame-ancestors 'none'" in r.headers["content-security-policy"]
     assert zadanie(projekt, "snapshot Web Archive")["zrobione"] is None
 
 
@@ -317,7 +323,7 @@ def test_zapis_bez_content_length_odrzucony_413(projekt, klient):
     r = klient.post(f"/sprawa/sprawa-a/zadania/{zid}/zrobione", content=iter([b"token=a&opis=b"]),
                     headers={**HX, "content-type": "application/x-www-form-urlencoded"})
     # Assert
-    assert r.status_code == 413
+    assert r.status_code == 413 and r.text.startswith('<div id="tresc-dynamiczna"')
     assert zadanie(projekt, "snapshot Web Archive")["zrobione"] is None
 
 
