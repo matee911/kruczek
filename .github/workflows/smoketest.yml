@@ -79,7 +79,7 @@ jobs:
         python: ['3.11', '3.14']
     steps:
       - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v10
+      - uses: astral-sh/setup-uv@v10.3.0
       - name: pytest (kruczek_core + teczka.py)
         run: uv run --python ${{ matrix.python }} pytest
 
@@ -89,7 +89,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       # skrypty Pythona startują przez `uv run --script` (shebang), np. teczka.py z nowa-sprawa.sh
-      - uses: astral-sh/setup-uv@v10
+      - uses: astral-sh/setup-uv@v10.3.0
       - name: Smoketest wszystkich skryptów
         run: bash scripts/smoketest.sh scripts
       # coverage jest instalowany tylko tutaj: pokrycie mierzymy raz, na ubuntu.
@@ -134,7 +134,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       # skrypty Pythona startują przez `uv run --script` (shebang), np. teczka.py z nowa-sprawa.sh
-      - uses: astral-sh/setup-uv@v10
+      - uses: astral-sh/setup-uv@v10.3.0
       - name: Smoketest wszystkich skryptów
         run: bash scripts/smoketest.sh scripts
       - name: Testy (unittest + doctesty, odkrywane)
