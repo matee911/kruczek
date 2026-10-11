@@ -7,7 +7,6 @@ import pytest
 from jinja2.exceptions import UndefinedError
 from kruczek_core.model import Zadanie
 from kruczek_strona.ekrany import (
-    EkranCoRobic,
     EkranSekcji,
     KartaKrokow,
     KartaZadania,
@@ -189,13 +188,14 @@ def test_layout_bez_kodu_inline_i_bez_zasobow_z_sieci(katalog):
     assert "http://" not in html and "https://" not in html
 
 
-def test_przeglad_przekazuje_bledy_formularza_do_karty(katalog):
+def test_sekcje_w_widoku_sprawy_przekazuja_blad_i_wartosc_do_karty(katalog):
     # Arrange
-    ekran = EkranCoRobic(D(2026, 10, 11), EkranSekcji([], [karta()], [], [], [], None), 1, [], [], [])
+    sekcje = EkranSekcji([], [karta("doreczenie")], [], [], [], None)
     # Act
-    html = render(katalog, "strony.Przeglad", ekran=ekran, bledy={"a3": "Nie zapisano — odśwież stronę."})
+    html = render(katalog, "Sections", widok="sprawa", s=sekcje, pokaz_sprawe=False,
+                  bledy={"a3": "Wpisz datę doręczenia."}, wartosci={"a3": "32.13.2026"})
     # Assert
-    assert 'role="alert"' in html and "Nie zapisano — odśwież stronę." in html
+    assert "Wpisz datę doręczenia." in html and 'value="32.13.2026"' in html
 
 
 def test_zaden_komponent_nie_ma_style_ani_handlerow_on():
