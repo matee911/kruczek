@@ -36,6 +36,8 @@ wersjonowanie wg [SemVer](https://semver.org/lang/pl/).
   albo `gen-claude-md.sh`.
 - `/kruczek:migruj` nie zamienia terminu liczonego od niewysłanego pisma w zaległe zadanie z fikcyjną
   datą — wiersz trafia do „nieprzeniesione”, a termin liczy się przy nadaniu.
+- „Sprawdź datę doręczenia” jest aktywne od dnia nadania, nie od następnego dnia — e-mail
+  i e-Doręczenia bywają doręczone tego samego dnia, więc datę można wpisać od razu.
 
 ## [0.9.0] — 2026-10-09
 

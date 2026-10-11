@@ -97,14 +97,14 @@ def _po_nadaniu(sprawa: Sprawa, z: Zdarzenie, spec: SpecTerminu | None, kal: Kal
     adresat = sprawa.znajdz_watek(z.watek).adresat if z.watek else "adresat"
     zamkniete = _zamknij_nadaj_pismo(sprawa, z)
     if spec is None:
-        _nowe_zadanie(sprawa, f"{adresat}: sprawdź datę doręczenia w śledzeniu przesyłki", z.data + _DZIEN, z.watek,
+        _nowe_zadanie(sprawa, f"{adresat}: sprawdź datę doręczenia w śledzeniu przesyłki", z.data, z.watek,
                       REGULA_DORECZENIE, z.id)
         return ["nadanie bez terminu na odpowiedź — nie ma na co czekać; podaj --termin, jeśli pismo go wyznacza",
                 *zamkniete]
     termin = Termin(kolejne_id("t", sprawa.terminy), spec.podstawa, z.id, spec.dlugosc,
                     koniec_terminu(z.data, spec.dlugosc, kal), watek=z.watek, szacunek=True)
     sprawa.terminy.append(termin)
-    _nowe_zadanie(sprawa, f"{adresat}: sprawdź datę doręczenia w śledzeniu przesyłki", z.data + _DZIEN, z.watek,
+    _nowe_zadanie(sprawa, f"{adresat}: sprawdź datę doręczenia w śledzeniu przesyłki", z.data, z.watek,
                   REGULA_DORECZENIE, z.id, termin.id)
     _nowe_zadanie(sprawa, f"{adresat}: sprawdź, czy przyszła odpowiedź", termin.data_konca + _DZIEN, z.watek,
                   REGULA_ODPOWIEDZ, z.id, termin.id)
@@ -297,9 +297,7 @@ def zmien_date(sprawa: Sprawa, z: Zdarzenie, nowa: dt.date, kalendarz: Kalendarz
             a.zrobione = nowa
         if a.zdarzenie_id != z.id or a.zrobione is not None:
             continue
-        if a.regula == REGULA_DORECZENIE:
-            a.aktywne_od = nowa + _DZIEN
-        elif a.regula == REGULA_ANALIZA:
+        if a.regula in (REGULA_DORECZENIE, REGULA_ANALIZA):
             a.aktywne_od = nowa
     return [f"{z.id}: data {stara.isoformat()} → {nowa.isoformat()}", *przelicz(sprawa, kalendarz)]
 
