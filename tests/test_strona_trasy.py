@@ -265,5 +265,30 @@ def test_cofnij_z_data_nie_iso_to_blad_ksztaltu_po_polsku(repo, klient):
     # Act — toast wysyła datę ISO; inna postać to formularz spoza tej strony
     r = post(klient, "/sprawa/sprawa-a/zdarzenia/z1/cofnij", typ="nadanie", data="08.10.2026")
     # Assert
-    assert r.status_code == 422 and "Nie zapisano" in r.text and "data" in r.text
+    assert r.status_code == 422 and "Nie zapisano" in r.text
+    assert "Niepełne albo nieznane pola: data." in r.text
     assert "Input should" not in r.text and repo.zapisy == 0
+
+
+def test_doreczenie_zadanie_juz_zrobione_400_bez_zapisu(repo, klient):
+    # Arrange
+    sprawdzenie = zadanie(repo, regula=REGULA_DORECZENIE)
+    post(klient, f"/sprawa/sprawa-a/zadania/{sprawdzenie.id}/zrobione", opis=sprawdzenie.opis)
+    zapisy = repo.zapisy
+    # Act
+    r = post(klient, f"/sprawa/sprawa-a/zadania/{sprawdzenie.id}/doreczenie", widok="sprawa",
+             opis=sprawdzenie.opis, data="10.10.2026")
+    # Assert
+    assert r.status_code == 400 and "Nie zapisano" in r.text
+    assert [z.typ for z in repo.sprawy["sprawa-a"].zdarzenia] == ["nadanie"] and repo.zapisy == zapisy
+
+
+def test_doreczenie_nieaktualny_opis_to_konflikt_bez_zapisu(repo, klient):
+    # Arrange
+    sprawdzenie = zadanie(repo, regula=REGULA_DORECZENIE)
+    # Act
+    r = post(klient, f"/sprawa/sprawa-a/zadania/{sprawdzenie.id}/doreczenie", widok="sprawa",
+             opis="opis, który strona widziała wcześniej", data="10.10.2026")
+    # Assert
+    assert r.status_code == 409 and "Sprawa zmieniła się w międzyczasie" in r.text
+    assert [z.typ for z in repo.sprawy["sprawa-a"].zdarzenia] == ["nadanie"] and repo.zapisy == 0

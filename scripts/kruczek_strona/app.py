@@ -180,25 +180,29 @@ def _trasy() -> APIRouter:
     @trasy.post("/sprawa/{klucz:path}/zadania/{zadanie_id}/doreczenie", dependencies=zapis)
     def doreczenie(klucz: Klucz, zadanie_id: str, f: Annotated[FormularzDoreczenia, Form()], strona: StronaHTML,
                    repo: Repo, d: Dzis) -> HTMLResponse:
+        komunikat = ""
         try:
             data = data_doreczenia(f.data, d)
-            kal = repo.kalendarz(klucz)
-            z, _ = repo.zmien(klucz, lambda s: zapisz_doreczenie(s, zadanie_id, data, kal, d, oczekiwany_opis=f.opis))
-        except ZdarzeniePrzedNadaniem as e:
-            blad = blad_doreczenia_przed_nadaniem(e.data_nadania)
         except ValueError as e:
-            blad = str(e)
-        except BladSprawy as e:
-            return strona.bez_zapisu(f.widok, klucz, e)
-        else:
-            return strona.po_zapisie(f.widok, klucz, powiadomienie_doreczenia(klucz, z))
-        return strona.widok_sprawy(klucz, 422, bledy={zadanie_id: blad}, wartosci={zadanie_id: f.data})
+            komunikat = str(e)
+        if not komunikat:
+            try:
+                kal = repo.kalendarz(klucz)
+                z, _ = repo.zmien(klucz, lambda s: zapisz_doreczenie(s, zadanie_id, data, kal, d,
+                                                                      oczekiwany_opis=f.opis))
+            except ZdarzeniePrzedNadaniem as e:
+                komunikat = blad_doreczenia_przed_nadaniem(e.data_nadania)
+            except BladSprawy as e:
+                return strona.bez_zapisu(f.widok, klucz, e)
+            else:
+                return strona.po_zapisie(f.widok, klucz, powiadomienie_doreczenia(klucz, z))
+        return strona.widok_sprawy(klucz, 422, bledy={zadanie_id: komunikat}, wartosci={zadanie_id: f.data})
 
     @trasy.post("/sprawa/{klucz:path}/zdarzenia/{zdarzenie_id}/cofnij", dependencies=zapis)
     def cofnij_zdarzenie(klucz: Klucz, zdarzenie_id: str, f: Annotated[FormularzCofniecia, Form()],
                          strona: StronaHTML, repo: Repo) -> HTMLResponse:
-        kal = repo.kalendarz(klucz)
         try:
+            kal = repo.kalendarz(klucz)
             repo.zmien(klucz, lambda s: wycofaj_zdarzenie(s, zdarzenie_id, kal, oczekiwane=(f.typ, f.data)))
         except NieOstatnieZdarzenie:
             return strona.widok_po_akcji(f.widok, klucz, 409, alert=alert_nie_ostatnie(klucz))
