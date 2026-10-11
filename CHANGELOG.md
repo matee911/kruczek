@@ -5,6 +5,25 @@ wersjonowanie wg [SemVer](https://semver.org/lang/pl/).
 
 ## [Unreleased]
 
+## [0.10.0] — 2026-10-11
+
+### Dodane
+- **`/kruczek:serve`** — lokalna strona teczki w przeglądarce (tylko `127.0.0.1`, bez połączeń z internetem):
+  „Po terminie”, „Teraz”, „Czekam”, „Wkrótce”, „Bez ruchu”, sprawy w starym formacie i błędy — to samo
+  co `teczka.py co-robic`, liczone tym samym kodem. Ekran sprawy: strony sprawy, terminy z podstawą
+  i oznaczeniem „szacunek”, chronologia z pewnością i nazwami dowodów (strona nie udostępnia plików).
+- Ze strony: „Zrobione” i data doręczenia (termin przelicza się od razu), oba z „Cofnij”. Zadanie albo
+  wpis zmieniony w międzyczasie w rozmowie z Claude nie zostanie nadpisany. Pozostałe kroki strona
+  podaje jako polecenie do skopiowania (np. `/kruczek:eskalacja <sprawa>`).
+- Kroki startowe nowej sprawy na stronie jako jedna karta z listą.
+
+### Zmienione
+- Rdzeń teczki wskazuje sprawy kluczem (folder względem projektu) i liczy „po terminie” oraz sekcje
+  przeglądu — `co-robic` i strona korzystają z jednego przeglądu projektu.
+- `teczka.py co-robic` oznacza przeterminowane zadanie „sprawdź, czy przyszła odpowiedź” jako
+  „PO TERMINIE” z datą terminu adresata i nie wypisuje już w „Czekam” wątku, w którym termin
+  adresata minął — tak jak strona.
+
 ## [0.9.0] — 2026-10-09
 
 ### Aktualizacja z 0.8.x
