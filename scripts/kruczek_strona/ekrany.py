@@ -49,6 +49,8 @@ TYPY_ZDARZEN = {"nadanie": "Nadanie pisma", "doreczenie": "Doręczenie pisma", "
                 "wplyw": "Pismo przychodzące", "fakt": "Fakt", "telefon": "Telefon", "inne": "Zdarzenie"}
 BLEDY_HTTP = {404: "Nie ma takiej strony", 405: "Tego adresu nie otwiera się w ten sposób"}
 BLAD_DOMYSLNY = "Nie da się tego zrobić"
+BLAD_SERWERA_TYTUL = "Coś poszło nie tak po stronie strony"
+BLAD_SERWERA_TRESC = "Spróbuj odświeżyć. Jeśli się powtarza, uruchom stronę ponownie i zgłoś to w rozmowie z Claude."
 WROC_DO_LISTY_SPRAW = "Wróć do listy spraw."
 STARY_FORMAT_TYTUL = "Ta sprawa ma stary format"
 STARY_FORMAT_TRESC = "Kruczek pokaże ją tutaj po przeniesieniu do sprawa.json."

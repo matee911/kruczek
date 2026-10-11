@@ -41,15 +41,30 @@ def zaleznosci_skryptu() -> list[str]:
     return tomllib.loads(toml)["dependencies"]
 
 
+def _port(tekst: str) -> int:
+    """
+    >>> _port("8765")
+    8765
+    """
+    try:
+        port = int(tekst)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"błąd: port to liczba 1–65535, a nie {tekst!r}") from None
+    if not 1 <= port <= 65535:
+        raise argparse.ArgumentTypeError(f"błąd: port {port} poza zakresem 1–65535")
+    return port
+
+
 def _parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="kruczek_serve.py", description="Lokalna strona teczki (tylko 127.0.0.1).")
     p.add_argument("projekt", type=Path, help="katalog projektu ze sprawami")
-    p.add_argument("--port", type=int, default=DOMYSLNY_PORT)
+    p.add_argument("--port", type=_port, default=DOMYSLNY_PORT)
     return p
 
 
 def _port_wolny(port: int) -> bool:
     with socket.socket() as s:
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         try:
             s.bind((HOST, port))
         except OSError:
@@ -62,7 +77,7 @@ def main(argv: list[str] | None = None) -> int:
     if not a.projekt.is_dir():
         print(f"błąd: {a.projekt} nie jest katalogiem projektu", file=sys.stderr)
         return 1
-    if a.port and not _port_wolny(a.port):
+    if not _port_wolny(a.port):
         print(f"błąd: port {a.port} jest zajęty — podaj inny: --port {a.port + 1}", file=sys.stderr)
         return 1
     try:
