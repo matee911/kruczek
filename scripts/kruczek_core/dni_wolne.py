@@ -133,12 +133,21 @@ class Kalendarz:
         (art. 115 k.c., art. 57 § 4 k.p.a.)."""
         return d.weekday() == 5 or self.czy_wolny(d)
 
+    def zamkniete_urzedy(self, d: dt.date) -> list[DzienJednorazowy]:
+        """Dni „tylko dla urzędów” przypadające na `d` — dane, z których CLI i strona składają własne zdania."""
+        return [j for j in self.jednorazowe if j.data == d and j.tylko_urzedy]
+
     def ostrzezenia(self, d: dt.date) -> list[str]:
-        return [
-            f"urzędy zamknięte {d.isoformat()} ({j.podstawa}) — wyślij wcześniej"
-            for j in self.jednorazowe
-            if j.data == d and j.tylko_urzedy
-        ]
+        return [ostrzezenie(j) for j in self.zamkniete_urzedy(d)]
+
+
+def ostrzezenie(j: DzienJednorazowy) -> str:
+    """Ostrzeżenie o zamknięciu urzędów w tekście CLI i index.md (data ISO; strona składa własne zdanie).
+
+    >>> ostrzezenie(DzienJednorazowy(dt.date(2026, 10, 23), "test", True))
+    'urzędy zamknięte 2026-10-23 (test) — wyślij wcześniej'
+    """
+    return f"urzędy zamknięte {j.data.isoformat()} ({j.podstawa}) — wyślij wcześniej"
 
 
 def wczytaj_kalendarz(katalog_projektu: Path | None) -> Kalendarz:

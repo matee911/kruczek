@@ -38,7 +38,7 @@ def _chronologia(s: Sprawa) -> str:
 
 
 def uwagi_terminu(t: Termin, kal: Kalendarz) -> list[str]:
-    """Uwagi do terminu wspólne dla index.md i strony: szacunek (liczony od nadania) i dni wolne tylko dla urzędów."""
+    """Uwagi do terminu w index.md: szacunek (liczony od nadania) i dni wolne tylko dla urzędów."""
     return (["szacunek"] if t.szacunek else []) + kal.ostrzezenia(t.data_konca)
 
 
