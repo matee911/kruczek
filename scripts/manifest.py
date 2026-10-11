@@ -56,7 +56,7 @@ def rows(root):
             {
                 "rel": rel,
                 "mtime": datetime.datetime.fromtimestamp(
-                    st.st_mtime, tz=datetime.timezone.utc
+                    st.st_mtime, tz=datetime.UTC
                 )
                 .date()
                 .isoformat(),
@@ -75,7 +75,7 @@ def table(root):
     L.append("")
     L.append(
         f"_Manifest wygenerowany "
-        f"{datetime.datetime.now(tz=datetime.timezone.utc).date().isoformat()} "
+        f"{datetime.datetime.now(tz=datetime.UTC).date().isoformat()} "
         f"skryptem `manifest.py`. "
         f"Plików: {len(data)}. Pominięto `index.md` i `SHA256SUMS.txt` (pliki robocze teczki, "
         f"nie dowody). Opisy plików prowadź w tabeli powyżej manifestu._"

@@ -222,7 +222,7 @@ def format_local(dt: datetime.datetime) -> str:
     '2025-12-02 08:29:38 +0000 | 2025-12-02 08:29:38 UTC | 2025-12-02 09:29:38 CET'
     """
     original = dt.strftime("%Y-%m-%d %H:%M:%S %z")
-    utc = dt.astimezone(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+    utc = dt.astimezone(datetime.UTC).strftime("%Y-%m-%d %H:%M:%S UTC")
     warsaw = dt.astimezone(WARSAW)
     local = warsaw.strftime("%Y-%m-%d %H:%M:%S ") + (warsaw.tzname() or "")
     return f"{original} | {utc} | {local}"
@@ -813,7 +813,7 @@ def write_timeline_section(
                 label,
                 code(dt.strftime("%Y-%m-%d %H:%M:%S %z")),
                 code(
-                    dt.astimezone(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+                    dt.astimezone(datetime.UTC).strftime("%Y-%m-%d %H:%M:%S")
                 ),
                 code(
                     dt.astimezone(WARSAW).strftime("%Y-%m-%d %H:%M:%S ")
@@ -993,12 +993,12 @@ def write_dkim_section(
         ]
         if sig.timestamp:
             moment = datetime.datetime.fromtimestamp(
-                sig.timestamp, tz=datetime.timezone.utc
+                sig.timestamp, tz=datetime.UTC
             )
             rows.append([f"`t=` ({sig.timestamp})", code(format_local(moment))])
         if sig.expires:
             moment = datetime.datetime.fromtimestamp(
-                sig.expires, tz=datetime.timezone.utc
+                sig.expires, tz=datetime.UTC
             )
             rows.append([f"`x=` ({sig.expires})", code(format_local(moment))])
         # Tagi spoza stałej listy (`v=`, `q=`, `b=`) są w pliku, a tabela ich
@@ -1142,7 +1142,7 @@ def write_arc_section(
                     seal.chain_validation,
                     format_local(
                         datetime.datetime.fromtimestamp(
-                            seal.timestamp, tz=datetime.timezone.utc
+                            seal.timestamp, tz=datetime.UTC
                         )
                     )
                     if seal.timestamp

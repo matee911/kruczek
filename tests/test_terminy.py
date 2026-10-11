@@ -1,7 +1,6 @@
 import datetime as dt
 
 import pytest
-
 from kruczek_core.terminy import koniec_nominalny, koniec_terminu, parsuj_dlugosc
 
 D = dt.date
