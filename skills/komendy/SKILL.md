@@ -24,6 +24,7 @@ a jeśli z rozmowy wynika konkretna potrzeba — wskaż jedną, właściwą pozy
 | `/kruczek:dowod` | wciąga dowód do archiwum: suma kontrolna, OCR/transkrypcja, wpis w chronologii | haiku |
 | `/kruczek:chronologia` | dopisuje zdarzenie do sprawy przez teczka.py | haiku |
 | `/kruczek:status` | przegląd spraw liczony kodem: teraz, czekam, wkrótce, bez ruchu | haiku |
+| `/kruczek:serve` | lokalna strona w przeglądarce: po terminie, teraz, czekam, wkrótce, sprawa; zrobione i doręczenie z Cofnij | haiku |
 | `/kruczek:migruj` | stara teczka → sprawa.json: podgląd, kopia, zapis po akceptacji | sonnet |
 | `/kruczek:baza-wiedzy` | dopisuje zweryfikowany przepis lub orzeczenie do bazy wiedzy | sonnet |
 | `/kruczek:pismo` | buduje pismo: argumentacja, cytaty, PDF z załącznikami, dowody.zip | opus |
@@ -89,5 +90,6 @@ a jeśli z rozmowy wynika konkretna potrzeba — wskaż jedną, właściwą pozy
 | `archiwa.sh` | Wayback Machine CDX, Save Page Now, diff snapshotów |
 | `metadane.sh` | zbiorcza tabela metadanych PDF/DOCX/XLSX/obrazów z flagami rozbieżności |
 | `teczka.py` | dane sprawy w `sprawa.json`: zdarzenia, terminy, zadania; `co-robic` dla wszystkich spraw; `migruj`, `popraw-zdarzenie`, `cofnij-zdarzenie`, `zamknij` |
+| `kruczek_serve.py` | lokalna strona teczki na 127.0.0.1 (biblioteki strony instaluje `uv` z nagłówka skryptu) |
 
 Wszystkie skrypty wypisują pomoc po uruchomieniu bez argumentów.

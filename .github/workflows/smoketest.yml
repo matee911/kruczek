@@ -30,6 +30,8 @@ jobs:
             case "$f" in
               # pakiet importowany przez teczka.py, nie CLI
               scripts/kruczek_core/*) continue ;;
+              # pakiet strony importowany przez kruczek_serve.py, nie CLI (budowa_css.py: uv run --script)
+              scripts/kruczek_strona/*) continue ;;
             esac
             case "$(basename "$f")" in
               # celowo bez +x: nie do bezpośredniego uruchamiania (source/import, nie CLI)

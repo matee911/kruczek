@@ -155,3 +155,11 @@ def test_nowa_sprawa_zadanie_nadania_zamyka_wpis_nadania(tmp_path):
     dane = json.loads((k / "sprawa.json").read_text(encoding="utf-8"))
     nadaj = next(a for a in dane["zadania"] if a["opis"] == ZADANIA_STARTOWE[-1])
     assert nadaj["zrobione"] is not None and nadaj["zamkniete_przez"] is not None
+
+
+def test_skill_serve_uruchamia_strone_tylko_lokalnie():
+    # Arrange
+    tekst = (SKRYPTY.parent / "skills" / "serve" / "SKILL.md").read_text(encoding="utf-8")
+    # Act / Assert
+    assert "${CLAUDE_PLUGIN_ROOT}/scripts/kruczek_serve.py" in tekst
+    assert "127.0.0.1" in tekst and "--host" not in tekst and "python3 " not in tekst
