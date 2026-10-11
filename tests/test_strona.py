@@ -291,3 +291,42 @@ def test_zrobione_dla_klucza_ze_spacja_i_w_podprojekcie(tmp_path, klucz):
     r = post(k, f"/sprawa/{link}/zadania/a1/zrobione", opis="zadanie testowe")
     # Assert
     assert r.status_code == 200 and "Oznaczono jako zrobione" in r.text
+
+
+# --- fragmenty htmx, zepsuta sprawa i nagłówki zapisu ---------------------------------------------
+
+@pytest.mark.parametrize("sciezka", ["/", "/sprawa/sprawa-a"])
+def test_get_z_htmx_oddaje_sam_fragment(klient, sciezka):
+    # Act
+    r = klient.get(sciezka, headers=HX)
+    # Assert
+    assert r.status_code == 200 and r.text.startswith('<div id="tresc-dynamiczna"') and "<html" not in r.text
+
+
+def test_akcja_w_widoku_sprawy_zepsutej_to_422_z_tekstem_uszkodzonej_sprawy(projekt, klient):
+    # Act
+    r = post(klient, "/sprawa/zepsuta/zadania/a1/zrobione", opis="x", widok="sprawa")
+    # Assert
+    assert r.status_code == 422 and "Nie da się odczytać tej sprawy" in r.text
+
+
+def test_zapis_bez_content_length_odrzucony_413(projekt, klient):
+    # Arrange — treść strumieniowana, więc bez Content-Length
+    zid = zadanie(projekt, "snapshot Web Archive")["id"]
+    # Act
+    r = klient.post(f"/sprawa/sprawa-a/zadania/{zid}/zrobione", content=iter([b"token=a&opis=b"]),
+                    headers={**HX, "content-type": "application/x-www-form-urlencoded"})
+    # Assert
+    assert r.status_code == 413
+    assert zadanie(projekt, "snapshot Web Archive")["zrobione"] is None
+
+
+@pytest.mark.parametrize("site, status", [("same-site", 403), ("same-origin", 200), ("none", 200)])
+def test_sec_fetch_site_tylko_ta_sama_strona(projekt, klient, site, status):
+    # Arrange
+    zid = zadanie(projekt, "snapshot Web Archive")["id"]
+    # Act
+    r = post(klient, f"/sprawa/sprawa-a/zadania/{zid}/zrobione", naglowki={**HX, "sec-fetch-site": site},
+             opis="snapshot Web Archive")
+    # Assert
+    assert r.status_code == status
