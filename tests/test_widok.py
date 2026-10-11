@@ -2,8 +2,15 @@ import datetime as dt
 
 from kruczek_core.dni_wolne import Kalendarz
 from kruczek_core.model import Sprawa, Watek, Zadanie, Zdarzenie
-from kruczek_core.reguly import SpecTerminu, zastosuj
-from kruczek_core.widok import co_robic, stan_watku
+from kruczek_core.reguly import (
+    REGULA_DORECZENIE,
+    REGULA_ODPOWIEDZ,
+    REGULA_START,
+    REGULA_START_NADANIE,
+    SpecTerminu,
+    zastosuj,
+)
+from kruczek_core.widok import KrokiStartowe, co_robic, sekcje, stan_watku
 
 D = dt.date
 DZIS = D(2026, 10, 20)
@@ -229,3 +236,57 @@ def test_stan_watku_i_bez_ruchu_niosa_klucz_pary():
     # Assert
     assert [c.klucz for c in p.czekam] == ["katalog/a"]
     assert [b.klucz for b in p.bez_ruchu] == ["katalog/c"]
+
+
+def _nadanie_z_terminem(nadanie, dlugosc="14d"):
+    s = sprawa("S")
+    z = Zdarzenie("z1", nadanie, "nadanie", watek="firma")
+    s.zdarzenia.append(z)
+    zastosuj(s, z, SpecTerminu(dlugosc, "art. 7"), Kalendarz())
+    return s
+
+
+def test_sprawdzenie_odpowiedzi_po_terminie_adresata_idzie_do_po_terminie_i_znika_z_czekam():
+    # Arrange — termin adresata 15.10, dziś 20.10
+    s = _nadanie_z_terminem(D(2026, 10, 1))
+    # Act
+    sek = sekcje(co_robic(pary(s), DZIS), {s.id: s}, DZIS)
+    # Assert
+    assert [(p.zadanie.regula, p.po_terminie, p.termin_konca) for p in sek.po_terminie] == [
+        (REGULA_ODPOWIEDZ, 5, D(2026, 10, 15))]
+    assert sek.czekam == []
+    assert [p.zadanie.regula for p in sek.teraz] == [REGULA_DORECZENIE]
+
+
+def test_czekam_przed_terminem_zostaje_w_czekam():
+    # Arrange — termin adresata 29.10
+    s = _nadanie_z_terminem(D(2026, 10, 15))
+    # Act
+    sek = sekcje(co_robic(pary(s), DZIS), {s.id: s}, DZIS)
+    # Assert
+    assert sek.po_terminie == [] and [c.czekam_do for c in sek.czekam] == [D(2026, 10, 29)]
+
+
+def test_zadanie_z_terminem_dzis_nie_jest_po_terminie_wczoraj_jest():
+    # Arrange
+    s = sprawa("S", [Zadanie("a1", "dziś", D(2026, 10, 1), termin=DZIS),
+                     Zadanie("a2", "wczoraj", D(2026, 10, 1), termin=D(2026, 10, 19))])
+    # Act
+    sek = sekcje(co_robic(pary(s), DZIS), {s.id: s}, DZIS)
+    # Assert
+    assert [p.zadanie.id for p in sek.po_terminie] == ["a2"]
+    assert [p.zadanie.id for p in sek.teraz] == ["a1"]
+
+
+def test_kroki_startowe_jednej_sprawy_zwiniete_w_jedna_pozycje():
+    # Arrange — 6 kroków, 2 zrobione, plus zadanie ręczne
+    kroki = [Zadanie(f"a{i}", f"krok {i}", D(2026, 10, 1), regula=REGULA_START) for i in range(1, 6)]
+    kroki.append(Zadanie("a6", "nadaj", D(2026, 10, 1), regula=REGULA_START_NADANIE))
+    kroki[0].zrobione = kroki[1].zrobione = D(2026, 10, 2)
+    s = sprawa("S", [*kroki, Zadanie("a7", "ręczne", D(2026, 10, 1))])
+    # Act
+    sek = sekcje(co_robic(pary(s), DZIS), {s.id: s}, DZIS)
+    # Assert
+    zwiniete = [p for p in sek.teraz if isinstance(p, KrokiStartowe)]
+    assert len(zwiniete) == 1 and len(sek.teraz) == 2
+    assert (zwiniete[0].zrobione, len(zwiniete[0].kroki), zwiniete[0].klucz) == (2, 6, "S")

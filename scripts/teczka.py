@@ -57,7 +57,7 @@ from kruczek_core.migracja import (
     wstaw_znaczniki_chronologii,
     zbuduj_sprawe,
 )
-from kruczek_core.model import PEWNOSCI, TYPY_ZDARZEN, WYNIKI_SPRAWY, BladSprawy
+from kruczek_core.model import PEWNOSCI, TYPY_ZDARZEN, WYNIKI_SPRAWY, BladSprawy, Sprawa
 from kruczek_core.operacje import (
     cofnij_zdarzenie,
     dodaj_watek,
@@ -82,7 +82,7 @@ from kruczek_core.repozytorium import (
     wczytaj,
     zapisz_nowa,
 )
-from kruczek_core.widok import DNI_BEZ_RUCHU, PozycjaZadania, Przeglad
+from kruczek_core.widok import DNI_BEZ_RUCHU, PozycjaZadania, Przeglad, sekcje
 
 _WZGLEDNA = re.compile(r"^\+(\d+)([dt])$")
 
@@ -226,27 +226,28 @@ def _linia_zadania(p: PozycjaZadania, kal: Kalendarz, dzis: dt.date) -> str:
     z = p.zadanie
     watek = f" / {z.watek}" if z.watek else ""
     dopiski = []
-    if z.termin is not None:
-        dopiski.append(f"termin {z.termin.isoformat()}")
-        if z.termin < dzis:
-            dopiski.append(f"PO TERMINIE ({(dzis - z.termin).days} dni)")
-        dopiski += kal.ostrzezenia(z.termin)
+    if p.termin_konca is not None:
+        dopiski.append(f"termin {p.termin_konca.isoformat()}")
+        if p.po_terminie:
+            dopiski.append(f"PO TERMINIE ({p.po_terminie} dni)")
+        dopiski += kal.ostrzezenia(p.termin_konca)
     reszta = f"  {'; '.join(dopiski)}" if dopiski else ""
     return f"[{z.id}] {p.klucz}: {p.sprawa}{watek} — {z.opis}{reszta}"
 
 
-def _wypisz(przeglad: Przeglad, stary_format: list[str], bez_indexu: list[str], kals: dict[str, Kalendarz],
-            dzis: dt.date) -> None:
+def _wypisz(przeglad: Przeglad, sprawy: dict[str, Sprawa], stary_format: list[str], bez_indexu: list[str],
+            kals: dict[str, Kalendarz], dzis: dt.date) -> None:
+    czekam = sekcje(przeglad, sprawy, dzis).czekam
     print("TERAZ")
     for p in przeglad.teraz:
         print(f"  {_linia_zadania(p, kals[p.klucz], dzis)}")
     if not przeglad.teraz:
         print("  —")
     print("CZEKAM")
-    for c in przeglad.czekam:
+    for c in czekam:
         do = f"do {c.czekam_do.isoformat()}" if c.czekam_do else "bez terminu"
         print(f"  {c.klucz}: {c.sprawa} / {c.watek.id} ({c.watek.adresat}) — {do}{' (szacunek)' if c.szacunek else ''}")
-    if not przeglad.czekam:
+    if not czekam:
         print("  —")
     print("WKRÓTCE")
     for p in przeglad.wkrotce:
@@ -392,7 +393,7 @@ def _wykonaj(a: argparse.Namespace, dzis: dt.date) -> int:
         if not (p.sprawy or p.bledy or p.stary_format or p.bez_indexu):
             print(f"brak spraw w {projekt}")
             return 0
-        _wypisz(p.przeglad, p.stary_format, p.bez_indexu, p.kalendarze, dzis)
+        _wypisz(p.przeglad, p.sprawy, p.stary_format, p.bez_indexu, p.kalendarze, dzis)
         if p.bledy:
             return _wypisz_bledy(p.bledy)
     elif a.komenda == "renderuj":
