@@ -49,9 +49,9 @@ def _port(tekst: str) -> int:
     try:
         port = int(tekst)
     except ValueError:
-        raise argparse.ArgumentTypeError(f"błąd: port to liczba 1–65535, a nie {tekst!r}") from None
+        raise argparse.ArgumentTypeError(f"port to liczba 1–65535, a nie {tekst!r}") from None
     if not 1 <= port <= 65535:
-        raise argparse.ArgumentTypeError(f"błąd: port {port} poza zakresem 1–65535")
+        raise argparse.ArgumentTypeError(f"port {port} poza zakresem 1–65535")
     return port
 
 
