@@ -16,6 +16,9 @@ wersjonowanie wg [SemVer](https://semver.org/lang/pl/).
   wpis zmieniony w międzyczasie w rozmowie z Claude nie zostanie nadpisany. Pozostałe kroki strona
   podaje jako polecenie do skopiowania (np. `/kruczek:eskalacja <sprawa>`).
 - Kroki startowe nowej sprawy na stronie jako jedna karta z listą.
+- Dzień zamknięcia urzędów w dniu terminu: strona pokazuje go z datą dd.mm.rrrr, a „wyślij wcześniej”
+  radzi tylko przy Twoim terminie. Karta zadania ostrzega, tak jak `co-robic`, tylko o własnym terminie
+  zadania — nie o terminie adresata przy „sprawdź, czy przyszła odpowiedź”.
 
 ### Zmienione
 - Rdzeń teczki wskazuje sprawy kluczem (folder względem projektu) i liczy „po terminie” oraz sekcje

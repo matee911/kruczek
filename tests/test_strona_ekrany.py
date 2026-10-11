@@ -84,7 +84,32 @@ def test_dzien_wolny_dla_urzedow_jako_uwaga_na_karcie():
     # Act
     k = ekran(s, kal).teraz[0]
     # Assert
-    assert any("urzędy zamknięte" in u for u in k.uwagi)
+    assert k.uwagi == ["urzędy zamknięte 23.10.2026 (test) — wyślij wcześniej"]
+
+
+def test_sprawdzenie_odpowiedzi_po_terminie_firmy_bez_uwagi_o_zamknietych_urzedach():
+    # Arrange — termin firmy minął 15.10, w dzień zamknięcia urzędów; to nie Twój termin
+    s = z_nadaniem(D(2026, 10, 1))
+    kal = Kalendarz((DzienJednorazowy(D(2026, 10, 15), "test", True),))
+    # Act
+    e = ekran(s, kal)
+    # Assert
+    assert e.po_terminie[0].akcja == "polecenie" and e.po_terminie[0].uwagi == []
+
+
+@pytest.mark.parametrize("czyj, uwaga", [
+    ("adresata", "urzędy zamknięte 15.10.2026 (test)"),
+    ("moj", "urzędy zamknięte 15.10.2026 (test) — wyślij wcześniej"),
+])
+def test_termin_na_osi_w_dzien_zamkniecia_urzedow_data_pl_i_rada_tylko_dla_twojego(czyj, uwaga):
+    # Arrange
+    s = z_nadaniem(D(2026, 10, 1))
+    s.terminy[0].czyj = czyj
+    kal = Kalendarz((DzienJednorazowy(D(2026, 10, 15), "test", True),))
+    # Act
+    meta = ekran_sprawy("sprawa-a", s, kal, DZIS).terminy[0].meta
+    # Assert
+    assert [m for m in meta if "urzędy" in m] == [uwaga]
 
 
 def test_nic_na_dzis_podaje_najblizszy_termin_czekania():

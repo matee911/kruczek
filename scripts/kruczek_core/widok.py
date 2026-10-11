@@ -15,6 +15,7 @@ import datetime as dt
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 
+from kruczek_core.dni_wolne import DzienJednorazowy, Kalendarz
 from kruczek_core.model import Sprawa, Termin, Watek, Zadanie
 from kruczek_core.reguly import (
     REGULA_DORECZENIE,
@@ -87,6 +88,13 @@ def dni_po_terminie(termin: dt.date | None, dzis: dt.date) -> int:
     if termin is None or termin >= dzis:
         return 0
     return (dzis - termin).days
+
+
+def zamkniecia_urzedow(p: PozycjaZadania, kal: Kalendarz) -> list[DzienJednorazowy]:
+    """Dni zamknięcia urzędów, o których ostrzega zadanie (CLI i strona): tylko w dniu WŁASNEGO terminu
+    zadania. Sprawdzenie odpowiedzi ma za termin koniec terminu adresata — tam to adresat musi zdążyć,
+    więc ostrzeżenie „wyślij wcześniej” byłoby fałszywe."""
+    return kal.zamkniete_urzedy(p.zadanie.termin) if p.zadanie.termin is not None else []
 
 
 def _termin(sprawa: Sprawa, termin_id: str | None) -> Termin | None:

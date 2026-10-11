@@ -6,6 +6,7 @@ from kruczek_core.dni_wolne import (
     PIERWSZY_ROK,
     PLIK_PROJEKTU,
     DzienJednorazowy,
+    Kalendarz,
     dni_ustawowo_wolne,
     kalendarz_sprawy,
     wczytaj_jednorazowe,
@@ -87,6 +88,17 @@ def test_dzien_tylko_dla_urzedow_daje_ostrzezenie_bez_przesuniecia(kalendarz):
     assert przesuwa is False
     assert len(ostrzezenia) == 1
     assert "urzędy zamknięte" in ostrzezenia[0]
+
+
+def test_zamkniete_urzedy_to_tylko_dni_dla_urzedow_z_tego_dnia():
+    # Arrange — dzień ustawowo wolny (jednorazowy) i dzień tylko dla urzędów
+    tylko_urzedy = DzienJednorazowy(D(2026, 10, 23), "rozporządzenie testowe", True)
+    kal = Kalendarz((DzienJednorazowy(D(2026, 10, 22), "ustawa testowa"), tylko_urzedy))
+    # Act / Assert
+    assert kal.zamkniete_urzedy(D(2026, 10, 23)) == [tylko_urzedy]
+    assert kal.zamkniete_urzedy(D(2026, 10, 22)) == []
+    assert kal.ostrzezenia(D(2026, 10, 23)) == [
+        "urzędy zamknięte 2026-10-23 (rozporządzenie testowe) — wyślij wcześniej"]
 
 
 def test_lata_przed_2000_odrzucone():
