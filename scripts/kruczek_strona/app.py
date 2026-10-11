@@ -18,6 +18,8 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from kruczek_strona.ekrany import (
     BLAD_DOMYSLNY,
+    BLAD_SERWERA_TRESC,
+    BLAD_SERWERA_TYTUL,
     BLEDY_HTTP,
     NIE_MA_SPRAWY_TRESC,
     NIE_MA_SPRAWY_TYTUL,
@@ -89,6 +91,14 @@ async def _blad_http(request: Request, e: HTTPException) -> HTMLResponse:
                         BLEDY_HTTP.get(e.status_code, BLAD_DOMYSLNY), WROC_DO_LISTY_SPRAW)
 
 
+async def _blad_serwera(request: Request, e: Exception) -> HTMLResponse:
+    """Nieobsłużony wyjątek: ServerErrorMiddleware leży na zewnątrz `Naglowki`, więc nagłówki
+    bezpieczeństwa ustawiamy na tej odpowiedzi sami."""
+    odpowiedz = strona_bledu(request.app.state.katalog, request, 500, BLAD_SERWERA_TYTUL, BLAD_SERWERA_TRESC)
+    odpowiedz.headers.update(NAGLOWKI)
+    return odpowiedz
+
+
 def _trasy() -> APIRouter:
     trasy = APIRouter(default_response_class=HTMLResponse)
 
@@ -116,6 +126,7 @@ def utworz_aplikacje(ustawienia: Ustawienia) -> FastAPI:
     app.state.katalog = utworz_katalog(ustawienia.token)
     app.add_exception_handler(NieMaSprawy, _nie_ma_sprawy)
     app.add_exception_handler(HTTPException, _blad_http)
+    app.add_exception_handler(Exception, _blad_serwera)
     app.include_router(_trasy())
     app.mount("/static", StaticFiles(directory=STATIC), name="static")
     return app
