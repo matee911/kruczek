@@ -1,6 +1,8 @@
 {#def alert #}
-{#- Komunikat po akcji (Komunikat z app.py): opis i — gdy dalej trzeba działać w Claude — polecenie. -#}
+{#- Komunikat po akcji (Komunikat z ekrany.py): opis, gdy dalej trzeba działać w Claude — polecenie,
+    a surowy tekst błędu zwinięty w szczegółach. -#}
 <Alert title={{ alert.tytul }} variant={{ alert.wariant }}>
   {{ alert.tresc }}
   {% if alert.polecenie %}<CommandCopy value={{ alert.polecenie }} id="polecenie-komunikat" />{% endif %}
+  {% if alert.szczegoly %}<TechDetails text={{ alert.szczegoly }} />{% endif %}
 </Alert>

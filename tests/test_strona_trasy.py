@@ -4,6 +4,7 @@ i bezpieczeństwo HTTP — tests/test_strona.py."""
 
 import copy
 import datetime as dt
+import re
 from pathlib import Path
 
 import pytest
@@ -89,6 +90,11 @@ def zadanie(repo, opis=None, regula=None):
 
 def post(klient, sciezka, naglowki=HX, **pola):
     return klient.post(sciezka, data={"token": TOKEN, **pola}, headers=naglowki)
+
+
+def bez_szczegolow(html):
+    """To, co widać bez rozwijania „Szczegółów technicznych”."""
+    return re.sub(r"<details.*?</details>", "", html, flags=re.DOTALL)
 
 
 # --- ekrany ---------------------------------------------------------------------------------------
@@ -206,25 +212,43 @@ def test_zadanie_o_tym_samym_numerze_z_innym_opisem_to_konflikt(repo, klient):
     assert zadanie(repo, "snapshot Web Archive").zrobione is None
 
 
-def test_zrobione_juz_zrobione_400(repo, klient):
-    # Arrange
+def test_zrobione_juz_zrobione_400_mowi_po_ludzku_a_tekst_rdzenia_w_szczegolach(repo, klient):
+    # Arrange — np. druga karta przeglądarki ze starym widokiem
     zid = zadanie(repo, "snapshot Web Archive").id
     post(klient, f"/sprawa/sprawa-a/zadania/{zid}/zrobione", opis="snapshot Web Archive")
     # Act
     r = post(klient, f"/sprawa/sprawa-a/zadania/{zid}/zrobione", opis="snapshot Web Archive")
     # Assert
-    assert r.status_code == 400 and "już zrobione" in r.text and repo.zapisy == 1
+    assert r.status_code == 400 and repo.zapisy == 1
+    widoczne = bez_szczegolow(r.text)
+    assert "Nie zapisano" in widoczne and "To zadanie jest już zamknięte — pokazuję aktualny stan." in widoczne
+    assert "już zrobione" not in widoczne and not re.search(r"\d{4}-\d{2}-\d{2}", widoczne)
+    assert "Szczegóły techniczne" in r.text and f"zadanie {zid} już zrobione (2026-10-20)" in r.text
 
 
-def test_uwaga_odswiezenia_index_to_alert_nie_blad_zapisu(repo):
+def test_cofnij_zrobione_otwartego_zadania_400_mowi_ze_juz_otwarte(repo, klient):
+    # Arrange — „Cofnij” z toastu po tym, jak zadanie otwarto już w innej karcie
+    zid = zadanie(repo, "snapshot Web Archive").id
+    # Act
+    r = post(klient, f"/sprawa/sprawa-a/zadania/{zid}/cofnij-zrobione", opis="snapshot Web Archive")
+    # Assert
+    assert r.status_code == 400 and repo.zapisy == 0
+    widoczne = bez_szczegolow(r.text)
+    assert "To zadanie jest już otwarte — pokazuję aktualny stan." in widoczne and "nie jest zrobione" not in widoczne
+
+
+def test_uwaga_odswiezenia_index_to_alert_z_poleceniem_nie_blad_zapisu(repo):
     # Arrange
     repo.uwaga = "zapisano, ale index.md nie odświeżony: brak znacznika"
     zid = zadanie(repo, "snapshot Web Archive").id
     # Act
     r = post(klient_z(repo), f"/sprawa/sprawa-a/zadania/{zid}/zrobione", opis="snapshot Web Archive")
     # Assert
-    assert r.status_code == 200 and "Zapisano, ale index.md nie jest aktualny" in r.text
-    assert zadanie(repo, "snapshot Web Archive").zrobione == DZIS
+    assert r.status_code == 200 and zadanie(repo, "snapshot Web Archive").zrobione == DZIS
+    widoczne = bez_szczegolow(r.text)
+    assert "Zapisano, ale index.md nie jest aktualny" in widoczne and "nie klikaj jeszcze raz" in widoczne
+    assert 'value="Odśwież index.md w sprawie sprawa-a (teczka.py renderuj)"' in widoczne
+    assert "nie odświeżony" not in widoczne and "brak znacznika" in r.text
 
 
 # --- doręczenie -----------------------------------------------------------------------------------
@@ -279,8 +303,21 @@ def test_doreczenie_zadanie_juz_zrobione_400_bez_zapisu(repo, klient):
     r = post(klient, f"/sprawa/sprawa-a/zadania/{sprawdzenie.id}/doreczenie", widok="sprawa",
              opis=sprawdzenie.opis, data="10.10.2026")
     # Assert
-    assert r.status_code == 400 and "Nie zapisano" in r.text
+    assert r.status_code == 400 and "To zadanie jest już zamknięte" in bez_szczegolow(r.text)
     assert [z.typ for z in repo.sprawy["sprawa-a"].zdarzenia] == ["nadanie"] and repo.zapisy == zapisy
+
+
+def test_inny_blad_rdzenia_400_ogolny_tekst_i_szczegoly(repo, klient):
+    # Arrange — formularz doręczenia przy zadaniu, które nie jest sprawdzeniem doręczenia
+    reczne = zadanie(repo, "snapshot Web Archive")
+    # Act
+    r = post(klient, f"/sprawa/sprawa-a/zadania/{reczne.id}/doreczenie", widok="sprawa", opis=reczne.opis,
+             data="10.10.2026")
+    # Assert
+    assert r.status_code == 400 and repo.zapisy == 0
+    assert "Tego nie da się zapisać — pokazuję aktualny stan." in bez_szczegolow(r.text)
+    assert "nie jest sprawdzeniem doręczenia" not in bez_szczegolow(r.text)
+    assert "nie jest sprawdzeniem doręczenia" in r.text
 
 
 def test_doreczenie_nieaktualny_opis_to_konflikt_bez_zapisu(repo, klient):
