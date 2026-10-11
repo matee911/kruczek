@@ -42,6 +42,10 @@ class RepozytoriumSpraw(Protocol):
     def odswiez_widok(self, klucz: str) -> str | None: ...
 
 
+def _uwaga_index(e: Exception) -> str:
+    return f"zapisano, ale index.md nie odświeżony: {e}"
+
+
 def odswiez_index(katalog: Path, przed: Callable[[str], str] = lambda t: t) -> str | None:
     """Odśwież bloki index.md po udanym zapisie. Zwraca ostrzeżenie zamiast rzucać —
     zapis już się udał, a powtórzenie polecenia zdublowałoby zdarzenie."""
@@ -53,7 +57,7 @@ def odswiez_index(katalog: Path, przed: Callable[[str], str] = lambda t: t) -> s
             katalog, "index.md", lambda tekst: renderuj(przed(tekst), repozytorium.wczytaj(katalog), kalendarz)
         )
     except (BladSprawy, OSError) as e:
-        return f"zapisano, ale index.md nie odświeżony: {e}"
+        return _uwaga_index(e)
     return None
 
 
@@ -88,7 +92,12 @@ class PlikoweRepozytorium:
         return kalendarz_sprawy(self.katalog(klucz))
 
     def odswiez_widok(self, klucz: str) -> str | None:
-        return odswiez_index(self.katalog(klucz))
+        """Jak odswiez_index — także sprawa, która zniknęła ze spisu tuż po udanym zapisie, to tylko ostrzeżenie."""
+        try:
+            katalog = self.katalog(klucz)
+        except BladSprawy as e:
+            return _uwaga_index(e)
+        return odswiez_index(katalog)
 
 
 @dataclass(frozen=True)
