@@ -1,0 +1,8 @@
+{#def title, icon="check" #}
+<section class="empty">
+  <header>
+    <figure><Icon name={{ icon }} /></figure>
+    <h2 class="heading">{{ title }}</h2>
+    {% if content %}<p>{{ content }}</p>{% endif %}
+  </header>
+</section>

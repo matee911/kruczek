@@ -1,0 +1,7 @@
+{#def wiersz, pokaz_sprawe=True #}
+<div class="k-wait">
+  <Icon name={{ wiersz.ikona }} />
+  <p class="k-wait__who">{{ wiersz.kto }}</p>
+  <CaseRef url={{ wiersz.url }} klucz={{ wiersz.klucz }} watek={{ wiersz.watek or "" }} pokaz_sprawe={{ pokaz_sprawe }} />
+  <div class="k-wait__until">{{ wiersz.data }}{% if wiersz.pod_data %}<span class="k-wait__left">{{ wiersz.pod_data }}</span>{% endif %}</div>
+</div>

@@ -1,0 +1,7 @@
+{#def name, id, label, hint, value="", error="" #}
+<div role="group" class="field"{% if error %} data-invalid{% endif %}>
+  <label for="{{ id }}">{{ label }}</label>
+  <input class="input font-mono" type="text" id="{{ id }}" name="{{ name }}" value="{{ value }}" inputmode="numeric" autocomplete="off" required aria-required="true" aria-describedby="{{ id }}-pomoc{% if error %} {{ id }}-blad{% endif %}"{% if error %} aria-invalid="true"{% endif %}>
+  <p id="{{ id }}-pomoc">{{ hint }}</p>
+  {% if error %}<p role="alert" id="{{ id }}-blad"><Icon name="triangle-alert" />{{ error }}</p>{% endif %}
+</div>

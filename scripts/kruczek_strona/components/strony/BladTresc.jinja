@@ -1,0 +1,5 @@
+{#def tytul, tresc="", polecenie="", szczegoly="" #}
+<div id="tresc-dynamiczna" class="flex flex-col gap-8">
+  <ErrorPage title={{ tytul }} details={{ szczegoly }}>{{ tresc }}</ErrorPage>
+  {% if polecenie %}<CommandCopy value={{ polecenie }} id="polecenie-blad" hint="Wklej w rozmowie z Claude:" variant="" />{% endif %}
+</div>

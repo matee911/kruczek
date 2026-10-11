@@ -1,0 +1,4 @@
+{#def status #}
+{% set w = {"overdue": ("triangle-alert", "Po terminie"), "soon": ("clock", "Wkrótce"), "ours": ("clock", "Nasz termin"),
+            "waiting": ("hourglass", "Czekam"), "estimate": ("circle-dashed", "Szacunek")}[status] %}
+<span class="k-chip" data-status="{{ status }}"><Icon name={{ w[0] }} />{{ w[1] }}</span>

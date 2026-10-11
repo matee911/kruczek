@@ -1,0 +1,4 @@
+{#def status #}
+{% set w = {"proof": ("file-check", "Dowód"), "clue": ("file-question", "Poszlaka"),
+            "own": ("user-round", "Własne oświadczenie")}[status] %}
+<span class="k-chip" data-status="{{ status }}"><Icon name={{ w[0] }} />{{ w[1] }}</span>

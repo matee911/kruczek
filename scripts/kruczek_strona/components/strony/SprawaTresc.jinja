@@ -1,0 +1,29 @@
+{#def ekran, alert=None, powiadomienie=None, bledy={}, wartosci={} #}
+<div id="tresc-dynamiczna" class="flex flex-col gap-8">
+  <div class="flex flex-col gap-3">
+    <Breadcrumbs klucz={{ ekran.klucz }} />
+    <h1 class="title">{{ ekran.sprawa.tytul }}</h1>
+    <div class="flex flex-wrap gap-2">
+      {% if ekran.strona %}<PartyChip name={{ ekran.strona }} role="strona sprawy" icon="user-round" />{% endif %}
+      <PartyChip name={{ ekran.sprawa.strona_przeciwna }} role="druga strona" />
+    </div>
+  </div>
+  {% if alert %}<PageAlert alert={{ alert }} />{% endif %}
+  {% if ekran.sprawa.zamknieta %}
+  <Alert title="Sprawa zamknięta">Wynik: {{ ekran.sprawa.wynik }}. Otworzysz ją ponownie w rozmowie z Claude.</Alert>
+  {% else %}
+  <Sections s={{ ekran.sekcje }} pokaz_sprawe={{ False }} bledy={{ bledy }} wartosci={{ wartosci }} />
+  {% endif %}
+  {% if ekran.terminy %}
+  <section aria-labelledby="s-terminy" class="flex flex-col gap-3">
+    <SectionHeader name="Terminy" count={{ ekran.terminy | length }} id="s-terminy" />
+    <Timeline wpisy={{ ekran.terminy }} />
+  </section>
+  {% endif %}
+  <section aria-labelledby="s-chrono" class="flex flex-col gap-3">
+    <SectionHeader name="Chronologia" count={{ ekran.chronologia | length }} id="s-chrono"
+                   hint="Dowody leżą na tym komputerze — strona pokazuje tylko nazwy plików." />
+    {% if ekran.chronologia %}<Timeline wpisy={{ ekran.chronologia }} />{% else %}<p class="small text-ink-muted">Brak zdarzeń.</p>{% endif %}
+  </section>
+  <Toaster powiadomienie={{ powiadomienie }} />
+</div>

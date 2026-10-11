@@ -1,0 +1,9 @@
+{#def value, id, hint="", variant="outline" #}
+<div class="k-cmd">
+  {% if hint %}<p class="k-cmd__hint" id="{{ id }}-opis">{{ hint }}</p>{% endif %}
+  <div class="k-cmd__row">
+    <input class="input" type="text" id="{{ id }}" value="{{ value }}" readonly aria-label="Polecenie dla Claude"{% if hint %} aria-describedby="{{ id }}-opis"{% endif %}>
+    <button {{ attrs.render(class="btn", type="button", data_variant=variant or False, data_kopiuj=id) }}><span data-ikona="kopiuj"><Icon name="copy" /></span><span data-ikona="ok"><Icon name="check" /></span><span data-etykieta>Kopiuj</span></button>
+  </div>
+  <span class="sr-only" aria-live="polite" id="{{ id }}-komunikat"></span>
+</div>
