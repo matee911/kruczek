@@ -100,6 +100,16 @@ def test_odswiez_index_zle_znaczniki_zwraca_ostrzezenie(projekt):
     assert uwaga is not None and "nie odświeżony" in uwaga
 
 
+def test_odswiez_widok_sprawy_usunietej_po_zapisie_to_ostrzezenie_nie_wyjatek(projekt):
+    # Arrange — zapis się udał, a zanim odświeżono index.md, folder sprawy zniknął
+    repo = PlikoweRepozytorium(projekt)
+    shutil.rmtree(projekt / "sprawa-a")
+    # Act
+    uwaga = repo.odswiez_widok("sprawa-a")
+    # Assert
+    assert uwaga is not None and "nie odświeżony" in uwaga and "sprawa-a" in uwaga
+
+
 def test_odswiez_index_poprawne_znaczniki_aktualizuja_sekcje(projekt):
     # Arrange
     index = projekt / "sprawa-a" / "index.md"
