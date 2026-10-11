@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import datetime as dt
 import hashlib
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from urllib.parse import quote
 
@@ -295,3 +295,46 @@ def ekran_sprawy(klucz: str, s: Sprawa, kal: Kalendarz, dzis: dt.date) -> EkranS
     return EkranSprawy(dzis, klucz, s, strona_sprawy(s), sekcje_ekranu(sek, {klucz: s}, {klucz: kal}, dzis),
                        [_wpis_terminu(s, t, kal) for t in sorted(s.terminy, key=lambda t: t.data_konca)],
                        [_wpis_zdarzenia(z) for z in chronologia(s)])
+
+
+# --- zapis ze strony: alerty, toasty i błędy formularza ------------------------------------------
+
+NIE_ZAPISANO = "Nie zapisano"
+KONFLIKT = Komunikat("Sprawa zmieniła się w międzyczasie",
+                     "Ktoś zapisał ją w innym miejscu (np. w rozmowie z Claude). Pokazuję aktualny stan — "
+                     "sprawdź i kliknij jeszcze raz, jeśli trzeba.")
+ODRZUCONE_TRESC = ("Formularz pochodzi ze starej karty (kruczek był uruchomiony ponownie) albo z innej strony. "
+                   "Odśwież stronę i spróbuj jeszcze raz.")
+POLA_FORMULARZA = {"widok": "widok", "opis": "opis zadania", "data": "data", "typ": "rodzaj wpisu"}
+
+
+def alert_bez_zapisu(powod: object) -> Komunikat:
+    """Zapis odrzucony przez rdzeń (np. zadanie już zrobione)."""
+    return Komunikat(NIE_ZAPISANO, f"{powod}.", "destructive")
+
+
+def alert_index_nieaktualny(uwaga: str) -> Komunikat:
+    """Zapis się udał, ale odświeżenie index.md nie."""
+    return Komunikat("Zapisano, ale index.md nie jest aktualny", f"{uwaga}.")
+
+
+def powiadomienie_zrobione(klucz: str, zadanie_id: str, opis: str) -> Powiadomienie:
+    cofnij = f"{url_sprawy(klucz)}/zadania/{zadanie_id}/cofnij-zrobione"
+    return Powiadomienie(f"Oznaczono jako zrobione: „{opis}”.", cofnij, {"opis": opis})
+
+
+def powiadomienie_otwarte(opis: str) -> Powiadomienie:
+    return Powiadomienie(f"Zadanie znów otwarte: „{opis}”.")
+
+
+def komunikat_formularza(bledy: Iterable[Mapping[str, object]]) -> Komunikat:
+    """Błędy kształtu formularza (lista z pydantic) po polsku: które pola i co zrobić. Tekstów pydantic
+    nie pokazujemy — taki formularz nie pochodzi z aktualnej strony, poprawia go odświeżenie.
+
+    >>> komunikat_formularza([{"loc": ("body", "opis"), "type": "missing", "msg": "Field required"},
+    ...                       {"loc": ("body", "widok"), "type": "literal_error", "msg": "Input should be"}]).tresc
+    'Niepełne albo nieznane pola: opis zadania, widok. Formularz pochodzi ze starszej wersji strony — odśwież ją i spróbuj jeszcze raz.'
+    """
+    pola = dict.fromkeys(POLA_FORMULARZA.get(str((b.get("loc") or ("",))[-1]), "inne pole") for b in bledy)
+    return Komunikat(NIE_ZAPISANO, f"Niepełne albo nieznane pola: {', '.join(pola)}. Formularz pochodzi "
+                     "ze starszej wersji strony — odśwież ją i spróbuj jeszcze raz.", "destructive")
