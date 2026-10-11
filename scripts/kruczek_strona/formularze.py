@@ -6,6 +6,7 @@ sesji sprawdza zaleznosci.z_tej_strony, zanim cokolwiek z formularza zostanie u�
 trafiają na stronę po polsku (ekrany.komunikat_formularza), nigdy jako komunikaty pydantic.
 """
 
+import datetime as dt
 from typing import Literal
 
 from pydantic import BaseModel
@@ -21,3 +22,16 @@ class FormularzZadania(FormularzAkcji):
     """„Zrobione” i „Cofnij” po nim: opis zadania, które widziała strona (kontrola tożsamości w rdzeniu)."""
 
     opis: str
+
+
+class FormularzDoreczenia(FormularzZadania):
+    """Data wpisana przez człowieka — tekst; sens daty sprawdza format.data_doreczenia (komunikaty pod polem)."""
+
+    data: str = ""
+
+
+class FormularzCofniecia(FormularzAkcji):
+    """„Cofnij” doręczenia z toastu: typ i data (ISO) zdarzenia, które pokazała strona."""
+
+    typ: str
+    data: dt.date
