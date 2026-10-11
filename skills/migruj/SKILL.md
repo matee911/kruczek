@@ -73,8 +73,12 @@ Reguły przepisywania:
 - Nagłówek `# SPRAWA:` albo `# Sprawa:` — wielkość liter bez znaczenia; z niego bierz tytuł.
 - Wiersze w przyszłości typu „UPŁYW terminu …” **nie są zdarzeniami** — to `termin` przy zdarzeniu,
   od którego biegną (nadanie: termin adresata; `wplyw`/`odpowiedz`: Twój termin), z długością i podstawą
-  z pisma albo przepisu. Nie ma ich w teczce → najpierw zapytaj użytkownika o podstawę (AskUserQuestion,
-  z cytatem wiersza). Dalej brak → zadanie z datą z wiersza:
+  z pisma albo przepisu. Zdarzenia, od którego biegnie, nie ma w chronologii (pisma nie nadano, nic
+  nie wpłynęło) → data jest fikcyjna: bez zadania z tą datą, wiersz idzie do „nieprzeniesione”
+  z powodem „liczony od wysyłki, której nie było — policzy się przy nadaniu z `--termin`”, a jeśli
+  w zadaniach nie ma jeszcze wysłania tego pisma, dodaj je bez daty. To samo dotyczy dat w TODO
+  liczonych od takiej wysyłki: zadanie zostaje, `termin` null. Podstawy nie ma w teczce →
+  najpierw zapytaj użytkownika (AskUserQuestion, z cytatem wiersza). Dalej brak → zadanie z datą z wiersza:
   `{"opis": "ustal podstawę terminu: <treść wiersza>", "aktywne_od": "<dziś>", "termin": "<data z wiersza>"}`.
   Nigdy zadanie bez daty, gdy data była w wierszu — to ona trzyma termin w przeglądzie.
 - Potwierdzenie odbioru / EPO → `doreczenie` z `dotyczy` = `klucz` nadania (nie id — id powstaje dopiero
