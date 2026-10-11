@@ -145,6 +145,9 @@ def test_ekran_sprawy_termin_strony_i_chronologia_z_dowodami():
     ("10.13.2026", "Miesiąc to liczba od 01 do 12"),
     ("29.02.2027", "Luty 2027 ma 28 dni."),
     ("21.10.2026", "Data jest z przyszłości. Wpisz dzień, w którym pismo odebrano — najpóźniej 20.10.2026."),
+    ("01.01.0000", "Rok musi być 2000 albo późniejszy. Sprawdź rok w potwierdzeniu odbioru."),
+    ("00.01.0000", "Rok musi być 2000 albo późniejszy."),
+    ("31.12.1999", "Rok musi być 2000 albo późniejszy."),
 ])
 def test_data_doreczenia_bledy_mowia_jak_poprawic(wpis, komunikat):
     # Act / Assert

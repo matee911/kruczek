@@ -8,6 +8,7 @@ import datetime as dt
 import re
 import shlex
 
+from kruczek_core.dni_wolne import PIERWSZY_ROK
 from kruczek_core.terminy import parsuj_dlugosc
 
 DNI_TYGODNIA = ("poniedziałek", "wtorek", "środa", "czwartek", "piątek", "sobota", "niedziela")
@@ -106,6 +107,9 @@ def data_doreczenia(tekst: str, dzis: dt.date) -> dt.date:
     >>> data_doreczenia("31.09.2026", dt.date(2026, 10, 9))
     Traceback (most recent call last):
     ValueError: Wrzesień 2026 ma 30 dni. Sprawdź dzień w potwierdzeniu odbioru.
+    >>> data_doreczenia("01.01.0000", dt.date(2026, 10, 9))
+    Traceback (most recent call last):
+    ValueError: Rok musi być 2000 albo późniejszy. Sprawdź rok w potwierdzeniu odbioru.
     """
     tekst = tekst.strip()
     if not tekst:
@@ -114,6 +118,8 @@ def data_doreczenia(tekst: str, dzis: dt.date) -> dt.date:
     if not m:
         raise ValueError("Wpisz datę jako dd.mm.rrrr, np. 29.09.2026.")
     dzien, miesiac, rok = (int(x) for x in m.groups())
+    if rok < PIERWSZY_ROK:  # kalendarz dni wolnych nie obsługuje wcześniejszych lat; rok 0 to błąd datetime
+        raise ValueError(f"Rok musi być {PIERWSZY_ROK} albo późniejszy. Sprawdź rok w potwierdzeniu odbioru.")
     if not 1 <= miesiac <= 12:
         raise ValueError("Miesiąc to liczba od 01 do 12. Wpisz datę jako dd.mm.rrrr.")
     ile = calendar.monthrange(rok, miesiac)[1]
