@@ -28,6 +28,7 @@ from kruczek_core.model import (
     kolejne_id,
 )
 from kruczek_core.reguly import (
+    REGULA_DORECZENIE,
     REGULA_START,
     REGULA_START_NADANIE,
     SpecTerminu,
@@ -215,18 +216,52 @@ def otworz_sprawe(katalog: Path) -> None:
     zmien(katalog, zmiana)
 
 
+class NieOstatnieZdarzenie(BladSprawy):
+    """Cofnąć można tylko ostatnie zdarzenie — starsze poprawia się w rozmowie (popraw-zdarzenie)."""
+
+
+def _zadanie_o_opisie(s: Sprawa, zadanie_id: str, opis: str) -> Zadanie:
+    """Zadanie, które widziała strona: to samo id i ten sam opis. Inaczej ktoś je w międzyczasie
+    cofnął, a numer trafił do innego zadania."""
+    zadanie = next((a for a in s.zadania if a.id == zadanie_id), None)
+    if zadanie is None or zadanie.opis != opis:
+        raise KonfliktRewizji(f"sprawa zmieniła się w międzyczasie: zadanie {zadanie_id} to już nie „{opis}”")
+    return zadanie
+
+
 def zaznacz_zrobione(s: Sprawa, zadanie_id: str, dzis: dt.date, *, oczekiwany_opis: str | None = None) -> Zadanie:
-    """Oznacz zadanie jako zrobione w pamięci. `oczekiwany_opis` (strona): zadanie o tym id musi
-    nadal mieć ten opis — inaczej ktoś je w międzyczasie cofnął, a numer trafił do innego zadania."""
+    """Oznacz zadanie jako zrobione w pamięci. `oczekiwany_opis` (strona): patrz _zadanie_o_opisie."""
     if oczekiwany_opis is not None:
-        zadanie = next((a for a in s.zadania if a.id == zadanie_id), None)
-        if zadanie is None or zadanie.opis != oczekiwany_opis:
-            raise KonfliktRewizji(f"sprawa zmieniła się w międzyczasie: zadanie {zadanie_id} to już nie „{oczekiwany_opis}”")
+        _zadanie_o_opisie(s, zadanie_id, oczekiwany_opis)
     zadanie = s.znajdz_zadanie(zadanie_id)
     if zadanie.zrobione is not None:
         raise BladSprawy(f"zadanie {zadanie_id} już zrobione ({zadanie.zrobione})")
     zadanie.zrobione = dzis
     return zadanie
+
+
+def odznacz_zrobione(s: Sprawa, zadanie_id: str, *, oczekiwany_opis: str) -> Zadanie:
+    """„Cofnij” po „Zrobione”: zadanie znów otwarte. Tylko zamknięte ręcznie — zamknięte
+    zdarzeniem (np. doręczeniem) otwiera się, cofając to zdarzenie."""
+    zadanie = _zadanie_o_opisie(s, zadanie_id, oczekiwany_opis)
+    if zadanie.zrobione is None:
+        raise BladSprawy(f"zadanie {zadanie_id} nie jest zrobione")
+    if zadanie.zamkniete_przez is not None:
+        raise BladSprawy(f"zadanie {zadanie_id} zamknęło zdarzenie {zadanie.zamkniete_przez} — cofnij to zdarzenie")
+    zadanie.zrobione = None
+    return zadanie
+
+
+def zapisz_doreczenie(s: Sprawa, zadanie_id: str, data: dt.date, kalendarz: Kalendarz, dzis: dt.date, *,
+                      oczekiwany_opis: str) -> tuple[Zdarzenie, list[str]]:
+    """Doręczenie wpisane przy zadaniu „sprawdź datę doręczenia”: wątek i nadanie bierze z zadania,
+    więc nie trzeba wskazywać, którego pisma dotyczy. Zwraca nowe zdarzenie i komunikaty reguł."""
+    zadanie = _zadanie_o_opisie(s, zadanie_id, oczekiwany_opis)
+    if zadanie.regula != REGULA_DORECZENIE or zadanie.zdarzenie_id is None:
+        raise BladSprawy(f"zadanie {zadanie_id} nie jest sprawdzeniem doręczenia")
+    komunikaty = dopisz_zdarzenie(s, "doreczenie", data, kalendarz, dzis, watek=zadanie.watek,
+                                  dotyczy=zadanie.zdarzenie_id)
+    return s.zdarzenia[-1], komunikaty
 
 
 def oznacz_zrobione(katalog: Path, zadanie_id: str, dzis: dt.date) -> Zadanie:
@@ -271,12 +306,21 @@ def popraw_zdarzenie(katalog: Path, zdarzenie_id: str, kalendarz: Kalendarz, dzi
     return zmien(katalog, zmiana)
 
 
-def cofnij_zdarzenie(katalog: Path, zdarzenie_id: str, kalendarz: Kalendarz) -> list[str]:
-    def zmiana(s: Sprawa) -> list[str]:
-        z = s.znajdz_zdarzenie(zdarzenie_id)
-        if z is not s.zdarzenia[-1]:
-            raise BladSprawy(f"cofnąć można tylko ostatnie wpisane zdarzenie ({s.zdarzenia[-1].id}); "
-                             f"starsze popraw przez popraw-zdarzenie")
-        return cofnij(s, z, kalendarz)
+def wycofaj_zdarzenie(s: Sprawa, zdarzenie_id: str, kalendarz: Kalendarz, *,
+                      oczekiwane: tuple[str, dt.date] | None = None) -> list[str]:
+    """Cofnięcie ostatniego zdarzenia w pamięci. `oczekiwane` (strona) = (typ, data) zdarzenia,
+    które pokazał toast — inaczej numer mógł trafić do innego zdarzenia po cofnięciu w CLI."""
+    if oczekiwane is not None:
+        z = next((x for x in s.zdarzenia if x.id == zdarzenie_id), None)
+        if z is None or (z.typ, z.data) != oczekiwane:
+            raise KonfliktRewizji(f"sprawa zmieniła się w międzyczasie: zdarzenie {zdarzenie_id} to już nie "
+                                  f"{oczekiwane[0]} z {oczekiwane[1].isoformat()}")
+    z = s.znajdz_zdarzenie(zdarzenie_id)
+    if z is not s.zdarzenia[-1]:
+        raise NieOstatnieZdarzenie(f"cofnąć można tylko ostatnie wpisane zdarzenie ({s.zdarzenia[-1].id}); "
+                                   f"starsze popraw przez popraw-zdarzenie")
+    return cofnij(s, z, kalendarz)
 
-    return zmien(katalog, zmiana)
+
+def cofnij_zdarzenie(katalog: Path, zdarzenie_id: str, kalendarz: Kalendarz) -> list[str]:
+    return zmien(katalog, lambda s: wycofaj_zdarzenie(s, zdarzenie_id, kalendarz))
