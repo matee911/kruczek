@@ -82,10 +82,15 @@ Repo = Annotated[RepozytoriumSpraw, Depends(repozytorium)]
 Dzis = Annotated[dt.date, Depends(dzis)]
 
 
+def z_htmx(request: Request) -> bool:
+    """Żądanie z htmx dostaje sam fragment #tresc-dynamiczna zamiast całej strony."""
+    return "hx-request" in request.headers
+
+
 def strona_bledu(kat: jinjax.Catalog, request: Request, status: int, tytul: str, tresc: str = "",
                  polecenie: str = "", szczegoly: str = "") -> HTMLResponse:
     """Strona błędu (htmx: sam fragment #tresc-dynamiczna). Używają jej też handlery wyjątków."""
-    nazwa = "strony.BladTresc" if "hx-request" in request.headers else "strony.Blad"
+    nazwa = "strony.BladTresc" if z_htmx(request) else "strony.Blad"
     html = kat.render(nazwa, _globals={"widok": "przeglad"}, tytul=tytul, tresc=tresc, polecenie=polecenie,
                       szczegoly=szczegoly)
     return HTMLResponse(html, status_code=status)
@@ -94,7 +99,8 @@ def strona_bledu(kat: jinjax.Catalog, request: Request, status: int, tytul: str,
 @dataclass(frozen=True)
 class Strona:
     """Odpowiedzi HTML: `html()` renderuje komponent wskazany przez trasę (cały dokument albo fragment —
-    zależnie od komponentu); przełączanie na fragment dla htmx robi tylko `strona_bledu`."""
+    zależnie od komponentu); widoki (`widok_przegladu`, `widok_sprawy`) i `strona_bledu` wybierają
+    fragment dla htmx przez `z_htmx`."""
 
     request: Request
     katalog: jinjax.Catalog
@@ -108,8 +114,7 @@ class Strona:
         return strona_bledu(self.katalog, self.request, status, tytul, tresc, polecenie, szczegoly)
 
     def _czesc(self) -> str:
-        """htmx dostaje sam fragment #tresc-dynamiczna, zwykłe żądanie — całą stronę."""
-        return "Tresc" if "hx-request" in self.request.headers else ""
+        return "Tresc" if z_htmx(self.request) else ""
 
     def widok_przegladu(self, status: int = 200, **dane) -> HTMLResponse:
         ekran = ekran_co_robic(przeglad_projektu(self.repo, self.dzis), self.dzis)
