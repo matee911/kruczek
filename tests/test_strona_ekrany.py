@@ -125,3 +125,14 @@ def test_data_doreczenia_bledy_mowia_jak_poprawic(wpis, komunikat):
     # Act / Assert
     with pytest.raises(ValueError, match=komunikat.replace(".", r"\.")):
         data_doreczenia(wpis, DZIS)
+
+
+def test_karta_doreczenia_bez_znanego_podmiotu_nie_wpisuje_none():
+    # Arrange — termin „mój”, a sprawa nie wskazuje osoby
+    s = z_nadaniem(D(2026, 10, 8))
+    s.uczestnicy.clear()
+    s.terminy[0].czyj = "moj"
+    # Act
+    k = ekran(s).teraz[0]
+    # Assert
+    assert k.kiedy == "ok. 22.10.2026"
