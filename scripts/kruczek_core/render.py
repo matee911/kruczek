@@ -8,7 +8,7 @@ strategia, notatki) zostaje nietknięte.
 from __future__ import annotations
 
 from kruczek_core.dni_wolne import Kalendarz
-from kruczek_core.model import BladSprawy, Sprawa, Termin
+from kruczek_core.model import BladSprawy, Sprawa, Termin, chronologia
 
 BLOKI = ("chronologia", "terminy", "zadania")
 _NAGLOWKI = {"chronologia": "Chronologia", "terminy": "Terminy", "zadania": "Zadania"}
@@ -27,8 +27,7 @@ _PEWNOSC = {"dowod": "dowód", "poszlaka": "poszlaka", "wlasne_oswiadczenie": "w
 
 def _chronologia(s: Sprawa) -> str:
     wiersze = ["| Data | Godz. | Zdarzenie | Wątek | Opis | Dowody |", "|---|---|---|---|---|---|"]
-    kolejnosc = {id(z): i for i, z in enumerate(s.zdarzenia)}
-    for z in sorted(s.zdarzenia, key=lambda z: (z.data, z.godzina or "", kolejnosc[id(z)])):
+    for z in chronologia(s):
         watek = _komorka(z.watek or "—")
         opis = _komorka(z.opis)
         dowody = ", ".join(z.dowody) or "—"

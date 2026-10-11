@@ -15,5 +15,5 @@ package = false
 [tool.pytest]
 minversion = "9.0"
 pythonpath = ["scripts"]
-testpaths = ["tests", "scripts/kruczek_core"]
+testpaths = ["tests", "scripts/kruczek_core", "scripts/kruczek_strona"]
 addopts = ["-ra", "--doctest-modules", "--strict-config", "--strict-markers"]

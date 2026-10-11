@@ -139,6 +139,12 @@ class Sprawa:
         return _znajdz(self.zdarzenia, id, "zdarzenia")
 
 
+def chronologia(s: Sprawa) -> list[Zdarzenie]:
+    """Zdarzenia po dacie, godzinie i kolejności wpisu (zdarzenie bez godziny przed tym z godziną)."""
+    kolejnosc = {id(z): i for i, z in enumerate(s.zdarzenia)}
+    return sorted(s.zdarzenia, key=lambda z: (z.data, z.godzina or "", kolejnosc[id(z)]))
+
+
 def _znajdz(elementy: list[Any], id: str, co: str) -> Any:
     for e in elementy:
         if e.id == id:
