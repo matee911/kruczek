@@ -1,0 +1,205 @@
+"""Strona na prawdziwym katalogu projektu (integracja): pliki spraw, bezpieczeństwo, zapis
+i współbieżność z CLI. Logika tras na repozytorium w pamięci — tests/test_strona_trasy.py."""
+
+import datetime as dt
+import json
+import re
+
+import pytest
+from fastapi.testclient import TestClient
+from kruczek_core.dni_wolne import Kalendarz
+from kruczek_core.operacje import (
+    dodaj_watek,
+    dodaj_zadanie,
+    dodaj_zdarzenie,
+    nowa_sprawa,
+)
+from kruczek_core.reguly import SpecTerminu
+from kruczek_strona.app import utworz_aplikacje
+from kruczek_strona.zaleznosci import Ustawienia, dzis
+
+DZIS = dt.date(2026, 10, 20)
+TOKEN = "token-testowy"
+HX = {"HX-Request": "true"}
+
+
+def klient_projektu(projekt, base_url="http://127.0.0.1"):
+    """Prawdziwe repozytorium plikowe; podmieniony tylko zegar. Nowa aplikacja na każdy test."""
+    app = utworz_aplikacje(Ustawienia(projekt=projekt, token=TOKEN))
+    app.dependency_overrides[dzis] = lambda: DZIS
+    return TestClient(app, base_url=base_url)
+
+
+@pytest.fixture
+def projekt(tmp_path):
+    a = tmp_path / "sprawa-a"
+    a.mkdir()
+    nowa_sprawa(a, "Sprawa testowa A", "Firma X sp. z o.o.", "opiekun1", w_imieniu="Osoba Testowa")
+    dodaj_watek(a, "firma", "Firma X sp. z o.o.")
+    dodaj_zdarzenie(a, "nadanie", dt.date(2026, 10, 8), Kalendarz(), DZIS, watek="firma",
+                    termin=SpecTerminu("14d", "art. 7 u.r."))
+    dodaj_zadanie(a, "snapshot Web Archive", dt.date(2026, 10, 1))
+    (tmp_path / "stara").mkdir()
+    (tmp_path / "stara" / "index.md").write_text("# Sprawa: stara\n", encoding="utf-8")
+    (tmp_path / "kopia 2").mkdir()
+    zepsuta = tmp_path / "zepsuta"
+    zepsuta.mkdir()
+    (zepsuta / "sprawa.json").write_text("{", encoding="utf-8")
+    return tmp_path
+
+
+@pytest.fixture
+def klient(projekt):
+    return klient_projektu(projekt, "http://127.0.0.1:8765")
+
+
+def dane_sprawy(projekt, klucz="sprawa-a"):
+    return json.loads((projekt / klucz / "sprawa.json").read_text(encoding="utf-8"))
+
+
+def zadanie(projekt, opis=None, regula=None):
+    return next(a for a in dane_sprawy(projekt)["zadania"]
+                if (opis is None or a["opis"] == opis) and (regula is None or a["regula"] == regula))
+
+
+def klient_ze_sprawa(tmp_path, klucz):
+    (tmp_path / "podprojekt").mkdir()
+    (tmp_path / "podprojekt" / "index.md").write_text("# Rejestr spraw\n", encoding="utf-8")
+    katalog = tmp_path / klucz
+    katalog.mkdir()
+    nowa_sprawa(katalog, "T", "Firma X sp. z o.o.", "opiekun1")
+    dodaj_zadanie(katalog, "zadanie testowe", dt.date(2026, 10, 1))
+    return klient_projektu(tmp_path)
+
+
+def post(klient, sciezka, naglowki=HX, **pola):
+    return klient.post(sciezka, data={"token": TOKEN, **pola}, headers=naglowki)
+
+
+# --- ekrany z plików projektu ---------------------------------------------------------------------
+
+def test_przeglad_pokazuje_sekcje_i_problemy_projektu(klient):
+    # Act
+    r = klient.get("/")
+    # Assert
+    assert r.status_code == 200
+    html = r.text
+    assert "snapshot Web Archive" in html                                    # Teraz
+    assert "Firma X sp. z o.o.: ok. 22.10.2026" in html                      # sprawdzenie doręczenia (szacunek)
+    assert "Czekam na odpowiedź: Firma X sp. z o.o." in html and "ok. 22.10.2026" in html
+    assert "stara" in html and "/kruczek:migruj" in html                      # stary format
+    assert "kopia 2" in html                                                 # pominięto
+    assert "zepsuta" in html and "uszkodzony JSON" in html                   # błędy
+    assert "wtorek" in html and "20.10.2026" in html
+
+
+def test_przeglad_ta_sama_lista_zadan_co_co_robic(projekt, klient, capsys):
+    # Arrange — TERAZ i WKRÓTCE z CLI: „[a1] klucz: tytuł / wątek — opis  dopiski”
+    import teczka
+    teczka.main(["--dzis", DZIS.isoformat(), "co-robic", str(projekt)])
+    cli = capsys.readouterr().out
+    opisy_cli = re.findall(r"^\s+(?:od \S+\s+)?\[a\d+\] [^\n]*? — (.+?)(?:  .*)?$", cli, re.MULTILINE)
+    # Act
+    html = klient.get("/").text
+    # Assert
+    assert len(opisy_cli) == 3  # 2 w TERAZ, 1 w WKRÓTCE
+    assert all(opis in html for opis in opisy_cli)
+
+
+def test_dowody_jako_tekst_bez_linkow(projekt, klient):
+    # Arrange
+    dodaj_zdarzenie(projekt / "sprawa-a", "fakt", dt.date(2026, 10, 9), Kalendarz(), DZIS,
+                    dowody=["ARCHIWUM/2026-10-09_email_firma.eml"])
+    # Act
+    r = klient.get("/sprawa/sprawa-a")
+    # Assert
+    assert "ARCHIWUM/2026-10-09_email_firma.eml" in r.text
+    assert "href=\"ARCHIWUM" not in r.text and "href=\"/ARCHIWUM" not in r.text
+
+
+@pytest.mark.parametrize("klucz", ["sprawa ze spacją ąę", "podprojekt/sprawa-b"])
+def test_sprawa_z_nazwa_ze_spacja_i_w_podprojekcie(tmp_path, klucz):
+    # Arrange
+    k = klient_ze_sprawa(tmp_path, klucz)
+    link = k.get("/").text.split('href="/sprawa/')[1].split('"')[0]
+    # Act
+    r = k.get("/sprawa/" + link)
+    # Assert
+    assert r.status_code == 200 and "zadanie testowe" in r.text
+
+
+@pytest.mark.parametrize("sciezka", ["/sprawa/../../etc/passwd", "/sprawa/%2e%2e/x", "/sprawa/nie-ma",
+                                     "/sprawa/.kruczek", "/sprawa/kopia 2"])
+def test_klucz_spoza_spisu_404(klient, sciezka):
+    # Act
+    r = klient.get(sciezka)
+    # Assert
+    assert r.status_code == 404
+
+
+def test_stara_sprawa_mowi_o_migracji(klient):
+    # Act
+    r = klient.get("/sprawa/stara")
+    # Assert
+    assert r.status_code == 404 and "/kruczek:migruj stara" in r.text
+
+
+def test_uszkodzona_sprawa_strona_bledu_ze_szczegolami(klient):
+    # Act
+    r = klient.get("/sprawa/zepsuta")
+    # Assert
+    assert r.status_code == 422 and "Nie da się odczytać tej sprawy" in r.text and "uszkodzony JSON" in r.text
+
+
+# --- bezpieczeństwo -------------------------------------------------------------------------------
+
+def test_obcy_host_odrzucony(klient):
+    # Act
+    r = klient.get("/", headers={"host": "zly.example"})
+    # Assert
+    assert r.status_code == 400 and "frame-ancestors 'none'" in r.headers["content-security-policy"]
+
+
+def test_localhost_z_portem_dozwolony(klient):
+    # Act / Assert
+    assert klient.get("/", headers={"host": "localhost:8765"}).status_code == 200
+
+
+def test_naglowki_bezpieczenstwa_i_csp_bez_zewnetrznych_zrodel(klient):
+    # Act
+    r = klient.get("/")
+    # Assert
+    csp = r.headers["content-security-policy"]
+    assert "default-src 'none'" in csp and "script-src 'self'" in csp and "font-src 'self'" in csp
+    assert "http" not in csp and "unsafe" not in csp
+    assert r.headers["x-frame-options"] == "DENY" and r.headers["x-content-type-options"] == "nosniff"
+    assert r.headers["cache-control"] == "no-store" and "server" not in r.headers
+
+
+def test_strona_bez_style_inline_i_skryptow_inline(klient):
+    # Act
+    html = klient.get("/sprawa/sprawa-a").text + klient.get("/").text
+    # Assert
+    assert " style=" not in html
+    assert all("src=" in tag for tag in re.findall(r"<script[^>]*>", html))
+
+
+def test_static_tylko_z_katalogu_strony(klient, projekt):
+    # Act / Assert
+    assert klient.get("/static/kruczek.css").status_code == 200
+    assert klient.get("/static/fonts/archivo-latin-ext-wdth-normal.woff2").status_code == 200
+    assert klient.get("/static/../app.py").status_code == 404
+    assert klient.get("/static/%2e%2e/app.py").status_code == 404
+    assert klient.get("/static/../../sprawa-a/sprawa.json").status_code == 404
+
+
+def test_brak_tras_do_plikow_spraw(klient):
+    # Act / Assert — dowody i sprawa.json nie są serwowane żadną drogą
+    for sciezka in ["/sprawa-a/sprawa.json", "/sprawa/sprawa-a/sprawa.json", "/sprawa/sprawa-a/ARCHIWUM/x.eml"]:
+        assert klient.get(sciezka).status_code == 404
+
+
+def test_bez_dokumentacji_api(klient):
+    # Act / Assert — FastAPI domyślnie wystawia /docs, /redoc i /openapi.json; strona ich nie ma
+    for sciezka in ["/docs", "/redoc", "/openapi.json", "/docs/oauth2-redirect"]:
+        assert klient.get(sciezka).status_code == 404

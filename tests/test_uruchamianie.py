@@ -10,7 +10,8 @@ KORZEN = Path(__file__).resolve().parent.parent
 SKRYPTY = KORZEN / "scripts"
 WYKONYWALNE = sorted(p for p in SKRYPTY.glob("*.py") if os.access(p, os.X_OK))
 SHEBANG = "#!/usr/bin/env -S uv run --script"
-METADANE = '# /// script\n# requires-python = ">=3.11"\n# ///\n'
+# Nagłówek PEP 723: wymagany Python ≥ 3.11; dalsze linie (zależności strony) dozwolone.
+METADANE = re.compile(r'^# /// script\n# requires-python = ">=3\.11"\n(?:# .*\n)*?# ///$', re.MULTILINE)
 
 
 def test_sa_skrypty_wykonywalne():
@@ -31,7 +32,7 @@ def test_skrypt_startuje_przez_uv_z_python_311(skrypt):
 
     # Assert
     assert pierwsza == SHEBANG
-    assert METADANE in tekst
+    assert METADANE.search(tekst)
 
 
 def test_skille_i_skrypty_nie_wolaja_systemowego_python3_na_skryptach_kruczka():
@@ -61,7 +62,7 @@ def test_check_deps_wymaga_uv():
     tekst = (SKRYPTY / "check-deps.sh").read_text(encoding="utf-8")
 
     # Act
-    wymagane = re.search(r"^REQUIRED=\((.*)\)", tekst, re.M).group(1).split()
+    wymagane = re.search(r"^REQUIRED=\((.*)\)", tekst, re.MULTILINE).group(1).split()
 
     # Assert
     assert "uv" in wymagane

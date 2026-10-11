@@ -47,6 +47,15 @@ from kruczek_strona.format import (
 
 TYPY_ZDARZEN = {"nadanie": "Nadanie pisma", "doreczenie": "Doręczenie pisma", "odpowiedz": "Odpowiedź",
                 "wplyw": "Pismo przychodzące", "fakt": "Fakt", "telefon": "Telefon", "inne": "Zdarzenie"}
+BLEDY_HTTP = {404: "Nie ma takiej strony", 405: "Tego adresu nie otwiera się w ten sposób"}
+BLAD_DOMYSLNY = "Nie da się tego zrobić"
+WROC_DO_LISTY_SPRAW = "Wróć do listy spraw."
+STARY_FORMAT_TYTUL = "Ta sprawa ma stary format"
+STARY_FORMAT_TRESC = "Kruczek pokaże ją tutaj po przeniesieniu do sprawa.json."
+NIE_MA_SPRAWY_TYTUL = "Nie ma takiej sprawy"
+NIE_MA_SPRAWY_TRESC = "Sprawdź adres albo wróć do listy."
+SPRAWA_USZKODZONA_TYTUL = "Nie da się odczytać tej sprawy"
+SPRAWA_USZKODZONA_TRESC = "Plik sprawa.json jest uszkodzony albo niepełny. Napraw go w rozmowie z Claude."
 PEWNOSC = {"dowod": "proof", "poszlaka": "clue", "wlasne_oswiadczenie": "own"}  # → CertaintyChip
 
 
