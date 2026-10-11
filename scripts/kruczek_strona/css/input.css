@@ -1,0 +1,12 @@
+/* Kruczek — wejście buildu CSS (Tailwind v4, samodzielny CLI przez pytailwindcss, bez Node).
+   Wynik: ../static/kruczek.css — buduje go budowa_css.py; ręcznie nie edytuj.
+   source(none): Tailwind skanuje tylko komponenty strony, nie całe repozytorium. */
+@import "tailwindcss" source(none);
+@import "./tokens.css";
+@import "./kruczek-fonts.css";
+@import "./kruczek-base.css";
+@import "./vendor/basecoat-css-1.0.2/dist/basecoat-components.css";
+@import "./kruczek-style.css";
+@import "./kruczek-components.css";
+
+@source "../components";
