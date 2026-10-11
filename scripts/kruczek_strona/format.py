@@ -40,11 +40,16 @@ def odmiana(n: int, formy: tuple[str, str, str]) -> str:
     >>> [odmiana(n, ("sprawa", "sprawy", "spraw")) for n in (1, 2, 5, 12, 22, 25)]
     ['1 sprawa', '2 sprawy', '5 spraw', '12 spraw', '22 sprawy', '25 spraw']
     """
+    return f"{n} {formy[_numer_formy(n)]}"
+
+
+def _numer_formy(n: int) -> int:
+    """Indeks formy liczebnika: 0 dla 1, 1 dla 2–4 (bez 12–14), 2 w pozostałych przypadkach."""
     if n == 1:
-        return f"{n} {formy[0]}"
+        return 0
     if n % 10 in (2, 3, 4) and n % 100 not in (12, 13, 14):
-        return f"{n} {formy[1]}"
-    return f"{n} {formy[2]}"
+        return 1
+    return 2
 
 
 def dni(n: int) -> str:
@@ -63,10 +68,7 @@ def zostalo(n: int) -> str:
     """
     if n == 0:
         return "to dziś"
-    if n == 1:
-        return "został 1 dzień"
-    kilka = n % 10 in (2, 3, 4) and n % 100 not in (12, 13, 14)
-    return f"{'zostały' if kilka else 'zostało'} {dni(n)}"
+    return f"{('został', 'zostały', 'zostało')[_numer_formy(n)]} {dni(n)}"
 
 
 def temu(n: int) -> str:

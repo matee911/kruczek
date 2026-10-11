@@ -19,6 +19,7 @@ from kruczek_core.model import (
     Sprawa,
     Termin,
     Zadanie,
+    Zdarzenie,
     chronologia,
 )
 from kruczek_core.projekt import PrzegladProjektu
@@ -202,7 +203,8 @@ def karta_zadania(p: PozycjaZadania, s: Sprawa, kal: Kalendarz, dzis: dt.date, *
         status, kiedy = "ours", f"do {data_pl(a.termin)} · {zostalo((a.termin - dzis).days)}"
     elif a.regula == REGULA_DORECZENIE and t is not None:
         status = "estimate" if t.szacunek else ""
-        kiedy = f"{_kto_ma_termin(s, t)}: {'ok. ' if t.szacunek else 'do '}{data_pl(t.data_konca)}"
+        kto = _kto_ma_termin(s, t)
+        kiedy = f"{kto + ': ' if kto else ''}{'ok. ' if t.szacunek else 'do '}{data_pl(t.data_konca)}"
     dlaczego = ""
     if t is not None:
         dlaczego = opis_terminu(s, t) + (" · termin szacunkowy — wpisz datę doręczenia" if t.szacunek else "")
@@ -268,7 +270,7 @@ def _wpis_terminu(s: Sprawa, t: Termin, kal: Kalendarz) -> Wpis:
     return Wpis(f"{'ok. ' if t.szacunek else ''}{data_pl(t.data_konca)}", "due", co, status, meta)
 
 
-def _wpis_zdarzenia(z) -> Wpis:
+def _wpis_zdarzenia(z: Zdarzenie) -> Wpis:
     co = f"{TYPY_ZDARZEN[z.typ]}: {z.opis}" if z.opis else TYPY_ZDARZEN[z.typ]
     data = data_pl(z.data) + (f" {z.godzina}" if z.godzina else "")
     meta = [f"wątek: {z.watek}"] if z.watek else []
