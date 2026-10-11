@@ -48,7 +48,7 @@ def test_nadanie_tworzy_szacunkowy_termin_i_dwa_zadania():
     (t,) = s.terminy
     assert (t.data_konca, t.szacunek, t.od_zdarzenia, t.watek) == (D(2026, 10, 22), True, "z1", "firma")
     reguly = {a.regula: a for a in s.zadania}
-    assert reguly[REGULA_DORECZENIE].aktywne_od == D(2026, 10, 9)
+    assert reguly[REGULA_DORECZENIE].aktywne_od == D(2026, 10, 8)  # e-mail i e-Doręczenia: doręczenie bywa tego samego dnia
     assert reguly[REGULA_ODPOWIEDZ].aktywne_od == D(2026, 10, 23)
     assert reguly[REGULA_ODPOWIEDZ].termin_id == t.id
 
@@ -61,6 +61,7 @@ def test_nadanie_bez_terminu_tylko_sprawdzenie_doreczenia():
     # Assert
     assert s.terminy == []
     assert [a.regula for a in s.zadania] == [REGULA_DORECZENIE]
+    assert s.zadania[0].aktywne_od == D(2026, 10, 8)
     assert any("bez terminu" in k for k in komunikaty)
 
 
@@ -418,7 +419,7 @@ def test_zmiana_daty_nadania_przesuwa_sprawdzenie_doreczenia_i_szacunek():
     (t,) = s.terminy
     sprawdz = next(a for a in s.zadania if a.regula == REGULA_DORECZENIE)
     odpowiedz = next(a for a in s.zadania if a.regula == REGULA_ODPOWIEDZ)
-    assert (t.data_konca, sprawdz.aktywne_od, odpowiedz.aktywne_od) == (D(2026, 10, 16), D(2026, 10, 3), D(2026, 10, 17))
+    assert (t.data_konca, sprawdz.aktywne_od, odpowiedz.aktywne_od) == (D(2026, 10, 16), D(2026, 10, 2), D(2026, 10, 17))
 
 
 def test_zmiana_daty_wplywu_przesuwa_moj_termin_i_zadanie():
