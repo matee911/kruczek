@@ -143,3 +143,85 @@ def test_nieobsluzony_wyjatek_strona_bledu_po_polsku_z_naglowkami(repo):
     assert r.headers["content-type"].startswith("text/html")
     assert "frame-ancestors 'none'" in r.headers["content-security-policy"]
     assert r.headers["x-frame-options"] == "DENY"
+
+
+# --- kolejność kontroli i błędy formularza --------------------------------------------------------
+
+def test_token_sprawdzany_przed_kluczem_i_ksztaltem_formularza(repo, klient):
+    # Act — bez tokenu, klucz spoza spisu, brak pola opis
+    r = klient.post("/sprawa/nie-ma/zadania/a1/zrobione", data={}, headers=HX)
+    # Assert
+    assert r.status_code == 403 and repo.zapisy == 0
+
+
+def test_klucz_sprawdzany_przed_ksztaltem_formularza(repo, klient):
+    # Act
+    r = post(klient, "/sprawa/nie-ma/zadania/a1/zrobione")
+    # Assert
+    assert r.status_code == 404 and "Nie ma takiej sprawy" in r.text and repo.zapisy == 0
+
+
+@pytest.mark.parametrize("sciezka, pola, pole", [
+    ("/sprawa/sprawa-a/zadania/a2/zrobione", {}, "opis zadania"),
+    ("/sprawa/sprawa-a/zadania/a2/zrobione", {"opis": "snapshot Web Archive", "widok": "inny"}, "widok"),
+], ids=["brak-opisu", "nieznany-widok"])
+def test_zly_ksztalt_formularza_po_polsku_bez_tekstow_pydantic(repo, klient, sciezka, pola, pole):
+    # Act
+    r = post(klient, sciezka, **pola)
+    # Assert
+    assert r.status_code == 422 and "Nie zapisano" in r.text and pole in r.text
+    assert not any(slowo in r.text for slowo in ("Field required", "Input should", "pydantic", "detail"))
+    assert repo.zapisy == 0
+
+
+# --- zrobione -------------------------------------------------------------------------------------
+
+def test_zrobione_bez_htmx_oddaje_cala_strone(repo, klient):
+    # Arrange
+    zid = zadanie(repo, "snapshot Web Archive").id
+    # Act
+    r = post(klient, f"/sprawa/sprawa-a/zadania/{zid}/zrobione", naglowki={}, opis="snapshot Web Archive")
+    # Assert
+    assert r.status_code == 200 and r.text.startswith("<!doctype html>")
+
+
+def test_cofnij_zrobione_otwiera_zadanie(repo, klient):
+    # Arrange
+    zid = zadanie(repo, "snapshot Web Archive").id
+    post(klient, f"/sprawa/sprawa-a/zadania/{zid}/zrobione", opis="snapshot Web Archive")
+    # Act
+    r = post(klient, f"/sprawa/sprawa-a/zadania/{zid}/cofnij-zrobione", opis="snapshot Web Archive")
+    # Assert
+    assert r.status_code == 200 and "Zadanie znów otwarte" in r.text
+    assert zadanie(repo, "snapshot Web Archive").zrobione is None
+
+
+def test_zadanie_o_tym_samym_numerze_z_innym_opisem_to_konflikt(repo, klient):
+    # Arrange — numer zadania na stronie wskazuje dziś inne zadanie
+    zid = zadanie(repo, "snapshot Web Archive").id
+    # Act
+    r = post(klient, f"/sprawa/sprawa-a/zadania/{zid}/zrobione", opis="opis, który strona widziała wcześniej")
+    # Assert
+    assert r.status_code == 409 and "Sprawa zmieniła się w międzyczasie" in r.text
+    assert zadanie(repo, "snapshot Web Archive").zrobione is None
+
+
+def test_zrobione_juz_zrobione_400(repo, klient):
+    # Arrange
+    zid = zadanie(repo, "snapshot Web Archive").id
+    post(klient, f"/sprawa/sprawa-a/zadania/{zid}/zrobione", opis="snapshot Web Archive")
+    # Act
+    r = post(klient, f"/sprawa/sprawa-a/zadania/{zid}/zrobione", opis="snapshot Web Archive")
+    # Assert
+    assert r.status_code == 400 and "już zrobione" in r.text and repo.zapisy == 1
+
+
+def test_uwaga_odswiezenia_index_to_alert_nie_blad_zapisu(repo):
+    # Arrange
+    repo.uwaga = "zapisano, ale index.md nie odświeżony: brak znacznika"
+    zid = zadanie(repo, "snapshot Web Archive").id
+    # Act
+    r = post(klient_z(repo), f"/sprawa/sprawa-a/zadania/{zid}/zrobione", opis="snapshot Web Archive")
+    # Assert
+    assert r.status_code == 200 and "Zapisano, ale index.md nie jest aktualny" in r.text
+    assert zadanie(repo, "snapshot Web Archive").zrobione == DZIS

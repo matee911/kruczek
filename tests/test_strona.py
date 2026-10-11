@@ -9,13 +9,14 @@ import pytest
 from fastapi.testclient import TestClient
 from kruczek_core.dni_wolne import Kalendarz
 from kruczek_core.operacje import (
+    cofnij_zdarzenie,
     dodaj_watek,
     dodaj_zadanie,
     dodaj_zdarzenie,
     nowa_sprawa,
 )
 from kruczek_core.reguly import SpecTerminu
-from kruczek_strona.app import utworz_aplikacje
+from kruczek_strona.app import MAKS_FORMULARZ, utworz_aplikacje
 from kruczek_strona.zaleznosci import Ustawienia, dzis
 
 DZIS = dt.date(2026, 10, 20)
@@ -203,3 +204,90 @@ def test_bez_dokumentacji_api(klient):
     # Act / Assert — FastAPI domyślnie wystawia /docs, /redoc i /openapi.json; strona ich nie ma
     for sciezka in ["/docs", "/redoc", "/openapi.json", "/docs/oauth2-redirect"]:
         assert klient.get(sciezka).status_code == 404
+
+
+@pytest.mark.parametrize("pola, naglowki", [
+    ({"opis": "snapshot Web Archive"}, HX),
+    ({"token": "zly", "opis": "snapshot Web Archive"}, HX),
+    ({"token": "żółć", "opis": "snapshot Web Archive"}, HX),
+    ({"token": TOKEN, "opis": "snapshot Web Archive"}, {**HX, "sec-fetch-site": "cross-site"}),
+], ids=["bez-tokenu", "zly-token", "token-z-polskimi-znakami", "cross-site"])
+def test_zapis_z_obcej_strony_odrzucony(projekt, klient, pola, naglowki):
+    # Arrange
+    zid = zadanie(projekt, "snapshot Web Archive")["id"]
+    # Act
+    r = klient.post(f"/sprawa/sprawa-a/zadania/{zid}/zrobione", data=pola, headers=naglowki)
+    # Assert
+    assert r.status_code == 403 and "Nie zapisano" in r.text and TOKEN not in r.text
+    assert zadanie(projekt, "snapshot Web Archive")["zrobione"] is None
+
+
+def test_za_duzy_formularz_odrzucony_bez_zapisu(projekt, klient):
+    # Arrange — FastAPI czyta cały formularz przed zależnościami; limit stoi przed aplikacją
+    zid = zadanie(projekt, "snapshot Web Archive")["id"]
+    # Act
+    r = post(klient, f"/sprawa/sprawa-a/zadania/{zid}/zrobione", opis="x" * (MAKS_FORMULARZ + 1))
+    # Assert
+    assert r.status_code == 413 and "frame-ancestors 'none'" in r.headers["content-security-policy"]
+    assert zadanie(projekt, "snapshot Web Archive")["zrobione"] is None
+
+
+# --- zapis do sprawa.json i współbieżność z CLI ---------------------------------------------------
+
+def test_zrobione_zapisuje_odswieza_fragment_i_daje_cofnij(projekt, klient):
+    # Arrange
+    zid = zadanie(projekt, "snapshot Web Archive")["id"]
+    # Act
+    r = post(klient, f"/sprawa/sprawa-a/zadania/{zid}/zrobione", opis="snapshot Web Archive")
+    # Assert
+    assert r.status_code == 200 and r.text.startswith('<div id="tresc-dynamiczna"')
+    assert "Oznaczono jako zrobione: „snapshot Web Archive”." in r.text
+    assert f'hx-post="/sprawa/sprawa-a/zadania/{zid}/cofnij-zrobione"' in r.text
+    assert zadanie(projekt, "snapshot Web Archive")["zrobione"] == "2026-10-20"
+
+
+def test_dwa_zrobione_pod_rzad_bez_falszywego_konfliktu(projekt, klient):
+    # Arrange
+    dodaj_zadanie(projekt / "sprawa-a", "drugie", dt.date(2026, 10, 1))
+    pierwsze, drugie = zadanie(projekt, "snapshot Web Archive")["id"], zadanie(projekt, "drugie")["id"]
+    # Act
+    r1 = post(klient, f"/sprawa/sprawa-a/zadania/{pierwsze}/zrobione", opis="snapshot Web Archive")
+    r2 = post(klient, f"/sprawa/sprawa-a/zadania/{drugie}/zrobione", opis="drugie")
+    # Assert
+    assert (r1.status_code, r2.status_code) == (200, 200)
+
+
+def test_zadanie_zmienione_w_cli_to_konflikt_i_nic_nie_zapisane(projekt, klient):
+    # Arrange — strona pokazała zadanie z nadania; w CLI cofnięto nadanie razem z jego zadaniami
+    # i dodano inne zadanie
+    dane = dane_sprawy(projekt)
+    widziane = next(a for a in dane["zadania"] if a["zdarzenie_id"] == dane["zdarzenia"][-1]["id"])
+    cofnij_zdarzenie(projekt / "sprawa-a", dane["zdarzenia"][-1]["id"], Kalendarz())
+    dodaj_zadanie(projekt / "sprawa-a", "całkiem inne", dt.date(2026, 10, 1))
+    # Act
+    r = post(klient, f"/sprawa/sprawa-a/zadania/{widziane['id']}/zrobione", opis=widziane["opis"])
+    # Assert
+    assert r.status_code == 409 and "Sprawa zmieniła się w międzyczasie" in r.text
+    assert all(a["zrobione"] is None for a in dane_sprawy(projekt)["zadania"])
+
+
+def test_zrobione_zepsute_znaczniki_index_alert_ale_zapisane(projekt, klient):
+    # Arrange
+    (projekt / "sprawa-a" / "index.md").write_text("<!-- kruczek:zadania -->\n", encoding="utf-8")
+    zid = zadanie(projekt, "snapshot Web Archive")["id"]
+    # Act
+    r = post(klient, f"/sprawa/sprawa-a/zadania/{zid}/zrobione", opis="snapshot Web Archive")
+    # Assert
+    assert r.status_code == 200 and "nie odświeżony" in r.text
+    assert zadanie(projekt, "snapshot Web Archive")["zrobione"] == "2026-10-20"
+
+
+@pytest.mark.parametrize("klucz", ["sprawa ze spacją ąę", "podprojekt/sprawa-b"])
+def test_zrobione_dla_klucza_ze_spacja_i_w_podprojekcie(tmp_path, klucz):
+    # Arrange
+    k = klient_ze_sprawa(tmp_path, klucz)
+    link = k.get("/").text.split('href="/sprawa/')[1].split('"')[0]
+    # Act
+    r = post(k, f"/sprawa/{link}/zadania/a1/zrobione", opis="zadanie testowe")
+    # Assert
+    assert r.status_code == 200 and "Oznaczono jako zrobione" in r.text
