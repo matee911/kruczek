@@ -1,5 +1,4 @@
 {#def karta, pokaz_sprawe=True, blad="", wartosc="" #}
-{% set formularz_daty = karta.akcja == "doreczenie" and not pokaz_sprawe %}
 <article class="k-task" id="{{ karta.dom_id }}">
   <div class="k-task__top">
     {% if karta.status %}<StatusChip status={{ karta.status }} />{% endif %}
@@ -9,8 +8,7 @@
   {% if karta.dlaczego %}<p class="k-task__why">{{ karta.dlaczego }}</p>{% endif %}
   {% for u in karta.uwagi %}<p class="k-task__why"><Icon name="calendar" /> {{ u }}</p>{% endfor %}
   <CaseRef url={{ karta.url }} klucz={{ karta.klucz }} watek={{ karta.zadanie.watek or "" }} zadanie_id={{ karta.zadanie.id }} pokaz_sprawe={{ pokaz_sprawe }} />
-  {% if blad and not formularz_daty %}<p class="k-task__why" role="alert"><Icon name="triangle-alert" />{{ blad }}</p>{% endif %}
-  {% if formularz_daty %}
+  {% if karta.akcja == "doreczenie" and not pokaz_sprawe %}
     <DeliveryForm karta={{ karta }} blad={{ blad }} wartosc={{ wartosc }} />
   {% elif karta.akcja == "doreczenie" %}
     <div class="k-task__actions"><Button href={{ karta.url ~ "#" ~ karta.dom_id }}>Wpisz doręczenie</Button></div>

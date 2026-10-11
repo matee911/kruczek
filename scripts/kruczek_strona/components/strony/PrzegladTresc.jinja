@@ -1,4 +1,4 @@
-{#def ekran, alert=None, powiadomienie=None, bledy={}, wartosci={} #}
+{#def ekran, alert=None, powiadomienie=None #}
 <div id="tresc-dynamiczna" class="flex flex-col gap-8">
   <div class="flex flex-col gap-1">
     <h1 class="title">Co robić</h1>
@@ -13,7 +13,7 @@
   </Alert>
   {% endif %}
   {% if ekran.liczba_spraw or ekran.bledy or ekran.stary_format or ekran.bez_indexu %}
-  <Sections s={{ ekran.sekcje }} bledy={{ bledy }} wartosci={{ wartosci }} />
+  <Sections s={{ ekran.sekcje }} />
   {% else %}
   <EmptyState title="Nie ma tu jeszcze spraw" icon="folder">Załóż pierwszą w rozmowie z Claude.</EmptyState>
   <CommandCopy value="/kruczek:nowa-sprawa" id="polecenie-nowa-sprawa" hint="Wklej w rozmowie z Claude:" variant="" />
