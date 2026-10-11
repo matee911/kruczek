@@ -18,7 +18,16 @@ import datetime as dt
 from dataclasses import dataclass
 
 from kruczek_core.dni_wolne import Kalendarz
-from kruczek_core.model import ZDARZENIA_PRZYCHODZACE, BladSprawy, Sprawa, Termin, Zadanie, Zdarzenie, kolejne_id
+from kruczek_core.model import (
+    ZDARZENIA_PRZYCHODZACE,
+    BladSprawy,
+    Sprawa,
+    Termin,
+    Zadanie,
+    Zdarzenie,
+    ZdarzeniePrzedNadaniem,
+    kolejne_id,
+)
 from kruczek_core.terminy import koniec_terminu
 
 REGULA_DORECZENIE = "sprawdz-doreczenie"
@@ -59,7 +68,7 @@ def _wskazane_nadanie(sprawa: Sprawa, z: Zdarzenie, dotyczy: str) -> Zdarzenie:
     if n.typ != "nadanie" or n.watek != z.watek:
         raise BladSprawy(f"{dotyczy} nie jest nadaniem w wątku {z.watek}")
     if n.data > z.data:
-        raise BladSprawy(f"nadanie {dotyczy} ({n.data}) jest późniejsze niż {z.typ} ({z.data})")
+        raise ZdarzeniePrzedNadaniem(f"nadanie {dotyczy} ({n.data}) jest późniejsze niż {z.typ} ({z.data})", n.data)
     return n
 
 

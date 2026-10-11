@@ -32,6 +32,14 @@ class BladSprawy(Exception):
     """Błąd z komunikatem dla użytkownika — CLI wypisuje go bez tracebacku."""
 
 
+class ZdarzeniePrzedNadaniem(BladSprawy):
+    """Doręczenie albo pismo przychodzące datowane przed nadaniem, którego dotyczy — strona pokazuje to jako błąd pola."""
+
+    def __init__(self, komunikat: str, data_nadania: dt.date) -> None:
+        super().__init__(komunikat)
+        self.data_nadania = data_nadania
+
+
 @dataclass
 class Uczestnik:
     osoba: str

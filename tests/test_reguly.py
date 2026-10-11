@@ -2,10 +2,15 @@ import copy
 import datetime as dt
 
 import pytest
-
 from kruczek_core.dni_wolne import DzienJednorazowy, Kalendarz
-from kruczek_core.model import BladSprawy, Sprawa, Watek, Zadanie, Zdarzenie
-from kruczek_core.widok import stan_watku
+from kruczek_core.model import (
+    BladSprawy,
+    Sprawa,
+    Watek,
+    Zadanie,
+    Zdarzenie,
+    ZdarzeniePrzedNadaniem,
+)
 from kruczek_core.reguly import (
     REGULA_ANALIZA,
     REGULA_DORECZENIE,
@@ -17,16 +22,18 @@ from kruczek_core.reguly import (
     zastosuj,
     zmien_date,
 )
+from kruczek_core.widok import stan_watku
 
 D = dt.date
 SPEC = SpecTerminu("14d", "wyznaczony w piśmie")
+KALENDARZ = Kalendarz()
 
 
 def sprawa_z_watkiem() -> Sprawa:
     return Sprawa(id="s1", tytul="T", wlasciciel="w", strona_przeciwna="X", watki=[Watek("firma", "X sp. z o.o.")])
 
 
-def dodaj(sprawa, id, data, typ, spec=None, kalendarz=Kalendarz(), dotyczy=None):
+def dodaj(sprawa, id, data, typ, spec=None, kalendarz=KALENDARZ, dotyczy=None):
     z = Zdarzenie(id, data, typ, watek="firma")
     sprawa.zdarzenia.append(z)
     return zastosuj(sprawa, z, spec, kalendarz, dotyczy=dotyczy)
@@ -629,3 +636,13 @@ def test_teksty_zadan_nie_odmieniaja_adresata(adresat):
     assert opisy[REGULA_ODPOWIEDZ] == f"{adresat}: sprawdź, czy przyszła odpowiedź"
     assert opisy[REGULA_ANALIZA] == f"{adresat}: przeanalizuj odpowiedź"
     assert all(" od " not in o and "EPO" not in o for o in opisy.values())
+
+
+def test_pismo_przychodzace_przed_wskazanym_nadaniem_to_zdarzenie_przed_nadaniem():
+    # Arrange
+    s = sprawa_z_watkiem()
+    dodaj(s, "z1", D(2026, 10, 8), "nadanie", SPEC)
+    # Act / Assert
+    with pytest.raises(ZdarzeniePrzedNadaniem) as e:
+        dodaj(s, "z2", D(2026, 10, 7), "odpowiedz", dotyczy="z1")
+    assert e.value.data_nadania == D(2026, 10, 8)

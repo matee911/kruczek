@@ -3,8 +3,15 @@ import datetime as dt
 import pytest
 from kruczek_core import operacje
 from kruczek_core.dni_wolne import Kalendarz
-from kruczek_core.model import BladSprawy, Sprawa, Zadanie
+from kruczek_core.model import (
+    BladSprawy,
+    Sprawa,
+    Zadanie,
+    Zdarzenie,
+    ZdarzeniePrzedNadaniem,
+)
 from kruczek_core.operacje import (
+    NieOstatnieZdarzenie,
     cofnij_zdarzenie,
     dodaj_watek,
     dodaj_zadanie,
@@ -13,14 +20,17 @@ from kruczek_core.operacje import (
     dopisz_zadanie,
     dopisz_zdarzenie,
     nowa_sprawa,
+    odznacz_zrobione,
     otworz_sprawe,
     oznacz_zrobione,
     popraw_zdarzenie,
     utworz_sprawe,
+    wycofaj_zdarzenie,
     zamknij_sprawe,
+    zapisz_doreczenie,
     zaznacz_zrobione,
 )
-from kruczek_core.reguly import SpecTerminu
+from kruczek_core.reguly import REGULA_DORECZENIE, SpecTerminu
 from kruczek_core.repozytorium import KonfliktRewizji, wczytaj
 
 D = dt.date
@@ -433,3 +443,98 @@ def test_zaznacz_zrobione_zgodny_opis_oznacza():
     z = zaznacz_zrobione(s, "a1", DZIS, oczekiwany_opis="zrób")
     # Assert
     assert z.zrobione == DZIS
+
+
+def _po_nadaniu(katalog):
+    dodaj_zdarzenie(katalog, "nadanie", D(2026, 10, 8), Kalendarz(), DZIS, watek="firma",
+                    termin=SpecTerminu("14d", "art. 7 u.r."))
+    s = wczytaj(katalog)
+    return s, next(a for a in s.zadania if a.regula == REGULA_DORECZENIE)
+
+
+def test_zapisz_doreczenie_z_zadania_przelicza_termin_i_zamyka_sprawdzenie(katalog):
+    # Arrange
+    s, sprawdzenie = _po_nadaniu(katalog)
+    # Act
+    z, komunikaty = zapisz_doreczenie(s, sprawdzenie.id, D(2026, 10, 10), Kalendarz(), DZIS,
+                                      oczekiwany_opis=sprawdzenie.opis)
+    # Assert
+    assert (z.typ, z.data, z.dotyczy, z.watek) == ("doreczenie", D(2026, 10, 10), "z1", "firma")
+    assert s.terminy[0].szacunek is False and s.terminy[0].data_konca == D(2026, 10, 26)  # 24.10 to sobota (art. 115 k.c.)
+    assert s.znajdz_zadanie(sprawdzenie.id).zrobione == D(2026, 10, 10)
+    assert any("od doręczenia" in k for k in komunikaty)
+
+
+def test_zapisz_doreczenie_przed_nadaniem_to_blad_pola_i_nic_nie_zmienia(katalog):
+    # Arrange
+    s, sprawdzenie = _po_nadaniu(katalog)
+    # Act / Assert
+    with pytest.raises(ZdarzeniePrzedNadaniem) as e:
+        zapisz_doreczenie(s, sprawdzenie.id, D(2026, 10, 7), Kalendarz(), DZIS, oczekiwany_opis=sprawdzenie.opis)
+    assert e.value.data_nadania == D(2026, 10, 8)
+    assert [z.typ for z in s.zdarzenia] == ["nadanie"]
+
+
+def test_zapisz_doreczenie_przy_innym_zadaniu_to_blad(katalog):
+    # Arrange
+    s, _ = _po_nadaniu(katalog)
+    odpowiedz = next(a for a in s.zadania if a.regula != REGULA_DORECZENIE)
+    # Act / Assert
+    with pytest.raises(BladSprawy, match="nie jest sprawdzeniem doręczenia"):
+        zapisz_doreczenie(s, odpowiedz.id, D(2026, 10, 10), Kalendarz(), DZIS, oczekiwany_opis=odpowiedz.opis)
+
+
+def test_zapisz_doreczenie_zadanie_podmienione_to_konflikt(katalog):
+    # Arrange
+    s, sprawdzenie = _po_nadaniu(katalog)
+    # Act / Assert
+    with pytest.raises(KonfliktRewizji):
+        zapisz_doreczenie(s, sprawdzenie.id, D(2026, 10, 10), Kalendarz(), DZIS, oczekiwany_opis="inne zadanie")
+
+
+def test_wycofaj_zdarzenie_z_oczekiwanym_typem_i_data(katalog):
+    # Arrange
+    s, sprawdzenie = _po_nadaniu(katalog)
+    z, _ = zapisz_doreczenie(s, sprawdzenie.id, D(2026, 10, 10), Kalendarz(), DZIS, oczekiwany_opis=sprawdzenie.opis)
+    # Act
+    wycofaj_zdarzenie(s, z.id, Kalendarz(), oczekiwane=("doreczenie", D(2026, 10, 10)))
+    # Assert
+    assert [x.typ for x in s.zdarzenia] == ["nadanie"]
+    assert s.terminy[0].szacunek is True and s.znajdz_zadanie(sprawdzenie.id).zrobione is None
+
+
+def test_wycofaj_zdarzenie_inne_niz_pokazane_to_konflikt(katalog):
+    # Arrange — strona pokazała doręczenie z2 z 10.10, a z2 to teraz coś innego
+    s, _ = _po_nadaniu(katalog)
+    s.zdarzenia.append(Zdarzenie("z2", D(2026, 10, 12), "fakt"))
+    # Act / Assert
+    with pytest.raises(KonfliktRewizji):
+        wycofaj_zdarzenie(s, "z2", Kalendarz(), oczekiwane=("doreczenie", D(2026, 10, 10)))
+
+
+def test_wycofaj_nie_ostatnie_zdarzenie_ma_osobny_blad(katalog):
+    # Arrange
+    s, _ = _po_nadaniu(katalog)
+    s.zdarzenia.append(Zdarzenie("z2", D(2026, 10, 12), "fakt"))
+    # Act / Assert
+    with pytest.raises(NieOstatnieZdarzenie, match="tylko ostatnie"):
+        wycofaj_zdarzenie(s, "z1", Kalendarz(), oczekiwane=("nadanie", D(2026, 10, 8)))
+
+
+def test_odznacz_zrobione_otwiera_zadanie_zamkniete_recznie():
+    # Arrange
+    s = Sprawa(id="s1", tytul="T", wlasciciel="opiekun1", strona_przeciwna="X",
+               zadania=[Zadanie("a1", "zrób", D(2026, 10, 1), zrobione=DZIS)])
+    # Act
+    odznacz_zrobione(s, "a1", oczekiwany_opis="zrób")
+    # Assert
+    assert s.zadania[0].zrobione is None
+
+
+def test_odznacz_zrobione_zamkniete_zdarzeniem_odmawia():
+    # Arrange
+    s = Sprawa(id="s1", tytul="T", wlasciciel="opiekun1", strona_przeciwna="X",
+               zadania=[Zadanie("a1", "zrób", D(2026, 10, 1), zrobione=DZIS, zamkniete_przez="z2")])
+    # Act / Assert
+    with pytest.raises(BladSprawy, match="cofnij to zdarzenie"):
+        odznacz_zrobione(s, "a1", oczekiwany_opis="zrób")
