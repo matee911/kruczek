@@ -1571,7 +1571,7 @@ def extract_timestamps(
             result.append((f"Received skok {hop.index}", hop.timestamp))
 
     def from_epoch(seconds: int) -> datetime.datetime:
-        return datetime.datetime.fromtimestamp(seconds, tz=datetime.timezone.utc)
+        return datetime.datetime.fromtimestamp(seconds, tz=datetime.UTC)
 
     for header, label in (
         ("DKIM-Signature", "DKIM-Signature t="),
@@ -1617,7 +1617,7 @@ def extract_timestamps(
                         try:
                             parsed = datetime.datetime.strptime(
                                 moment.group(1), "%Y-%m-%d %H:%M:%S"
-                            ).replace(tzinfo=datetime.timezone.utc)
+                            ).replace(tzinfo=datetime.UTC)
                         except ValueError:
                             continue
                     result.append(
@@ -3743,7 +3743,7 @@ def describe_uuid(value: str) -> str | None:
     # RFC 4122 §4.1.2: 60-bitowy licznik 100-nanosekundowych interwałów od 1582-10-15.
     ticks = int(match.group(4) + match.group(2) + match.group(1), 16)
     seconds = ticks / 1e7 - 12219292800
-    moment = datetime.datetime.fromtimestamp(seconds, tz=datetime.timezone.utc)
+    moment = datetime.datetime.fromtimestamp(seconds, tz=datetime.UTC)
     node = match.group(7)
     mac = ":".join(node[i : i + 2] for i in range(0, 12, 2))
     return (
@@ -4609,7 +4609,7 @@ def message_id_parts(message_id: str | None) -> list[tuple[str, str]]:
         epoch = re.search(r"(?<!\d)(1[6-9]\d{8})(?!\d)", local)
         if epoch:
             moment = datetime.datetime.fromtimestamp(
-                int(epoch.group(1)), tz=datetime.timezone.utc
+                int(epoch.group(1)), tz=datetime.UTC
             )
             out.append(
                 (

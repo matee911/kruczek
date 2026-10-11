@@ -1,9 +1,9 @@
 import datetime as dt
 import json
 import multiprocessing
+from pathlib import Path
 
 import pytest
-
 from kruczek_core.model import SCHEMA_VERSION, BladSprawy, Sprawa, Zadanie, kolejne_id
 from kruczek_core.repozytorium import (
     PLIK_SPRAWY,
@@ -213,7 +213,7 @@ def test_brak_kroku_migracji_i_wyjatek_w_migracji_to_czytelny_blad(tmp_path, mon
 @pytest.mark.parametrize(
     "zawartosc",
     [
-        "﻿# SPRAWA: X\n".encode("utf-8"),
+        "﻿# SPRAWA: X\n".encode(),
         b"\xef\xbb\xbf# SPRAWA: X\n",
         b"\n\n# SPRAWA: X\n",
         b"# SPRAWA: X\n\xff\n",

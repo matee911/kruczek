@@ -77,7 +77,7 @@ class EurlexTestCase(unittest.TestCase):
         )
         return subprocess.run(
             ["bash", str(SKRYPT), *args], cwd=self.cwd, env=env,
-            capture_output=True, text=True, timeout=30,
+            capture_output=True, text=True, timeout=30, check=False,
         )
 
 

@@ -16,7 +16,13 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, TypeVar
 
-from kruczek_core.model import SCHEMA_VERSION, BladSprawy, Sprawa, do_slownika, z_slownika
+from kruczek_core.model import (
+    SCHEMA_VERSION,
+    BladSprawy,
+    Sprawa,
+    do_slownika,
+    z_slownika,
+)
 
 PLIK_SPRAWY = "sprawa.json"
 _BLOKADA = ".sprawa.lock"

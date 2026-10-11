@@ -1,5 +1,4 @@
 import pytest
-
 from kruczek_core.dni_wolne import Kalendarz, wczytaj_kalendarz
 
 

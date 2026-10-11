@@ -1,7 +1,6 @@
 import datetime as dt
 
 import pytest
-
 from dane_migracji import STARY_INDEX, propozycja
 from kruczek_core import migracja
 from kruczek_core.dni_wolne import Kalendarz
