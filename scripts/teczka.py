@@ -230,7 +230,8 @@ def _linia_zadania(p: PozycjaZadania, kal: Kalendarz, dzis: dt.date) -> str:
         dopiski.append(f"termin {p.termin_konca.isoformat()}")
         if p.po_terminie:
             dopiski.append(f"PO TERMINIE ({p.po_terminie} dni)")
-        dopiski += kal.ostrzezenia(p.termin_konca)
+        if z.termin is not None:
+            dopiski += kal.ostrzezenia(z.termin)
     reszta = f"  {'; '.join(dopiski)}" if dopiski else ""
     return f"[{z.id}] {p.klucz}: {p.sprawa}{watek} — {z.opis}{reszta}"
 
