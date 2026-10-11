@@ -15,7 +15,7 @@ from kruczek_core.operacje import (
     dodaj_zdarzenie,
     nowa_sprawa,
 )
-from kruczek_core.reguly import SpecTerminu
+from kruczek_core.reguly import REGULA_DORECZENIE, SpecTerminu
 from kruczek_strona.app import MAKS_FORMULARZ, utworz_aplikacje
 from kruczek_strona.zaleznosci import Ustawienia, dzis
 
@@ -330,3 +330,45 @@ def test_sec_fetch_site_tylko_ta_sama_strona(projekt, klient, site, status):
              opis="snapshot Web Archive")
     # Assert
     assert r.status_code == status
+
+
+def test_doreczenie_zapisuje_przelicza_termin_i_daje_cofnij(projekt, klient):
+    # Arrange
+    sprawdzenie = zadanie(projekt, regula=REGULA_DORECZENIE)
+    # Act
+    r = post(klient, f"/sprawa/sprawa-a/zadania/{sprawdzenie['id']}/doreczenie", widok="sprawa",
+             opis=sprawdzenie["opis"], data="10.10.2026")
+    # Assert
+    assert r.status_code == 200
+    dane = dane_sprawy(projekt)
+    dor = dane["zdarzenia"][-1]
+    assert (dor["typ"], dor["data"], dor["dotyczy"], dor["watek"]) == ("doreczenie", "2026-10-10", "z1", "firma")
+    assert dane["terminy"][0]["szacunek"] is False and dane["terminy"][0]["data_konca"] == "2026-10-26"
+    assert "Zapisano doręczenie 10.10.2026." in r.text and "26.10.2026" in r.text
+    assert f'hx-post="/sprawa/sprawa-a/zdarzenia/{dor["id"]}/cofnij"' in r.text
+    assert 'name="data" value="2026-10-10"' in r.text
+
+
+def test_cofnij_doreczenie_gdy_jest_nowsze_zdarzenie_odsyla_do_claude(projekt, klient):
+    # Arrange
+    sprawdzenie = zadanie(projekt, regula=REGULA_DORECZENIE)
+    post(klient, f"/sprawa/sprawa-a/zadania/{sprawdzenie['id']}/doreczenie", widok="sprawa",
+         opis=sprawdzenie["opis"], data="10.10.2026")
+    zid = dane_sprawy(projekt)["zdarzenia"][-1]["id"]
+    dodaj_zdarzenie(projekt / "sprawa-a", "fakt", dt.date(2026, 10, 12), Kalendarz(), DZIS, opis="rozmowa")
+    # Act
+    r = post(klient, f"/sprawa/sprawa-a/zdarzenia/{zid}/cofnij", widok="sprawa", typ="doreczenie", data="2026-10-10")
+    # Assert
+    assert r.status_code == 409 and "Tego wpisu nie cofniesz już tutaj" in r.text
+    assert "/kruczek:chronologia sprawa-a" in r.text
+    assert [z["typ"] for z in dane_sprawy(projekt)["zdarzenia"]] == ["nadanie", "doreczenie", "fakt"]
+
+
+def test_cofnij_zdarzenie_podmienione_to_konflikt(projekt, klient):
+    # Arrange — toast pokazał doręczenie z2, ale w CLI je cofnięto i z2 to teraz inny wpis
+    dodaj_zdarzenie(projekt / "sprawa-a", "fakt", dt.date(2026, 10, 12), Kalendarz(), DZIS, opis="rozmowa")
+    # Act
+    r = post(klient, "/sprawa/sprawa-a/zdarzenia/z2/cofnij", widok="sprawa", typ="doreczenie", data="2026-10-10")
+    # Assert
+    assert r.status_code == 409 and "Sprawa zmieniła się w międzyczasie" in r.text
+    assert [z["typ"] for z in dane_sprawy(projekt)["zdarzenia"]] == ["nadanie", "fakt"]

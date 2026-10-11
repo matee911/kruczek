@@ -10,8 +10,14 @@ from fastapi import APIRouter, Depends, FastAPI, Form, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import HTMLResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
-from kruczek_core.model import BladSprawy
-from kruczek_core.operacje import odznacz_zrobione, zaznacz_zrobione
+from kruczek_core.model import BladSprawy, ZdarzeniePrzedNadaniem
+from kruczek_core.operacje import (
+    NieOstatnieZdarzenie,
+    odznacz_zrobione,
+    wycofaj_zdarzenie,
+    zapisz_doreczenie,
+    zaznacz_zrobione,
+)
 from starlette.datastructures import Headers, MutableHeaders
 from starlette.exceptions import HTTPException
 from starlette.middleware import Middleware
@@ -28,15 +34,24 @@ from kruczek_strona.ekrany import (
     NIE_MA_SPRAWY_TYTUL,
     NIE_ZAPISANO,
     ODRZUCONE_TRESC,
+    POWIADOMIENIE_COFNIETO,
     STARY_FORMAT_TRESC,
     STARY_FORMAT_TYTUL,
     WROC_DO_LISTY_SPRAW,
+    Powiadomienie,
+    alert_nie_ostatnie,
+    blad_doreczenia_przed_nadaniem,
     komunikat_formularza,
+    powiadomienie_doreczenia,
     powiadomienie_otwarte,
     powiadomienie_zrobione,
 )
-from kruczek_strona.format import polecenie
-from kruczek_strona.formularze import FormularzZadania
+from kruczek_strona.format import data_doreczenia, polecenie
+from kruczek_strona.formularze import (
+    FormularzCofniecia,
+    FormularzDoreczenia,
+    FormularzZadania,
+)
 from kruczek_strona.katalog import utworz_katalog
 from kruczek_strona.zaleznosci import (
     Dzis,
@@ -161,6 +176,35 @@ def _trasy() -> APIRouter:
         except BladSprawy as e:
             return strona.bez_zapisu(f.widok, klucz, e)
         return strona.po_zapisie(f.widok, klucz, powiadomienie_otwarte(z.opis))
+
+    @trasy.post("/sprawa/{klucz:path}/zadania/{zadanie_id}/doreczenie", dependencies=zapis)
+    def doreczenie(klucz: Klucz, zadanie_id: str, f: Annotated[FormularzDoreczenia, Form()], strona: StronaHTML,
+                   repo: Repo, d: Dzis) -> HTMLResponse:
+        try:
+            data = data_doreczenia(f.data, d)
+            kal = repo.kalendarz(klucz)
+            z, _ = repo.zmien(klucz, lambda s: zapisz_doreczenie(s, zadanie_id, data, kal, d, oczekiwany_opis=f.opis))
+        except ZdarzeniePrzedNadaniem as e:
+            blad = blad_doreczenia_przed_nadaniem(e.data_nadania)
+        except ValueError as e:
+            blad = str(e)
+        except BladSprawy as e:
+            return strona.bez_zapisu(f.widok, klucz, e)
+        else:
+            return strona.po_zapisie(f.widok, klucz, powiadomienie_doreczenia(klucz, z))
+        return strona.widok_sprawy(klucz, 422, bledy={zadanie_id: blad}, wartosci={zadanie_id: f.data})
+
+    @trasy.post("/sprawa/{klucz:path}/zdarzenia/{zdarzenie_id}/cofnij", dependencies=zapis)
+    def cofnij_zdarzenie(klucz: Klucz, zdarzenie_id: str, f: Annotated[FormularzCofniecia, Form()],
+                         strona: StronaHTML, repo: Repo) -> HTMLResponse:
+        kal = repo.kalendarz(klucz)
+        try:
+            repo.zmien(klucz, lambda s: wycofaj_zdarzenie(s, zdarzenie_id, kal, oczekiwane=(f.typ, f.data)))
+        except NieOstatnieZdarzenie:
+            return strona.widok_po_akcji(f.widok, klucz, 409, alert=alert_nie_ostatnie(klucz))
+        except BladSprawy as e:
+            return strona.bez_zapisu(f.widok, klucz, e)
+        return strona.po_zapisie(f.widok, klucz, Powiadomienie(POWIADOMIENIE_COFNIETO))
 
     return trasy
 
