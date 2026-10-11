@@ -259,6 +259,8 @@ def zapisz_doreczenie(s: Sprawa, zadanie_id: str, data: dt.date, kalendarz: Kale
     zadanie = _zadanie_o_opisie(s, zadanie_id, oczekiwany_opis)
     if zadanie.regula != REGULA_DORECZENIE or zadanie.zdarzenie_id is None:
         raise BladSprawy(f"zadanie {zadanie_id} nie jest sprawdzeniem doręczenia")
+    if zadanie.zrobione is not None:
+        raise BladSprawy(f"zadanie {zadanie_id} już zrobione ({zadanie.zrobione})")
     komunikaty = dopisz_zdarzenie(s, "doreczenie", data, kalendarz, dzis, watek=zadanie.watek,
                                   dotyczy=zadanie.zdarzenie_id)
     return s.zdarzenia[-1], komunikaty

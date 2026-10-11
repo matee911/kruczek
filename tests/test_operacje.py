@@ -538,3 +538,21 @@ def test_odznacz_zrobione_zamkniete_zdarzeniem_odmawia():
     # Act / Assert
     with pytest.raises(BladSprawy, match="cofnij to zdarzenie"):
         odznacz_zrobione(s, "a1", oczekiwany_opis="zrób")
+
+
+def test_zapisz_doreczenie_dwa_razy_to_blad_i_nie_dubluje_zdarzenia(katalog):
+    # Arrange
+    s, sprawdzenie = _po_nadaniu(katalog)
+    zapisz_doreczenie(s, sprawdzenie.id, D(2026, 10, 10), Kalendarz(), DZIS, oczekiwany_opis=sprawdzenie.opis)
+    # Act / Assert
+    with pytest.raises(BladSprawy, match="już zrobione"):
+        zapisz_doreczenie(s, sprawdzenie.id, D(2026, 10, 10), Kalendarz(), DZIS, oczekiwany_opis=sprawdzenie.opis)
+    assert [z.typ for z in s.zdarzenia] == ["nadanie", "doreczenie"]
+
+
+def test_wycofaj_zdarzenie_nieistniejace_z_oczekiwanym_to_konflikt(katalog):
+    # Arrange
+    s, _ = _po_nadaniu(katalog)
+    # Act / Assert
+    with pytest.raises(KonfliktRewizji):
+        wycofaj_zdarzenie(s, "z9", Kalendarz(), oczekiwane=("doreczenie", D(2026, 10, 10)))
