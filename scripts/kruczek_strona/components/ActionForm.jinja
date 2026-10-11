@@ -1,7 +1,9 @@
 {#def akcja #}
 {#- Formularz akcji zapisu: token sesji, widok do odświeżenia, htmx podmienia #tresc-dynamiczna.
-    Bez JS działa jak zwykły POST (serwer oddaje całą stronę). -#}
-<form {{ attrs.render(method="post", action=akcja, hx_post=akcja, hx_target="#tresc-dynamiczna", hx_swap="outerHTML") }}>
+    Bez JS działa jak zwykły POST (serwer oddaje całą stronę). settle:0 — htmx 4 w fazie settle
+    przenosi atrybuty ze starego elementu o tym samym id na nowy, więc pole daty po 422 pokazywało
+    starą wartość zamiast tej z odpowiedzi. -#}
+<form {{ attrs.render(method="post", action=akcja, hx_post=akcja, hx_target="#tresc-dynamiczna", hx_swap="outerHTML settle:0") }}>
   <input type="hidden" name="token" value="{{ token }}">
   <input type="hidden" name="widok" value="{{ widok }}">
   {{ content }}
