@@ -81,8 +81,9 @@ def test_port_poza_zakresem_kod_2(tmp_path, capsys, port):
     # Act
     with pytest.raises(SystemExit) as e:
         kruczek_serve.main([str(tmp_path), "--port", port])
-    # Assert
-    assert e.value.code == 2 and "błąd:" in capsys.readouterr().err
+    # Assert — argparse sam poprzedza komunikat „error:”, więc bez drugiego „błąd:”
+    err = capsys.readouterr().err
+    assert e.value.code == 2 and "error: argument --port: port" in err and "błąd" not in err
 
 
 def test_port_po_zamknieciu_gniazda_jest_wolny():
