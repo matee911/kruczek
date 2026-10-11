@@ -2,14 +2,13 @@ import datetime as dt
 
 import holidays
 import pytest
-
 from kruczek_core.dni_wolne import (
     PIERWSZY_ROK,
     PLIK_PROJEKTU,
     DzienJednorazowy,
     dni_ustawowo_wolne,
-    wczytaj_jednorazowe,
     kalendarz_sprawy,
+    wczytaj_jednorazowe,
     wczytaj_kalendarz,
     wielkanoc,
     zapisz_jednorazowy,

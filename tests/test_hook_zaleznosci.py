@@ -23,6 +23,7 @@ def _uruchom(tmp_path, programy):
         env={"PATH": str(bin_dir), "HOME": str(tmp_path)},
         capture_output=True,
         text=True,
+        check=False,
     )
 
 

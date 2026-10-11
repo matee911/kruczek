@@ -54,7 +54,7 @@ def wielkanoc(rok: int) -> dt.date:
     g = (b - f + 1) // 3
     h = (19 * a + b - d - g + 15) % 30
     i, k = divmod(c, 4)
-    l = (32 + 2 * e + 2 * i - h - k) % 7  # noqa: E741 — nazwa z algorytmu
+    l = (32 + 2 * e + 2 * i - h - k) % 7
     m = (a + 11 * h + 22 * l) // 451
     miesiac, dzien = divmod(h + l - 7 * m + 114, 31)
     return dt.date(rok, miesiac, dzien + 1)

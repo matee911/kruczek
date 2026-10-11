@@ -883,9 +883,9 @@ class TestRundaTrzecia(unittest.TestCase):
 
         Najcięższy błąd rundy 3 — dotyczył całego korpusu, nie jednego pliku.
         """
-        zima = datetime.datetime(2025, 12, 2, 8, 29, 38, tzinfo=datetime.timezone.utc)
+        zima = datetime.datetime(2025, 12, 2, 8, 29, 38, tzinfo=datetime.UTC)
         self.assertIn("09:29:38 CET", raport.format_local(zima))
-        lato = datetime.datetime(2026, 8, 20, 12, 8, 26, tzinfo=datetime.timezone.utc)
+        lato = datetime.datetime(2026, 8, 20, 12, 8, 26, tzinfo=datetime.UTC)
         self.assertIn("14:08:26 CEST", raport.format_local(lato))
 
     def test_piksel_z_wymiarami_w_css(self):

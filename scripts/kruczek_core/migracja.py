@@ -18,7 +18,12 @@ from typing import Any
 
 from kruczek_core.dni_wolne import Kalendarz
 from kruczek_core.model import WYNIKI_SPRAWY, BladSprawy, Sprawa, kolejne_id
-from kruczek_core.operacje import dopisz_watek, dopisz_zadanie, dopisz_zdarzenie, utworz_sprawe
+from kruczek_core.operacje import (
+    dopisz_watek,
+    dopisz_zadanie,
+    dopisz_zdarzenie,
+    utworz_sprawe,
+)
 from kruczek_core.reguly import REGULA_DORECZENIE, REGULA_ODPOWIEDZ, SpecTerminu
 
 _POLA = {"tytul", "strona_przeciwna", "wlasciciel", "zamknieta", "wynik", "watki", "zdarzenia", "zadania"}
