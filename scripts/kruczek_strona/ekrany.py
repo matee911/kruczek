@@ -317,7 +317,7 @@ def ekran_sprawy(klucz: str, s: Sprawa, kal: Kalendarz, dzis: dt.date) -> EkranS
 # --- zapis ze strony: alerty, toasty i błędy formularza ------------------------------------------
 
 NIE_ZAPISANO = "Nie zapisano"
-FORMULARZ_ZA_DUZY = f"{NIE_ZAPISANO}: formularz jest za duży."
+FORMULARZ_ZA_DUZY = "Formularz jest za duży. Odśwież stronę i spróbuj jeszcze raz."
 KONFLIKT = Komunikat("Sprawa zmieniła się w międzyczasie",
                      "Ktoś zapisał ją w innym miejscu (np. w rozmowie z Claude). Pokazuję aktualny stan — "
                      "sprawdź i kliknij jeszcze raz, jeśli trzeba.")

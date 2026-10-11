@@ -8,7 +8,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, FastAPI, Form, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import HTMLResponse, PlainTextResponse
+from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from kruczek_core.model import BladSprawy, ZdarzeniePrzedNadaniem
 from kruczek_core.operacje import (
@@ -104,7 +104,8 @@ class Naglowki:
 
 class LimitFormularza:
     """Ciało żądania zapisu (POST): z podaną długością i najwyżej MAKS_FORMULARZ bajtów. FastAPI czyta formularz,
-    zanim zadziała jakakolwiek zależność, więc limit stoi przed aplikacją."""
+    zanim zadziała jakakolwiek zależność, więc limit stoi przed aplikacją. Odmowa to zwykła strona błędu —
+    dla htmx fragment z #tresc-dynamiczna, żeby podmiana nie zgubiła celu kolejnych akcji."""
 
     def __init__(self, app: ASGIApp) -> None:
         self.app = app
@@ -113,7 +114,9 @@ class LimitFormularza:
         if scope["type"] == "http" and scope["method"] == "POST":
             dlugosc = Headers(scope=scope).get("content-length", "")
             if not dlugosc.isdigit() or int(dlugosc) > MAKS_FORMULARZ:
-                await PlainTextResponse(FORMULARZ_ZA_DUZY, status_code=413)(scope, receive, send)
+                odpowiedz = strona_bledu(scope["app"].state.katalog, Request(scope), 413, NIE_ZAPISANO,
+                                         FORMULARZ_ZA_DUZY)
+                await odpowiedz(scope, receive, send)
                 return
         await self.app(scope, receive, send)
 
