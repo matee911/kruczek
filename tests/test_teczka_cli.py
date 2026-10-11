@@ -366,8 +366,21 @@ def test_co_robic_sprawdzenie_odpowiedzi_po_terminie_adresata_jest_po_terminie_i
     # Assert
     teraz, reszta = out.split("CZEKAM")
     linia = next(w for w in teraz.splitlines() if "sprawdź, czy przyszła odpowiedź" in w)
-    assert "PO TERMINIE (5 dni)" in linia
+    assert "termin 2026-10-15" in linia and "PO TERMINIE (5 dni)" in linia
     assert reszta.split("WKRÓTCE")[0].strip() == "—"
+
+
+def test_co_robic_sprawdzenie_odpowiedzi_nie_ostrzega_o_zamknietych_urzedach(projekt, capsys):
+    # Arrange — koniec terminu adresata 15.10 wypada w dzień zamknięcia urzędów
+    sprawa = str(projekt / "spamer")
+    uruchom(capsys, "zdarzenie", sprawa, "--typ", "nadanie", "--data", "2026-10-01", "--watek", "firma",
+            "--termin", "14d", "--podstawa", "art. 7 u.r.")
+    uruchom(capsys, "dzien-wolny", "2026-10-15", "--podstawa", "test", "--tylko-urzedy", "--projekt", str(projekt))
+    # Act
+    _, out, _ = uruchom(capsys, "co-robic", str(projekt))
+    # Assert
+    linia = next(w for w in out.splitlines() if "sprawdź, czy przyszła odpowiedź" in w)
+    assert "termin 2026-10-15" in linia and "wyślij wcześniej" not in linia
 
 
 def test_co_robic_sekcja_bez_ruchu_z_liczba_dni_ze_stalej(projekt, capsys):
