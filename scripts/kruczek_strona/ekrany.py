@@ -1,7 +1,7 @@
 """Dane ekranów strony: co pokazać na karcie, w wierszu i na osi czasu.
 
-Terminy, „po terminie”, piłkę i sekcje liczy kruczek_core (przeglad_projektu, sekcje,
-uwagi_terminu). Tu tylko dobór słów i znaczników według design systemu: daty dd.mm.rrrr,
+Terminy, „po terminie”, piłkę, sekcje i dni zamknięcia urzędów liczy kruczek_core (przeglad_projektu,
+sekcje, zamkniecia_urzedow). Tu tylko dobór słów i znaczników według design systemu: daty dd.mm.rrrr,
 kto ma termin, jaki znacznik i jaka akcja na karcie. Tylko stdlib i kruczek_core.
 """
 
@@ -13,7 +13,7 @@ from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from urllib.parse import quote
 
-from kruczek_core.dni_wolne import Kalendarz
+from kruczek_core.dni_wolne import DzienJednorazowy, Kalendarz
 from kruczek_core.model import (
     ZDARZENIA_PRZYCHODZACE,
     Sprawa,
@@ -24,7 +24,6 @@ from kruczek_core.model import (
 )
 from kruczek_core.projekt import PrzegladProjektu
 from kruczek_core.reguly import REGULA_ANALIZA, REGULA_DORECZENIE, REGULA_ODPOWIEDZ
-from kruczek_core.render import uwagi_terminu
 from kruczek_core.widok import (
     BezRuchu,
     KrokiStartowe,
@@ -33,6 +32,7 @@ from kruczek_core.widok import (
     StanWatku,
     co_robic,
     sekcje,
+    zamkniecia_urzedow,
 )
 
 from kruczek_strona.format import (
@@ -78,6 +78,17 @@ def _kto_ma_termin(s: Sprawa, t: Termin) -> str | None:
     if t.czyj == "moj":
         return strona_sprawy(s)
     return s.znajdz_watek(t.watek).adresat if t.watek else s.strona_przeciwna
+
+
+def uwaga_zamkniecia(j: DzienJednorazowy, *, twoj_termin: bool) -> str:
+    """Dzień zamknięcia urzędów w dniu terminu. „Wyślij wcześniej” tylko przy Twoim terminie —
+    przy terminie adresata to on musi zdążyć.
+
+    >>> j = DzienJednorazowy(dt.date(2026, 10, 23), "test", True)
+    >>> uwaga_zamkniecia(j, twoj_termin=True), uwaga_zamkniecia(j, twoj_termin=False)
+    ('urzędy zamknięte 23.10.2026 (test) — wyślij wcześniej', 'urzędy zamknięte 23.10.2026 (test)')
+    """
+    return f"urzędy zamknięte {data_pl(j.data)} ({j.podstawa})" + (" — wyślij wcześniej" if twoj_termin else "")
 
 
 def opis_terminu(s: Sprawa, t: Termin) -> str:
@@ -219,7 +230,7 @@ def karta_zadania(p: PozycjaZadania, s: Sprawa, kal: Kalendarz, dzis: dt.date, *
     dlaczego = ""
     if t is not None:
         dlaczego = opis_terminu(s, t) + (" · termin szacunkowy — wpisz datę doręczenia" if t.szacunek else "")
-    uwagi = kal.ostrzezenia(p.termin_konca) if p.termin_konca else []
+    uwagi = [uwaga_zamkniecia(j, twoj_termin=True) for j in zamkniecia_urzedow(p, kal)]
     if wkrotce:
         return KartaZadania(p.klucz, a, status, kiedy, dlaczego, uwagi, "")
     if a.regula == REGULA_DORECZENIE:
@@ -275,7 +286,8 @@ def ekran_co_robic(pp: PrzegladProjektu, dzis: dt.date) -> EkranCoRobic:
 
 def _wpis_terminu(s: Sprawa, t: Termin, kal: Kalendarz) -> Wpis:
     status = "estimate" if t.szacunek else ("ours" if t.czyj == "moj" else "waiting")
-    meta = [t.podstawa, *uwagi_terminu(t, kal)] + ([f"wątek: {t.watek}"] if t.watek else [])
+    zamkniecia = [uwaga_zamkniecia(j, twoj_termin=t.czyj == "moj") for j in kal.zamkniete_urzedy(t.data_konca)]
+    meta = [t.podstawa, *(["szacunek"] if t.szacunek else []), *zamkniecia] + ([f"wątek: {t.watek}"] if t.watek else [])
     kto = _kto_ma_termin(s, t)
     co = f"{kto + ': ' if kto else ''}{dlugosc_slownie(t.dlugosc)}"
     return Wpis(f"{'ok. ' if t.szacunek else ''}{data_pl(t.data_konca)}", "due", co, status, meta)

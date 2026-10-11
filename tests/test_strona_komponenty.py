@@ -32,7 +32,7 @@ def render(katalog, nazwa, widok="przeglad", **kw):
 def karta(akcja="zrobione", opis="Wyślij pismo", status="ours", klucz="sprawa-a", watek="firma"):
     return KartaZadania(klucz, Zadanie("a3", opis, D(2026, 10, 1), watek=watek), status,
                         "do 13.10.2026 · zostały 4 dni", "Osoba Testowa: 7 dni — art. 1 testowej ustawy",
-                        ["urzędy zamknięte 2026-10-13"], akcja, "/kruczek:eskalacja sprawa-a")
+                        ["urzędy zamknięte 13.10.2026 (test) — wyślij wcześniej"], akcja, "/kruczek:eskalacja sprawa-a")
 
 
 @pytest.mark.parametrize("status, slowo", [("overdue", "Po terminie"), ("soon", "Wkrótce"), ("ours", "Nasz termin"),
@@ -85,7 +85,7 @@ def test_task_card_zrobione_formularz_z_tokenem_i_opisem(katalog):
     assert 'hx-post="/sprawa/sprawa-a/zadania/a3/zrobione"' in html
     assert 'name="token" value="token-testowy"' in html and 'name="widok" value="przeglad"' in html
     assert 'name="opis" value="Wyślij pismo"' in html
-    assert "Osoba Testowa: 7 dni" in html and "urzędy zamknięte 2026-10-13" in html
+    assert "Osoba Testowa: 7 dni" in html and "urzędy zamknięte 13.10.2026 (test) — wyślij wcześniej" in html
     assert 'href="/sprawa/sprawa-a">sprawa-a</a>' in html and "Pokaż sprawę" in html
 
 

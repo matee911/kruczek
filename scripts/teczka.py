@@ -46,6 +46,7 @@ from kruczek_core.dni_wolne import (
     DzienJednorazowy,
     Kalendarz,
     kalendarz_sprawy,
+    ostrzezenie,
     zapisz_jednorazowy,
 )
 from kruczek_core.migracja import (
@@ -82,7 +83,13 @@ from kruczek_core.repozytorium import (
     wczytaj,
     zapisz_nowa,
 )
-from kruczek_core.widok import DNI_BEZ_RUCHU, PozycjaZadania, Przeglad, sekcje
+from kruczek_core.widok import (
+    DNI_BEZ_RUCHU,
+    PozycjaZadania,
+    Przeglad,
+    sekcje,
+    zamkniecia_urzedow,
+)
 
 _WZGLEDNA = re.compile(r"^\+(\d+)([dt])$")
 
@@ -230,8 +237,7 @@ def _linia_zadania(p: PozycjaZadania, kal: Kalendarz, dzis: dt.date) -> str:
         dopiski.append(f"termin {p.termin_konca.isoformat()}")
         if p.po_terminie:
             dopiski.append(f"PO TERMINIE ({p.po_terminie} dni)")
-        if z.termin is not None:
-            dopiski += kal.ostrzezenia(z.termin)
+        dopiski += [ostrzezenie(j) for j in zamkniecia_urzedow(p, kal)]
     reszta = f"  {'; '.join(dopiski)}" if dopiski else ""
     return f"[{z.id}] {p.klucz}: {p.sprawa}{watek} — {z.opis}{reszta}"
 

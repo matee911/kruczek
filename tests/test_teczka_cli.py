@@ -383,6 +383,18 @@ def test_co_robic_sprawdzenie_odpowiedzi_nie_ostrzega_o_zamknietych_urzedach(pro
     assert "termin 2026-10-15" in linia and "wyślij wcześniej" not in linia
 
 
+def test_co_robic_wlasny_termin_zadania_ostrzega_o_zamknietych_urzedach(projekt, capsys):
+    # Arrange
+    uruchom(capsys, "zadanie", str(projekt / "spamer"), "złóż wniosek", "--aktywne-od", "2026-10-01",
+            "--termin", "2026-10-23")
+    uruchom(capsys, "dzien-wolny", "2026-10-23", "--podstawa", "test", "--tylko-urzedy", "--projekt", str(projekt))
+    # Act
+    _, out, _ = uruchom(capsys, "co-robic", str(projekt))
+    # Assert
+    linia = next(w for w in out.splitlines() if "złóż wniosek" in w)
+    assert linia.endswith("termin 2026-10-23; urzędy zamknięte 2026-10-23 (test) — wyślij wcześniej")
+
+
 def test_co_robic_sekcja_bez_ruchu_z_liczba_dni_ze_stalej(projekt, capsys):
     # Arrange
     uruchom(capsys, "zdarzenie", str(projekt / "spamer"), "--typ", "fakt", "--data", "2026-08-01")

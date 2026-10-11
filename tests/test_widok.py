@@ -1,6 +1,6 @@
 import datetime as dt
 
-from kruczek_core.dni_wolne import Kalendarz
+from kruczek_core.dni_wolne import DzienJednorazowy, Kalendarz
 from kruczek_core.model import Sprawa, Watek, Zadanie, Zdarzenie
 from kruczek_core.reguly import (
     REGULA_DORECZENIE,
@@ -10,7 +10,13 @@ from kruczek_core.reguly import (
     SpecTerminu,
     zastosuj,
 )
-from kruczek_core.widok import KrokiStartowe, co_robic, sekcje, stan_watku
+from kruczek_core.widok import (
+    KrokiStartowe,
+    co_robic,
+    sekcje,
+    stan_watku,
+    zamkniecia_urzedow,
+)
 
 D = dt.date
 DZIS = D(2026, 10, 20)
@@ -290,3 +296,20 @@ def test_kroki_startowe_jednej_sprawy_zwiniete_w_jedna_pozycje():
     zwiniete = [p for p in sek.teraz if isinstance(p, KrokiStartowe)]
     assert len(zwiniete) == 1 and len(sek.teraz) == 2
     assert (zwiniete[0].zrobione, len(zwiniete[0].kroki), zwiniete[0].klucz) == (2, 6, "S")
+
+
+def test_zamkniecia_urzedow_tylko_dla_wlasnego_terminu_zadania():
+    # Arrange — termin firmy (14d od 01.10) i własny termin zadania kończą się 15.10,
+    # w dzień zamknięcia urzędów
+    zamkniete = DzienJednorazowy(D(2026, 10, 15), "test", True)
+    kal = Kalendarz((zamkniete,))
+    s = sprawa("A", [Zadanie("a9", "Złóż wniosek", D(2026, 10, 1), termin=D(2026, 10, 15))])
+    z1 = Zdarzenie("z1", D(2026, 10, 1), "nadanie", watek="firma")
+    s.zdarzenia.append(z1)
+    zastosuj(s, z1, SpecTerminu("14d", "test"), Kalendarz())
+    # Act
+    p = co_robic(pary(s), DZIS)
+    # Assert
+    zamkniecia = {x.zadanie.regula or x.zadanie.id: zamkniecia_urzedow(x, kal) for x in p.teraz}
+    assert zamkniecia["a9"] == [zamkniete]
+    assert zamkniecia[REGULA_ODPOWIEDZ] == []
