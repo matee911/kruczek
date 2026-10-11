@@ -328,6 +328,28 @@ def powiadomienie_otwarte(opis: str) -> Powiadomienie:
     return Powiadomienie(f"Zadanie znów otwarte: „{opis}”.")
 
 
+NIE_OSTATNIE_TYTUL = "Tego wpisu nie cofniesz już tutaj"
+POWIADOMIENIE_COFNIETO = "Cofnięto wpis doręczenia."
+
+
+def blad_doreczenia_przed_nadaniem(data_nadania: dt.date) -> str:
+    return (f"Pismo nadano {data_pl(data_nadania)} — doręczenie nie mogło być wcześniej. "
+            "Sprawdź datę w potwierdzeniu odbioru.")
+
+
+def powiadomienie_doreczenia(klucz: str, zdarzenie: Zdarzenie) -> Powiadomienie:
+    cofnij = f"{url_sprawy(klucz)}/zdarzenia/{zdarzenie.id}/cofnij"
+    return Powiadomienie(f"Zapisano doręczenie {data_pl(zdarzenie.data)}. Termin liczy się teraz od tej daty.",
+                         cofnij, {"typ": zdarzenie.typ, "data": zdarzenie.data.isoformat()})
+
+
+def alert_nie_ostatnie(klucz: str) -> Komunikat:
+    """„Cofnij” doręczenia, po którym jest już nowsze zdarzenie — poprawia się je w rozmowie z Claude."""
+    return Komunikat(NIE_OSTATNIE_TYTUL,
+                     "Po nim w sprawie jest nowsze zdarzenie. Popraw albo cofnij je w rozmowie z Claude:",
+                     polecenie=polecenie("chronologia", klucz))
+
+
 def komunikat_formularza(bledy: Iterable[Mapping[str, object]]) -> Komunikat:
     """Błędy kształtu formularza (lista z pydantic) po polsku: które pola i co zrobić. Tekstów pydantic
     nie pokazujemy — taki formularz nie pochodzi z aktualnej strony, poprawia go odświeżenie.

@@ -16,7 +16,7 @@ from kruczek_core.operacje import (
     utworz_sprawe,
 )
 from kruczek_core.projekt import SpisProjektu
-from kruczek_core.reguly import SpecTerminu
+from kruczek_core.reguly import REGULA_DORECZENIE, SpecTerminu
 from kruczek_strona.app import utworz_aplikacje
 from kruczek_strona.ekrany import BLAD_SERWERA_TYTUL
 from kruczek_strona.zaleznosci import Ustawienia, dzis, repozytorium
@@ -225,3 +225,45 @@ def test_uwaga_odswiezenia_index_to_alert_nie_blad_zapisu(repo):
     # Assert
     assert r.status_code == 200 and "Zapisano, ale index.md nie jest aktualny" in r.text
     assert zadanie(repo, "snapshot Web Archive").zrobione == DZIS
+
+
+# --- doręczenie -----------------------------------------------------------------------------------
+
+@pytest.mark.parametrize("wpis, komunikat", [
+    ("", "Wpisz datę doręczenia."),
+    ("31.09.2026", "Wrzesień 2026 ma 30 dni."),
+    ("21.10.2026", "Data jest z przyszłości."),
+    ("07.10.2026", "Pismo nadano 08.10.2026 — doręczenie nie mogło być wcześniej."),
+])
+def test_doreczenie_zla_data_blad_pola_i_nic_nie_zapisane(repo, klient, wpis, komunikat):
+    # Arrange
+    sprawdzenie = zadanie(repo, regula=REGULA_DORECZENIE)
+    # Act
+    r = post(klient, f"/sprawa/sprawa-a/zadania/{sprawdzenie.id}/doreczenie", widok="sprawa",
+             opis=sprawdzenie.opis, data=wpis)
+    # Assert
+    assert r.status_code == 422
+    assert komunikat in r.text and 'aria-invalid="true"' in r.text and f'value="{wpis}"' in r.text
+    assert [z.typ for z in repo.sprawy["sprawa-a"].zdarzenia] == ["nadanie"] and repo.zapisy == 0
+
+
+def test_cofnij_doreczenie_przywraca_szacunek(repo, klient):
+    # Arrange
+    sprawdzenie = zadanie(repo, regula=REGULA_DORECZENIE)
+    post(klient, f"/sprawa/sprawa-a/zadania/{sprawdzenie.id}/doreczenie", widok="sprawa",
+         opis=sprawdzenie.opis, data="10.10.2026")
+    zid = repo.sprawy["sprawa-a"].zdarzenia[-1].id
+    # Act
+    r = post(klient, f"/sprawa/sprawa-a/zdarzenia/{zid}/cofnij", widok="sprawa", typ="doreczenie", data="2026-10-10")
+    # Assert
+    assert r.status_code == 200 and "Cofnięto wpis doręczenia." in r.text
+    s = repo.sprawy["sprawa-a"]
+    assert [z.typ for z in s.zdarzenia] == ["nadanie"] and s.terminy[0].szacunek is True
+
+
+def test_cofnij_z_data_nie_iso_to_blad_ksztaltu_po_polsku(repo, klient):
+    # Act — toast wysyła datę ISO; inna postać to formularz spoza tej strony
+    r = post(klient, "/sprawa/sprawa-a/zdarzenia/z1/cofnij", typ="nadanie", data="08.10.2026")
+    # Assert
+    assert r.status_code == 422 and "Nie zapisano" in r.text and "data" in r.text
+    assert "Input should" not in r.text and repo.zapisy == 0
