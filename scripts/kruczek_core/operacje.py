@@ -220,6 +220,14 @@ class NieOstatnieZdarzenie(BladSprawy):
     """Cofnąć można tylko ostatnie zdarzenie — starsze poprawia się w rozmowie (popraw-zdarzenie)."""
 
 
+class ZadanieJuzZrobione(BladSprawy):
+    """Zadanie zamknięto wcześniej (np. w drugiej karcie strony albo w rozmowie z Claude)."""
+
+
+class ZadanieNieZrobione(BladSprawy):
+    """„Cofnij” zadania, które jest już otwarte."""
+
+
 def _zadanie_o_opisie(s: Sprawa, zadanie_id: str, opis: str) -> Zadanie:
     """Zadanie, które widziała strona: to samo id i ten sam opis. Inaczej ktoś je w międzyczasie
     cofnął, a numer trafił do innego zadania."""
@@ -235,7 +243,7 @@ def zaznacz_zrobione(s: Sprawa, zadanie_id: str, dzis: dt.date, *, oczekiwany_op
         _zadanie_o_opisie(s, zadanie_id, oczekiwany_opis)
     zadanie = s.znajdz_zadanie(zadanie_id)
     if zadanie.zrobione is not None:
-        raise BladSprawy(f"zadanie {zadanie_id} już zrobione ({zadanie.zrobione})")
+        raise ZadanieJuzZrobione(f"zadanie {zadanie_id} już zrobione ({zadanie.zrobione})")
     zadanie.zrobione = dzis
     return zadanie
 
@@ -245,7 +253,7 @@ def odznacz_zrobione(s: Sprawa, zadanie_id: str, *, oczekiwany_opis: str) -> Zad
     zdarzeniem (np. doręczeniem) otwiera się, cofając to zdarzenie."""
     zadanie = _zadanie_o_opisie(s, zadanie_id, oczekiwany_opis)
     if zadanie.zrobione is None:
-        raise BladSprawy(f"zadanie {zadanie_id} nie jest zrobione")
+        raise ZadanieNieZrobione(f"zadanie {zadanie_id} nie jest zrobione")
     if zadanie.zamkniete_przez is not None:
         raise BladSprawy(f"zadanie {zadanie_id} zamknęło zdarzenie {zadanie.zamkniete_przez} — cofnij to zdarzenie")
     zadanie.zrobione = None
@@ -260,7 +268,7 @@ def zapisz_doreczenie(s: Sprawa, zadanie_id: str, data: dt.date, kalendarz: Kale
     if zadanie.regula != REGULA_DORECZENIE or zadanie.zdarzenie_id is None:
         raise BladSprawy(f"zadanie {zadanie_id} nie jest sprawdzeniem doręczenia")
     if zadanie.zrobione is not None:
-        raise BladSprawy(f"zadanie {zadanie_id} już zrobione ({zadanie.zrobione})")
+        raise ZadanieJuzZrobione(f"zadanie {zadanie_id} już zrobione ({zadanie.zrobione})")
     komunikaty = dopisz_zdarzenie(s, "doreczenie", data, kalendarz, dzis, watek=zadanie.watek,
                                   dotyczy=zadanie.zdarzenie_id)
     return s.zdarzenia[-1], komunikaty

@@ -141,7 +141,7 @@ class Strona:
 
     def po_zapisie(self, widok: str, klucz: str, powiadomienie: Powiadomienie) -> HTMLResponse:
         uwaga = self.repo.odswiez_widok(klucz)
-        alert = alert_index_nieaktualny(uwaga) if uwaga else None
+        alert = alert_index_nieaktualny(klucz, uwaga) if uwaga else None
         return self.widok_po_akcji(widok, klucz, alert=alert, powiadomienie=powiadomienie)
 
 

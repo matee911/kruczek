@@ -134,6 +134,15 @@ def polecenie(skill: str, klucz: str) -> str:
     return f"/kruczek:{skill} {shlex.quote(klucz)}"
 
 
+def odswiez_index_w_sprawie(klucz: str) -> str:
+    """Prośba do Claude o odświeżenie tabel index.md (nie ma na to osobnego polecenia /kruczek:).
+
+    >>> odswiez_index_w_sprawie("sprawa-a")
+    'Odśwież index.md w sprawie sprawa-a (teczka.py renderuj)'
+    """
+    return f"Odśwież index.md w sprawie {klucz} (teczka.py renderuj)"
+
+
 def dalej_ze_sprawa(klucz: str) -> str:
     """
     >>> dalej_ze_sprawa("sprawa-a")
