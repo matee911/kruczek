@@ -76,6 +76,7 @@ i odczytu skanów.
 /kruczek:recenzja              # fakty, ryzyko, język, siła — ostatnia bramka
 /kruczek:chronologia           # dopisz nadanie i doręczenie
 /kruczek:status                # co się dzieje we wszystkich sprawach
+/kruczek:serve                 # te same sprawy w przeglądarce, z „Zrobione” i datą doręczenia
 /kruczek:eskalacja             # co dalej, gdy termin minął
 /kruczek:migruj                # stara teczka → sprawa.json (po aktualizacji z 0.8.x)
 ```

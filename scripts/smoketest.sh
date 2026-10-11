@@ -383,6 +383,11 @@ smoke_cmd_fixture "teczka.py przelicz"    python3 "$T" setup_teczka przelicz spr
 smoke_cmd_fixture "teczka.py dzien-wolny" python3 "$T" setup_teczka dzien-wolny 2030-01-02 --podstawa test --projekt .
 
 echo
+echo "=== realne podkomendy (kruczek_serve.py) — brak katalogu projektu: kontrolowany błąd, bez bibliotek strony ==="
+KS="$SCRIPTS_DIR/kruczek_serve.py"
+smoke_cmd "kruczek_serve.py nie-ma-katalogu" python3 "$KS" nie-ma-katalogu
+
+echo
 echo "=== realne podkomendy (nowa-sprawa.sh, gen-claude-md.sh, init-projekt.sh) ==="
 NS="$SCRIPTS_DIR/nowa-sprawa.sh"
 smoke_cmd "nowa-sprawa.sh z argumentami" bash "$NS" "Testowa Sp. z o.o." "test smoketestu" .
