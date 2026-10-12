@@ -9,6 +9,7 @@ this suite.
 
 import io
 import os
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -17,6 +18,7 @@ from pathlib import Path
 from unittest import mock
 
 import build_pismo
+import build_pismo_logic
 
 
 def run_main(argv):
@@ -93,7 +95,7 @@ class TestRenderMd(unittest.TestCase):
             ):
                 out = build_pismo.render_md(path)
             run.assert_called_once_with(
-                ["pandoc", "-f", "markdown", "-t", "html5", path],
+                ["pandoc", "-f", "markdown-raw_html", "-t", "html5", path],
                 capture_output=True,
                 text=True,
                 check=True,
@@ -172,11 +174,22 @@ def _pdffonts_table(*, unembedded=()):
 
 class TestMain(unittest.TestCase):
     def _run_with(self, which_map, run_side_effect, argv):
+        # `weasyprint --help` odpowiada pusto (stara wersja bez --allowed-protocols), a Chrome
+        # znajdowany jest wyłącznie przez which_map — wynik nie zależy od tego, co stoi na maszynie.
+        def run(cmd, **kwargs):
+            if cmd[:2] == ["weasyprint", "--help"]:
+                return mock.Mock(returncode=0, stdout="", stderr="")
+            return run_side_effect(cmd, **kwargs)
+
+        bez_sciezek_bezwzglednych = tuple(
+            c for c in build_pismo.CHROME_CANDIDATES if not os.path.isabs(c)
+        )
         with (
             mock.patch(
                 "build_pismo.shutil.which", side_effect=lambda n: which_map.get(n)
             ),
-            mock.patch("build_pismo.subprocess.run", side_effect=run_side_effect),
+            mock.patch("build_pismo.CHROME_CANDIDATES", bez_sciezek_bezwzglednych),
+            mock.patch("build_pismo.subprocess.run", side_effect=run),
         ):
             return run_main(argv)
 
@@ -389,6 +402,194 @@ class TestMain(unittest.TestCase):
             self.assertEqual(code, 0)
             self.assertIn("nie udało się odczytać nagłówka pdffonts", stdout)
             self.assertNotIn("Popraw powyższe", stdout)
+
+
+class TestBezpieczenstwoTresci(unittest.TestCase):
+    CSP = (
+        """<meta http-equiv="Content-Security-Policy" content="default-src 'none'; """
+        """style-src 'unsafe-inline'; img-src data:">"""
+    )
+    SZABLON_PRAWDZIWY = Path(__file__).resolve().parent.parent / "templates" / "pismo.html"
+
+    def _szablon_z_trescia(self, tmp, tresc_html):
+        szablon = Path(tmp, "pismo.html")
+        szablon.write_text(
+            "<body><!--KRUCZEK:TRESC:START--><!--KRUCZEK:TRESC:END-->"
+            "<!--KRUCZEK:LISTA_ZALACZNIKOW--><!--KRUCZEK:ZALACZNIKI--></body>",
+            encoding="utf-8",
+        )
+        tresc = Path(tmp, "tresc.html")
+        tresc.write_text(tresc_html, encoding="utf-8")
+        return szablon, tresc
+
+    def test_tresc_z_obrazkiem_z_pliku_przerywa_budowanie(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            # Arrange
+            szablon, tresc = self._szablon_z_trescia(
+                tmp, '<p class="ust">Fakt.</p><img src="file:///etc/hosts">'
+            )
+            wyjscie = os.path.join(tmp, "p.pdf")
+            # Act
+            with mock.patch.object(build_pismo, "choose_engine", return_value=None):
+                _, kod = run_main([str(szablon), "-o", wyjscie, "--tresc", str(tresc)])
+            # Assert
+            self.assertIn("niedozwolony", str(kod))
+            self.assertFalse(os.path.exists(wyjscie + ".build.html"))
+
+    def test_tresc_z_plikiem_przerywa_przed_zapisem_html_i_pdf(self):
+        zle = {
+            "obraz z pliku": '<p>a</p><img src="file:///etc/hosts">',
+            "obraz z sieci": '<p>a</p><img src="https://example.invalid/p.png">',
+            "arkusz z sieci": '<link rel="stylesheet" href="https://example.invalid/a.css"><p>a</p>',
+            "styl w atrybucie": '<p style="background:url(https://example.invalid/p.png)">a</p>',
+            "ramka": '<iframe src="file:///etc/hosts"></iframe>',
+        }
+        for nazwa, html in zle.items():
+            with self.subTest(nazwa), tempfile.TemporaryDirectory() as tmp:
+                # Arrange
+                szablon, tresc = self._szablon_z_trescia(tmp, html)
+                wyjscie = os.path.join(tmp, "p.pdf")
+                # Act
+                with mock.patch("build_pismo.subprocess.run") as run:
+                    _, kod = run_main(
+                        [str(szablon), "-o", wyjscie, "--tresc", str(tresc), "--keep-html"]
+                    )
+                # Assert
+                self.assertIn("niedozwolony", str(kod))
+                self.assertFalse(os.path.exists(wyjscie + ".build.html"))
+                self.assertFalse(os.path.exists(wyjscie))
+                run.assert_not_called()
+
+    def test_html_z_pliku_tresc_ma_csp_szablonu(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            # Arrange
+            tresc = Path(tmp, "tresc.html")
+            tresc.write_text('<h1>WEZWANIE</h1><p class="ust">Fakt (zał. 1).</p>', encoding="utf-8")
+            wyjscie = os.path.join(tmp, "p.pdf")
+            # Act
+            with mock.patch.object(build_pismo, "choose_engine", return_value=None):
+                run_main([str(self.SZABLON_PRAWDZIWY), "-o", wyjscie, "--tresc", str(tresc), "--keep-html"])
+            # Assert
+            html = Path(wyjscie + ".build.html").read_text(encoding="utf-8")
+            self.assertIn(self.CSP, html)
+            self.assertIn('<h1>WEZWANIE</h1><p class="ust">Fakt (zał. 1).</p>', html)
+
+    def test_szablon_blokuje_zasoby_z_plikow_i_sieci(self):
+        # Arrange
+        szablon = self.SZABLON_PRAWDZIWY.read_text(encoding="utf-8")
+        # Assert
+        self.assertIn(self.CSP, szablon)
+
+    def test_walidacja_przepuszcza_tresc_ze_wzoru_szablonu(self):
+        # Arrange
+        szablon = self.SZABLON_PRAWDZIWY.read_text(encoding="utf-8")
+        tresc = szablon.split(build_pismo_logic.TRESC_START)[1].split(build_pismo_logic.TRESC_KONIEC)[0]
+        # Act / Assert
+        build_pismo_logic.sprawdz_tresc(tresc)
+
+    def test_weasyprint_dostaje_allowed_protocols_gdy_go_zna(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            # Arrange
+            tpl, out = os.path.join(tmp, "pismo.html"), os.path.join(tmp, "out.pdf")
+            Path(tpl).write_text(
+                "<html><body>x<!--KRUCZEK:LISTA_ZALACZNIKOW--><!--KRUCZEK:ZALACZNIKI--></body></html>",
+                encoding="utf-8",
+            )
+            wywolania = []
+
+            def run(cmd, **kwargs):
+                wywolania.append(cmd)
+                if cmd[:2] == ["weasyprint", "--help"]:
+                    return mock.Mock(returncode=0, stdout="  --allowed-protocols <allowed-protocols>", stderr="")
+                if cmd[0] == "weasyprint":
+                    Path(cmd[2]).write_bytes(b"%PDF-1.4 fake")
+                return mock.Mock(returncode=0, stdout="", stderr="")
+
+            # Act
+            with (
+                mock.patch(
+                    "build_pismo.shutil.which",
+                    side_effect=lambda n: "/usr/bin/weasyprint" if n == "weasyprint" else None,
+                ),
+                mock.patch("build_pismo.subprocess.run", side_effect=run),
+            ):
+                run_main([tpl, "-o", out])
+            # Assert
+            render = [c for c in wywolania if c[0] == "weasyprint" and "--help" not in c]
+            self.assertEqual(render[0][-2:], ["--allowed-protocols", "data"])
+
+    def test_wkhtmltopdf_bez_dostepu_do_plikow_lokalnych(self):
+        # Act
+        cmd = build_pismo.command_for_engine(
+            "wkhtmltopdf",
+            out_path="o.pdf",
+            tmp_html_path="i.html",
+            margins={"T": "25mm", "B": "20mm", "L": "25mm", "R": "20mm"},
+        )
+        # Assert
+        self.assertIn("--disable-local-file-access", cmd)
+        self.assertNotIn("--enable-local-file-access", cmd)
+
+    def _chrome(self, run, argv):
+        with (
+            mock.patch("build_pismo.shutil.which", side_effect=lambda n: None),
+            mock.patch("build_pismo.find_chrome", return_value="/usr/bin/chrome"),
+            mock.patch("build_pismo.subprocess.run", side_effect=run),
+        ):
+            return run_main(argv)
+
+    def test_silnik_ktory_wisi_konczy_build_czytelnym_bledem(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            # Arrange
+            tpl, out = os.path.join(tmp, "pismo.html"), os.path.join(tmp, "out.pdf")
+            Path(tpl).write_text(
+                "<html><body>x<!--KRUCZEK:LISTA_ZALACZNIKOW--><!--KRUCZEK:ZALACZNIKI--></body></html>",
+                encoding="utf-8",
+            )
+
+            def run(cmd, **kwargs):
+                if cmd[0] == "/usr/bin/chrome":
+                    raise subprocess.TimeoutExpired(cmd, kwargs.get("timeout"))
+                return mock.Mock(returncode=0, stdout="", stderr="")
+
+            # Act
+            _, kod = self._chrome(run, [tpl, "-o", out])
+            # Assert
+            self.assertIn(f"nie skończył w {build_pismo.LIMIT_SILNIKA_S} s", str(kod))
+
+    def test_weasyprint_bez_flagi_przechodzi_na_chrome(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            # Arrange
+            tpl, out = os.path.join(tmp, "pismo.html"), os.path.join(tmp, "out.pdf")
+            Path(tpl).write_text(
+                "<html><body>x<!--KRUCZEK:LISTA_ZALACZNIKOW--><!--KRUCZEK:ZALACZNIKI--></body></html>",
+                encoding="utf-8",
+            )
+            wywolania = []
+
+            def run(cmd, **kwargs):
+                wywolania.append(cmd)
+                if cmd[:2] == ["weasyprint", "--help"]:
+                    return mock.Mock(returncode=0, stdout="usage: weasyprint [-h] input output", stderr="")
+                if cmd[0] == "/usr/bin/chrome":
+                    Path(
+                        next(x.split("=", 1)[1] for x in cmd if x.startswith("--print-to-pdf="))
+                    ).write_bytes(b"%PDF-1.4 fake")
+                return mock.Mock(returncode=0, stdout="", stderr="")
+
+            # Act
+            with (
+                mock.patch(
+                    "build_pismo.shutil.which",
+                    side_effect=lambda n: "/usr/bin/weasyprint" if n == "weasyprint" else None,
+                ),
+                mock.patch("build_pismo.find_chrome", return_value="/usr/bin/chrome"),
+                mock.patch("build_pismo.subprocess.run", side_effect=run),
+            ):
+                stdout, _ = run_main([tpl, "-o", out])
+            # Assert
+            self.assertIn("Silnik:    chrome", stdout)
+            self.assertFalse([c for c in wywolania if c[0] == "weasyprint" and "--help" not in c])
 
 
 class TestTresc(unittest.TestCase):

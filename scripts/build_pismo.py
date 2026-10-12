@@ -20,7 +20,8 @@ Użycie:
 
 --tresc (opcjonalne) wstawia gotową treść pisma z pliku HTML między znaczniki
 <!--KRUCZEK:TRESC:START--> i <!--KRUCZEK:TRESC:END--> szablonu — treść zapisuje agent
-napisz-pismo, skrypt jej nie przepisuje.
+napisz-pismo, skrypt jej nie przepisuje. Treść przechodzi przez białą listę znaczników
+(sprawdz_tresc): obrazki, linki, style i skrypty przerywają build przed zapisem HTML-a.
 
 Wymaga jeden z: weasyprint, Chrome/Chromium, wkhtmltopdf (próbowane w tej kolejności —
 żaden nie jest zakładany jako "ten jeden słuszny", bo różni użytkownicy mają różne
@@ -43,6 +44,7 @@ import sys
 from build_pismo_logic import (
     choose_engine,
     command_for_engine,
+    flagi_weasyprint,
     parse_attachment_spec,
     postprocess_pandoc_html,
     wstaw_tresc,
@@ -58,6 +60,7 @@ from utils import sha256_file as sha
 PRE_EXT = {".txt", ".eml", ".log", ".csv", ".json", ".msg", ".ini", ".xml"}
 IMG_EXT = {".png", ".jpg", ".jpeg", ".gif", ".webp"}
 MARGINS = {"T": "25mm", "B": "20mm", "L": "25mm", "R": "20mm"}
+LIMIT_SILNIKA_S = 120  # zasób, który nie odpowiada, nie zawiesi składania pisma bez końca
 
 CHROME_CANDIDATES = (
     "google-chrome",
@@ -82,12 +85,23 @@ def find_chrome():
     return None
 
 
+def uruchom_silnik(engine, cmd, **kwargs):
+    """subprocess.run z limitem czasu; silnik, który nie skończył, kończy build czytelnym błędem."""
+    try:
+        return subprocess.run(cmd, timeout=LIMIT_SILNIKA_S, **kwargs)
+    except subprocess.TimeoutExpired:
+        sys.exit(
+            f"BŁĄD: silnik PDF ({engine}) nie skończył w {LIMIT_SILNIKA_S} s — sprawdź, czy treść "
+            "i załączniki nie odwołują się do plików albo adresów, które nie odpowiadają."
+        )
+
+
 def render_md(path):
     if not shutil.which("pandoc"):
         with open(path, encoding="utf-8") as f:
             return "<pre>" + H.escape(f.read()) + "</pre>"
     out = subprocess.run(
-        ["pandoc", "-f", "markdown", "-t", "html5", path],
+        ["pandoc", "-f", "markdown-raw_html", "-t", "html5", path],
         capture_output=True,
         text=True,
         check=True,
@@ -205,6 +219,26 @@ def main():
             "${CLAUDE_PLUGIN_ROOT}/scripts/check-deps.sh."
         )
 
+    weasyprint_flagi = []
+    if engine == "weasyprint":
+        pomoc = uruchom_silnik(
+            engine, ["weasyprint", "--help"], capture_output=True, text=True, check=False
+        ).stdout
+        weasyprint_flagi = flagi_weasyprint(pomoc)
+        if not weasyprint_flagi and chrome:
+            print(
+                "UWAGA: ta wersja weasyprint nie zna --allowed-protocols — składam przez Chrome, "
+                "który blokuje pliki i sieć polityką CSP szablonu.",
+                file=sys.stderr,
+            )
+            engine = "chrome"
+        elif not weasyprint_flagi:
+            print(
+                "UWAGA: ta wersja weasyprint nie zna --allowed-protocols — silnik nie blokuje "
+                "obrazków z plików i sieci; zaktualizuj weasyprint albo zainstaluj Chrome.",
+                file=sys.stderr,
+            )
+
     # Marginesy i rozmiar strony bierze z @page w szablonie dla weasyprint i Chrome
     # (Chrome headless nie ma prostych flag CLI na marginesy, ale poprawnie honoruje
     # CSS paged media). wkhtmltopdf ma słabe wsparcie @page — bez --dpi w praktyce
@@ -217,15 +251,16 @@ def main():
         chrome_path=chrome,
         footer=a.stopka,
         margins=MARGINS,
+        weasyprint_flagi=weasyprint_flagi,
     )
     if engine == "weasyprint":
-        subprocess.run(cmd, check=True)
+        uruchom_silnik(engine, cmd, check=True)
     elif engine == "chrome":
-        r = subprocess.run(cmd, capture_output=True, text=True, check=False)
+        r = uruchom_silnik(engine, cmd, capture_output=True, text=True, check=False)
         if r.returncode != 0 or not os.path.exists(a.out):
             sys.exit("Chrome/Chromium headless: " + (r.stderr or "")[-800:])
     elif engine == "wkhtmltopdf":
-        r = subprocess.run(cmd, capture_output=True, text=True, check=False)
+        r = uruchom_silnik(engine, cmd, capture_output=True, text=True, check=False)
         if r.returncode != 0:
             sys.exit("wkhtmltopdf: " + (r.stderr or "")[-800:])
 
