@@ -171,6 +171,8 @@ def main():
         tpl = f.read()
 
     if a.tresc:
+        if not os.path.exists(a.tresc):
+            sys.exit(f"BŁĄD: brak pliku {a.tresc}")
         with open(a.tresc, encoding="utf-8") as f:
             try:
                 tpl = wstaw_tresc(tpl, f.read())
