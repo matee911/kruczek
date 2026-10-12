@@ -33,7 +33,10 @@ from kruczek_core.repozytorium import blokada, czy_folder_sprawy, zapisz_tekst_a
 from utils import human_size as human
 from utils import sha256_file as sha256
 
-SKIP_DIRS = {".git", "__pycache__", ".DS_Store", "node_modules", ".obsidian"}
+# ROBOCZE/ — na każdym poziomie, w sprawie i w katalogu wysyłki — trzyma pliki robocze: brief, treść
+# i kopię szablonu pisma, podsumowania, kopię index.md sprzed migracji. Zmieniają się przy każdej
+# poprawce i nie są dowodem, więc nie wchodzą do sum ani do manifestu.
+SKIP_DIRS = {".git", "__pycache__", ".DS_Store", "node_modules", ".obsidian", "ROBOCZE"}
 # index.md nie wchodzi do manifestu: manifest jest w nim zapisywany, więc jego suma
 # zmieniałaby się przy każdym zapisie (odwołanie cykliczne). To plik roboczy sprawy,
 # nie dowód. SHA256SUMS.txt z tego samego powodu, a sprawa.json (dane teczki pisane
@@ -41,6 +44,29 @@ SKIP_DIRS = {".git", "__pycache__", ".DS_Store", "node_modules", ".obsidian"}
 SKIP_FILES = {"SHA256SUMS.txt", "index.md", "sprawa.json"}
 START = "<!-- KRUCZEK:MANIFEST:START -->"
 END = "<!-- KRUCZEK:MANIFEST:END -->"
+
+
+def czy_robocze(rel: str) -> bool:
+    """Czy ścieżka względna leży w katalogu ROBOCZE (na dowolnym poziomie).
+
+    >>> czy_robocze("2026_10_01-WEZWANIE-FIRMA_X-DO_WYSYLKI/ROBOCZE/tresc.html")
+    True
+    >>> czy_robocze("ROBOCZE/podsumowanie.md")
+    True
+    >>> czy_robocze("ARCHIWUM/ROBOCZE-notatka.pdf")
+    False
+    """
+    return "ROBOCZE" in rel.split("/")[:-1]
+
+
+def bez_roboczych(zapisane: dict[str, str]) -> tuple[dict[str, str], list[str]]:
+    """Oddziela wpisy SHA256SUMS z katalogów ROBOCZE — zapisane przez starsze wersje, dziś pomijane.
+
+    >>> bez_roboczych({"ARCHIWUM/a.pdf": "s1", "X-DO_WYSYLKI/ROBOCZE/BRIEF.md": "s2"})
+    ({'ARCHIWUM/a.pdf': 's1'}, ['X-DO_WYSYLKI/ROBOCZE/BRIEF.md'])
+    """
+    robocze = sorted(rel for rel in zapisane if czy_robocze(rel))
+    return {rel: sha for rel, sha in zapisane.items() if rel not in robocze}, robocze
 
 
 def walk(root):
@@ -84,8 +110,8 @@ def table(root):
         f"_Manifest wygenerowany "
         f"{datetime.datetime.now(tz=datetime.UTC).date().isoformat()} "
         f"skryptem `manifest.py`. "
-        f"Plików: {len(data)}. Pominięto `index.md` i `SHA256SUMS.txt` (pliki robocze teczki, "
-        f"nie dowody). Opisy plików prowadź w tabeli powyżej manifestu._"
+        f"Plików: {len(data)}. Pominięto `index.md`, `SHA256SUMS.txt` i katalogi `ROBOCZE/` "
+        f"(pliki robocze teczki, nie dowody). Opisy plików prowadź w tabeli powyżej manifestu._"
     )
     return "\n".join(L)
 
@@ -203,7 +229,10 @@ def _wykonaj(a):
                 print(f"Zapisano {p} ({len(lines)} plików)")
                 return
             text = p.read_text(encoding="utf-8")
-            diff = compare_manifest(actual, parse_sha256sums(text))
+            zapisane, robocze = bez_roboczych(parse_sha256sums(text))
+            if robocze:
+                print(f"ROBOCZE, pomijam: {len(robocze)} wpisów plików roboczych (wpisy zostają w SHA256SUMS)")
+            diff = compare_manifest(actual, zapisane)
             for rel in diff["missing"]:
                 print(f"BRAK PLIKU: {rel} (wpis zostaje w SHA256SUMS)")
             for rel, sha_recorded, sha_actual in diff["mismatched"]:
@@ -225,7 +254,9 @@ def _wykonaj(a):
         p = os.path.join(root, "SHA256SUMS.txt")
         if os.path.exists(p):
             with open(p, encoding="utf-8") as f:
-                recorded = parse_sha256sums(f.read())
+                recorded, robocze = bez_roboczych(parse_sha256sums(f.read()))
+            if robocze:
+                print(f"ROBOCZE, pomijam: {len(robocze)} wpisów plików roboczych (wpisy zostają w SHA256SUMS)")
             diff = compare_manifest(actual, recorded)
             for rel in diff["missing"]:
                 print(f"BRAK PLIKU: {rel}")
@@ -248,7 +279,10 @@ def _wykonaj(a):
         if os.path.exists(idx):
             with open(idx, encoding="utf-8") as f:
                 txt = f.read()
-            declared = set(re.findall(r"\b([0-9a-f]{64})\b", txt))
+            declared = {
+                s for linia in txt.splitlines() if "ROBOCZE/" not in linia
+                for s in re.findall(r"\b([0-9a-f]{64})\b", linia)
+            }
             real = set(actual.values())
             for d in sorted(declared - real):
                 print(f"SUMA W index.md BEZ ODPOWIADAJĄCEGO PLIKU: {d}")
