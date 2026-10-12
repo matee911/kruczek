@@ -5,7 +5,7 @@ argument-hint: "[ścieżka do pliku] [katalog sprawy]"
 disable-model-invocation: true
 model: haiku
 effort: low
-allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/eml_forensics.py *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/manifest.py *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/metadane.sh *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/archiwa.sh *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/teczka.py *) Bash(cp *) Bash(mkdir *) Bash(sha256sum *) Bash(file *) Bash(ls *) Bash(qpdf *) Bash(unzip *) Bash(7z *) Read Write Edit
+allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/eml_forensics.py *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/manifest.py *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/metadane.sh *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/archiwa.sh *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/teczka.py *) Bash(cp *) Bash(mkdir *) Bash(sha256sum *) Bash(file *) Bash(ls *) Bash(qpdf *) Bash(unzip *) Bash(7z *) Read Write Edit AskUserQuestion
 ---
 
 # Wciągnięcie dowodu do archiwum
@@ -37,6 +37,9 @@ Jeśli PDF zaszyfrowany, .zip lub .7z:
 - **Hasło NIE trafia do `index.md` ani chronologii** — zapisz wyłącznie: „plik był zaszyfrowany, odszyfrowano RRRR-MM-DD"
 
 ## 1. Ustal plik i sprawę
+
+Pytania do użytkownika zadawaj narzędziem AskUserQuestion — kilka naraz w jednym wywołaniu, gdy znasz je
+z góry (najwyżej 4), zamiast pytać w treści odpowiedzi.
 
 Jeśli nie podano ścieżki — zapytaj krótko. Jeśli nie podano sprawy — sprawdź `index.md`
 w bieżącym katalogu albo zapytaj.
@@ -162,6 +165,10 @@ ${CLAUDE_PLUGIN_ROOT}/scripts/manifest.py wstaw <sprawa>/index.md <sprawa>
 Jeśli zgłosi `NIEZGODNA SUMA` albo `BRAK PLIKU` (exit 1), zatrzymaj się i powiedz o tym
 użytkownikowi: dowód w archiwum zmienił się po zaewidencjonowaniu. Nie poprawiaj
 `SHA256SUMS.txt` ręcznie.
+
+Jeśli `sumy`, `wstaw` albo odświeżenie `index.md` przez `teczka.py` (krok 10) kończy się błędem lub ostrzeżeniem
+(np. „uszkodzone znaczniki manifestu — popraw ręcznie”, „index.md nie odświeżony”), pokaż komunikat
+użytkownikowi i nie edytuj `index.md` sam — w tym pliku są notatki użytkownika.
 
 W tabeli opisowej nad manifestem (`index.md` sekcja 4) dopisz: nazwa pliku + jedno zdanie co to jest i co dowodzi.
 

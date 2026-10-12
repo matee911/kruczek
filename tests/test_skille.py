@@ -89,3 +89,89 @@ def test_pismo_recenzuje_przez_agentow_a_nie_komende_usera():
     # Assert
     assert "weryfikuj-cytaty" in krok and "recenzuj" in krok
     assert martwe_wzmianki(krok, {"recenzja"}) == []
+
+
+PYTA_USERA = re.compile(r"zapytaj|dopytaj|zapytać|AskUserQuestion|pytaj użytkownika|pytaj usera", re.IGNORECASE)
+SKILLE_Z_MODELEM = sorted(k.name for k in SKILLE.iterdir() if (k / "SKILL.md").exists() and "model" in _skill(k.name)[0])
+
+
+@pytest.mark.parametrize("nazwa", SKILLE_Z_MODELEM)
+def test_skill_z_modelem_pyta_usera_przez_askuserquestion(nazwa):
+    # Arrange — model komendy obowiązuje w pierwszej turze; odpowiedź w prozie zaczyna nową turę modelem sesji
+    pola, tresc = _skill(nazwa)
+    if not PYTA_USERA.search(tresc):
+        pytest.skip("komenda nie pyta użytkownika")
+    # Act
+    narzedzia = pola.get("allowed-tools", "").split()
+    # Assert
+    assert "AskUserQuestion" in narzedzia
+
+
+def test_pismo_deleguje_redakcje_do_napisz_pismo_przez_pliki():
+    # Arrange
+    _, tresc = _skill("pismo")
+    # Act
+    napisz, zloz = _sekcja(tresc, 5), _sekcja(tresc, 6)
+    # Assert
+    assert "napisz-pismo" in napisz and "zawsze" in napisz and "BRIEF.md" in napisz
+    assert "Przy złożonej subsumpcji" not in napisz
+    assert "--tresc" in zloz and "tresc.html" in zloz
+
+
+def test_pismo_ogranicza_rundy_poprawek():
+    # Arrange
+    _, tresc = _skill("pismo")
+    # Act
+    krok = _sekcja(tresc, 8)
+    # Assert
+    assert "najwyżej jedna runda" in krok and "AskUserQuestion" in krok
+
+
+def test_pismo_sklada_raport_wedlug_skilla_recenzja_i_definiuje_przejscie():
+    # Arrange
+    _, tresc = _skill("pismo")
+    recenzja = (SKILLE / "recenzja" / "SKILL.md").read_text(encoding="utf-8")
+    # Act
+    krok = _sekcja(tresc, 8)
+    # Assert
+    assert "skills/recenzja/SKILL.md" in krok and "sekcji Raport" in krok
+    assert re.search(r"^## Raport$", recenzja, re.MULTILINE)
+    assert "przechodzi, gdy nie ma 🔴" in krok
+
+
+def test_napisz_pismo_ma_staly_model_opus_i_pisze_plik():
+    # Arrange
+    tekst = (AGENCI / "napisz-pismo.md").read_text(encoding="utf-8")
+    # Assert
+    assert _frontmatter(tekst).get("model") == "opus"
+    assert "tresc.html" in tekst and "Twierdzenia spoza briefu" in tekst
+
+
+def test_recenzuj_porownuje_pismo_z_briefem():
+    # Arrange
+    tekst = (AGENCI / "recenzuj.md").read_text(encoding="utf-8")
+    # Assert
+    assert "BRIEF.md" in tekst
+    assert "weryfikatorem-cytatow" not in tekst
+
+
+def test_fakt_nie_odsyla_do_samego_siebie():
+    # Arrange — model jest już wewnątrz /kruczek:fakt; podpowiedź ma wskazywać następny krok
+    _, tresc = _skill("fakt")
+    # Assert
+    assert "/kruczek:fakt" not in tresc
+
+
+PLIKI_Z_MANIFESTEM = [SKILLE / "dowod" / "SKILL.md", SKILLE / "pismo" / "SKILL.md", AGENCI / "archiwizuj.md"]
+
+
+@pytest.mark.parametrize("plik", PLIKI_Z_MANIFESTEM, ids=lambda p: f"{p.parent.name}/{p.name}")
+def test_blad_manifestu_pokazuje_sie_userowi_a_index_md_nie_jest_edytowany(plik):
+    # Arrange — index.md zawiera notatki użytkownika, więc naprawa „na szybko” przez model je zniszczy
+    tresc = plik.read_text(encoding="utf-8")
+    # Act
+    zdanie = re.search(r"uszkodzone znaczniki.{0,80}popraw\s+ręcznie.{0,300}", tresc, re.DOTALL)
+    # Assert
+    assert zdanie, "brak reguły: błąd manifestu → pokaż komunikat"
+    assert re.search(r"pokaż komunikat\s+użytkownikowi", zdanie.group(0))
+    assert re.search(r"nie edytuj\s+`index\.md`", zdanie.group(0))

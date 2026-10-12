@@ -15,7 +15,12 @@ Użycie:
     build_pismo.py pismo.html -o wyjscie.pdf \\
         -z dowody/naglowki.txt:"Pełne nagłówki wiadomości" \\
         -z dowody/analiza.md:"Analiza techniczna" \\
+        --tresc ROBOCZE/tresc.html \\
         --stopka "Wezwanie z 18.08.2026"
+
+--tresc (opcjonalne) wstawia gotową treść pisma z pliku HTML między znaczniki
+<!--KRUCZEK:TRESC:START--> i <!--KRUCZEK:TRESC:END--> szablonu — treść zapisuje agent
+napisz-pismo, skrypt jej nie przepisuje.
 
 Wymaga jeden z: weasyprint, Chrome/Chromium, wkhtmltopdf (próbowane w tej kolejności —
 żaden nie jest zakładany jako "ten jeden słuszny", bo różni użytkownicy mają różne
@@ -40,6 +45,7 @@ from build_pismo_logic import (
     command_for_engine,
     parse_attachment_spec,
     postprocess_pandoc_html,
+    wstaw_tresc,
 )
 from utils import (
     all_requirements_met,
@@ -153,12 +159,23 @@ def main():
         default=[],
         help="ścieżka:Tytuł załącznika (można podać wielokrotnie)",
     )
+    ap.add_argument(
+        "--tresc",
+        help="plik HTML z treścią pisma (od agenta napisz-pismo) — wstawiany między znaczniki szablonu",
+    )
     ap.add_argument("--stopka", default="")
     ap.add_argument("--keep-html", action="store_true")
     a = ap.parse_args()
 
     with open(a.szablon, encoding="utf-8") as f:
         tpl = f.read()
+
+    if a.tresc:
+        with open(a.tresc, encoding="utf-8") as f:
+            try:
+                tpl = wstaw_tresc(tpl, f.read())
+            except ValueError as e:
+                sys.exit(f"BŁĄD: {e}")
 
     blocks, lista, zal_info = build_attachments(a.zalacznik)
 

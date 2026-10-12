@@ -5,7 +5,7 @@ argument-hint: "[nazwa podmiotu] [przedmiot sprawy]"
 disable-model-invocation: true
 model: sonnet
 effort: medium
-allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/nowa-sprawa.sh *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/podmiot.sh *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/dns.sh *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/archiwa.sh *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/teczka.py *) Read Write Edit
+allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/nowa-sprawa.sh *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/podmiot.sh *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/dns.sh *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/archiwa.sh *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/teczka.py *) Read Write Edit AskUserQuestion
 ---
 
 # Nowa sprawa

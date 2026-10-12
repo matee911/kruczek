@@ -5,7 +5,7 @@ argument-hint: "[katalog sprawy]"
 disable-model-invocation: true
 model: opus
 effort: high
-allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/eli.sh *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/orzecznictwo.sh *) Bash(date *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/teczka.py *) Read Write Edit
+allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/eli.sh *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/orzecznictwo.sh *) Bash(date *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/teczka.py *) Read Write Edit AskUserQuestion
 ---
 
 # Plan eskalacji
@@ -123,5 +123,8 @@ liczy kod, nie Ty:
   postępuj jak w `konwencje-teczki` („Twój termin”);
 - dokument podaje datę końca wprost (np. „do 30.11.2026”) →
   `teczka.py zadanie <sprawa> "<krok>: <organ, tryb> — <podstawa>" --termin <ta data>`.
+
+Pytania do użytkownika zadawaj narzędziem AskUserQuestion — kilka naraz w jednym wywołaniu, gdy znasz je
+z góry (najwyżej 4), zamiast pytać w treści odpowiedzi.
 
 Długość i podstawa z przepisu albo pisma — nie znasz podstawy, zapytaj. Zaproponuj `/kruczek:pismo` dla pierwszego kroku.

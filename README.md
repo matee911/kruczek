@@ -209,6 +209,9 @@ Obchodzimy ograniczenia techniczne, nie obchodzimy captcha, logowania ani zakaz�
 Zadania mechaniczne idą na `haiku`, research na `sonnet`, rozumowanie prawne na `opus`.
 Pełna mapa: [`docs/MODELE.md`](docs/MODELE.md).
 
+Model komendy obowiązuje w turze, w której ją wpisujesz. Praca, która wymaga konkretnego modelu niezależnie
+od rozmowy, idzie przez agenta o stałym modelu — np. treść każdego pisma pisze agent `napisz-pismo` (`opus`).
+
 | Warstwa | Model | Dlaczego |
 |---|---|---|
 | sumy kontrolne, manifest, chronologia, analiza `.eml`, DNS, rejestry, kontrola załączników | `haiku` | robotę robi skrypt, model tylko czyta wynik i formatuje |
