@@ -519,16 +519,31 @@ class TestSzkicWysylki(unittest.TestCase):
         (wysylka / "ROBOCZE" / "tresc.html").write_text("<p>wersja 1</p>")
         return wysylka
 
-    def test_walk_pomija_katalog_wysylki_na_kazdym_poziomie(self):
+    def test_walk_pomija_szkice_poza_archiwum_na_kazdym_poziomie(self):
         with tempfile.TemporaryDirectory() as tmp:
             # Arrange
             self._sprawa(tmp)
-            Path(tmp, "ARCHIWUM", "inna-DO_WYSYLKI").mkdir()
-            Path(tmp, "ARCHIWUM", "inna-DO_WYSYLKI", "b.pdf").write_text("x")
+            Path(tmp, "dodatki", "inna-DO_WYSYLKI").mkdir(parents=True)
+            Path(tmp, "dodatki", "inna-DO_WYSYLKI", "b.pdf").write_text("x")
+            Path(tmp, "dodatki", "ROBOCZE").mkdir()
+            Path(tmp, "dodatki", "ROBOCZE", "c.md").write_text("x")
+            Path(tmp, "dodatki", "d.pdf").write_text("x")
             # Act
             wynik = sorted(rel for _, rel in manifest.walk(tmp))
             # Assert
-            self.assertEqual(wynik, ["ARCHIWUM/a.pdf"])
+            self.assertEqual(wynik, ["ARCHIWUM/a.pdf", "dodatki/d.pdf"])
+
+    def test_walk_widzi_wszystko_w_archiwum_takze_katalogi_o_nazwach_szkicow(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            # Arrange
+            self._sprawa(tmp)
+            for katalog in ("inna-DO_WYSYLKI", "ROBOCZE"):
+                Path(tmp, "ARCHIWUM", katalog).mkdir()
+                Path(tmp, "ARCHIWUM", katalog, "b.pdf").write_text("x")
+            # Act
+            wynik = sorted(rel for _, rel in manifest.walk(tmp))
+            # Assert
+            self.assertEqual(wynik, ["ARCHIWUM/ROBOCZE/b.pdf", "ARCHIWUM/a.pdf", "ARCHIWUM/inna-DO_WYSYLKI/b.pdf"])
 
     def test_sumy_nie_zapisuja_katalogu_wysylki(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -624,6 +639,9 @@ class TestCzySzkic(unittest.TestCase):
     def test_dowody_i_pliki_o_podobnych_nazwach_to_nie_szkic(self):
         for rel in (
             "ARCHIWUM/a.pdf",
+            "ARCHIWUM/2026_10_12-WEZWANIE-FIRMA_X-DO_WYSYLKI/pismo.pdf",
+            "ARCHIWUM/2026_10_12-WEZWANIE-FIRMA_X-DO_WYSYLKI/ROBOCZE/BRIEF.md",
+            "ARCHIWUM/ROBOCZE/x.pdf",
             "ARCHIWUM/ROBOCZE-notatka.pdf",
             "ARCHIWUM/DO_WYSYLKI/a.pdf",
             "ARCHIWUM/plik-DO_WYSYLKI",
@@ -631,6 +649,113 @@ class TestCzySzkic(unittest.TestCase):
         ):
             with self.subTest(rel=rel):
                 self.assertFalse(manifest.czy_szkic(rel))
+
+    def test_katalog_archiwum_jako_korzen_nic_nie_jest_szkicem(self):
+        # `sumy <sprawa>/ARCHIWUM` liczy ścieżki względem ARCHIWUM, więc nie zaczynają się od „ARCHIWUM/”
+        for rel in ("x-DO_WYSYLKI/pismo.pdf", "ROBOCZE/x.pdf"):
+            with self.subTest(rel=rel):
+                self.assertTrue(manifest.czy_szkic(rel))
+                self.assertFalse(manifest.czy_szkic(rel, w_archiwum=True))
+
+
+class TestSzkicWArchiwum(unittest.TestCase):
+    """ARCHIWUM to dowody: wysyłka przeniesiona do archiwum po nadaniu nadal jest sumowana i pilnowana."""
+
+    WYSYLKA = "2026_10_12-WEZWANIE-FIRMA_X-DO_WYSYLKI"
+
+    def _sprawa_z_wysylka_w_archiwum(self, tmp):
+        sprawa = Path(tmp, "sprawa-a")
+        (sprawa / "ARCHIWUM" / self.WYSYLKA / "ROBOCZE").mkdir(parents=True)
+        (sprawa / "sprawa.json").write_text("{}", encoding="utf-8")
+        (sprawa / "ARCHIWUM" / "a.pdf").write_text("dowód")
+        (sprawa / "ARCHIWUM" / self.WYSYLKA / "pismo.pdf").write_text("nadane")
+        (sprawa / "ARCHIWUM" / self.WYSYLKA / "ROBOCZE" / "tresc.html").write_text("<p>nadane</p>")
+        return sprawa
+
+    def test_wysylka_przeniesiona_do_archiwum_jest_sumowana(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            # Arrange
+            sprawa = self._sprawa_z_wysylka_w_archiwum(tmp)
+            # Act
+            _, kod = uruchom(["sumy", str(sprawa)])
+            # Assert
+            sumy = (sprawa / "SHA256SUMS.txt").read_text(encoding="utf-8")
+            self.assertEqual(kod, 0)
+            self.assertIn(f"ARCHIWUM/{self.WYSYLKA}/pismo.pdf", sumy)
+            self.assertIn(f"ARCHIWUM/{self.WYSYLKA}/ROBOCZE/tresc.html", sumy)
+
+    def test_podmiana_pisma_w_archiwum_to_niezgodna_suma(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            # Arrange
+            sprawa = self._sprawa_z_wysylka_w_archiwum(tmp)
+            uruchom(["sumy", str(sprawa)])
+            (sprawa / "ARCHIWUM" / self.WYSYLKA / "pismo.pdf").write_text("podmienione")
+            # Act
+            out_spr, kod_spr = uruchom(["sprawdz", str(sprawa)])
+            out_sumy, kod_sumy = uruchom(["sumy", str(sprawa)])
+            # Assert
+            self.assertEqual((kod_spr, kod_sumy), (1, 1))
+            self.assertIn(f"NIEZGODNA SUMA: ARCHIWUM/{self.WYSYLKA}/pismo.pdf", out_spr)
+            self.assertIn(f"NIEZGODNA SUMA: ARCHIWUM/{self.WYSYLKA}/pismo.pdf", out_sumy)
+            self.assertNotIn("pomijam", out_spr + out_sumy)
+
+    def test_stary_wpis_pisma_w_archiwum_nie_jest_pomijany(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            # Arrange — wpis z poprzedniej wersji, plik od tamtej pory zmieniony
+            sprawa = self._sprawa_z_wysylka_w_archiwum(tmp)
+            rel = f"ARCHIWUM/{self.WYSYLKA}/pismo.pdf"
+            (sprawa / "SHA256SUMS.txt").write_text(f"{'0' * 64}  {rel}\n", encoding="utf-8")
+            # Act
+            out, kod = uruchom(["sprawdz", str(sprawa)])
+            # Assert
+            self.assertEqual(kod, 1)
+            self.assertIn(f"NIEZGODNA SUMA: {rel}", out)
+            self.assertNotIn("pomijam", out)
+
+    def test_korzen_archiwum_sumuje_katalogi_o_nazwach_szkicow(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            # Arrange — `sumy <sprawa>/ARCHIWUM`, jak wołają je skille
+            sprawa = self._sprawa_z_wysylka_w_archiwum(tmp)
+            archiwum = sprawa / "ARCHIWUM"
+            uruchom(["sumy", str(archiwum)])
+            sumy = (archiwum / "SHA256SUMS.txt").read_text(encoding="utf-8")
+            (archiwum / self.WYSYLKA / "pismo.pdf").write_text("podmienione")
+            # Act
+            out, kod = uruchom(["sprawdz", str(archiwum)])
+            # Assert
+            self.assertIn(f"{self.WYSYLKA}/pismo.pdf", sumy)
+            self.assertIn(f"{self.WYSYLKA}/ROBOCZE/tresc.html", sumy)
+            self.assertEqual(kod, 1)
+            self.assertIn(f"NIEZGODNA SUMA: {self.WYSYLKA}/pismo.pdf", out)
+
+    def test_korzen_archiwum_poza_teczka_tez_sumuje_wszystko(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            # Arrange — katalog bez sprawa.json, tylko nazwa ARCHIWUM
+            archiwum = Path(tmp, "ARCHIWUM")
+            (archiwum / "x-DO_WYSYLKI").mkdir(parents=True)
+            (archiwum / "x-DO_WYSYLKI" / "b.pdf").write_text("x")
+            # Act
+            _, kod = uruchom(["sumy", str(archiwum)])
+            # Assert
+            self.assertEqual(kod, 0)
+            self.assertIn("x-DO_WYSYLKI/b.pdf", (archiwum / "SHA256SUMS.txt").read_text(encoding="utf-8"))
+
+    def test_teczka_pod_katalogiem_o_nazwie_archiwum_nadal_pomija_szkice(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            # Arrange — zamknięte sprawy trzymane w ~/…/ARCHIWUM/<sprawa>; wysyłka na poziomie sprawy to szkic
+            sprawa = Path(tmp, "ARCHIWUM", "sprawa-a")
+            (sprawa / "ARCHIWUM").mkdir(parents=True)
+            (sprawa / "sprawa.json").write_text("{}", encoding="utf-8")
+            (sprawa / "ARCHIWUM" / "a.pdf").write_text("dowód")
+            (sprawa / self.WYSYLKA).mkdir()
+            (sprawa / self.WYSYLKA / "pismo.pdf").write_text("szkic")
+            # Act
+            _, kod = uruchom(["sumy", str(sprawa)])
+            # Assert
+            sumy = (sprawa / "SHA256SUMS.txt").read_text(encoding="utf-8")
+            self.assertEqual(kod, 0)
+            self.assertIn("ARCHIWUM/a.pdf", sumy)
+            self.assertNotIn("DO_WYSYLKI", sumy)
 
 
 class TestIndexMdWierszeSzkicow(unittest.TestCase):

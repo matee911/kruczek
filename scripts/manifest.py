@@ -12,8 +12,9 @@ Podkomendy:
   wstaw  <index.md> <katalog-sprawy> podmień blok manifestu w index.md (między znacznikami)
 
 Szkice nie wchodzą do sum ani do manifestu: katalogi ROBOCZE/ i `*-DO_WYSYLKI/` na każdym poziomie
-(pismo i TLDR.md są przebudowywane po recenzji). Stare wpisy takich plików w SHA256SUMS.txt są
-pomijane przy `sumy` i `sprawdz` (informacja, nie błąd) i zostają w pliku.
+(pismo i TLDR.md są przebudowywane po recenzji) — poza ARCHIWUM/, bo tam leżą dowody, także wysyłka
+przeniesiona po nadaniu. Stare wpisy szkiców w SHA256SUMS.txt są pomijane przy `sumy` i `sprawdz`
+(informacja, nie błąd) i zostają w pliku.
 
 Znaczniki w index.md:
   <!-- KRUCZEK:MANIFEST:START -->
@@ -41,8 +42,10 @@ SKIP_DIRS = {".git", "__pycache__", ".DS_Store", "node_modules", ".obsidian"}
 # Szkice: ROBOCZE/ (na każdym poziomie — w sprawie i w katalogu wysyłki: brief, treść, kopia szablonu,
 # podsumowania, kopia index.md sprzed migracji) i katalogi wysyłki `…-DO_WYSYLKI/` (PDF pisma i TLDR.md
 # są przebudowywane po recenzji). Zmieniają się przy każdej poprawce i nie są dowodem, więc nie wchodzą
-# do sum ani do manifestu; dowody leżą w ARCHIWUM/.
+# do sum ani do manifestu. ARCHIWUM/ to dowody: nic w nim nie jest szkicem, także wysyłka przeniesiona
+# tam po nadaniu — jej sumy pilnują dowodu.
 KATALOG_ROBOCZY = "ROBOCZE"
+KATALOG_DOWODOW = "ARCHIWUM"
 SUFIKS_WYSYLKI = "-DO_WYSYLKI"
 # index.md nie wchodzi do manifestu: manifest jest w nim zapisywany, więc jego suma
 # zmieniałaby się przy każdym zapisie (odwołanie cykliczne). To plik roboczy sprawy,
@@ -66,9 +69,11 @@ def czy_katalog_szkicu(nazwa: str) -> bool:
     return nazwa == KATALOG_ROBOCZY or nazwa.endswith(SUFIKS_WYSYLKI)
 
 
-def czy_szkic(rel: str) -> bool:
+def czy_szkic(rel: str, w_archiwum: bool = False) -> bool:
     """Czy ścieżka względna leży w katalogu ROBOCZE albo `…-DO_WYSYLKI` (na dowolnym poziomie).
-    Liczą się tylko katalogi na ścieżce, nie nazwa samego pliku.
+    Liczą się tylko katalogi na ścieżce, nie nazwa samego pliku. Pod ARCHIWUM/ nic nie jest szkicem;
+    `w_archiwum` mówi, że sam skanowany katalog leży w ARCHIWUM (`sumy <sprawa>/ARCHIWUM`) i ścieżki
+    nie mają już prefiksu „ARCHIWUM/”.
 
     >>> czy_szkic("2026_10_01-WEZWANIE-FIRMA_X-DO_WYSYLKI/pismo.pdf")
     True
@@ -76,22 +81,44 @@ def czy_szkic(rel: str) -> bool:
     True
     >>> czy_szkic("ROBOCZE/podsumowanie.md")
     True
+    >>> czy_szkic("ARCHIWUM/2026_10_01-WEZWANIE-FIRMA_X-DO_WYSYLKI/pismo.pdf")
+    False
+    >>> czy_szkic("2026_10_01-WEZWANIE-FIRMA_X-DO_WYSYLKI/pismo.pdf", w_archiwum=True)
+    False
     >>> czy_szkic("ARCHIWUM/ROBOCZE-notatka.pdf")
     False
     >>> czy_szkic("ARCHIWUM/DO_WYSYLKI/a.pdf")
     False
     """
-    return any(czy_katalog_szkicu(katalog) for katalog in rel.split("/")[:-1])
+    katalogi = rel.split("/")[:-1]
+    if w_archiwum or katalogi[:1] == [KATALOG_DOWODOW]:
+        return False
+    return any(czy_katalog_szkicu(katalog) for katalog in katalogi)
 
 
-def bez_szkicow(zapisane: dict[str, str]) -> tuple[dict[str, str], list[str]]:
-    """Oddziela wpisy SHA256SUMS ze szkiców (ROBOCZE/, …-DO_WYSYLKI/) — zapisane przez starsze wersje,
-    dziś pomijane.
+def korzen_w_archiwum(root) -> bool:
+    """Czy skanowany katalog to ARCHIWUM sprawy albo leży w nim. W teczce liczy się odcinek ścieżki od
+    katalogu sprawy w dół (sprawa schowana w katalogu o nazwie ARCHIWUM nadal ma szkice); poza teczką
+    cała ścieżka — wolimy zsumować za dużo niż przestać pilnować dowodu."""
+    p = Path(root).resolve()
+    sprawa = katalog_sprawy(p)
+    if sprawa == p and not czy_folder_sprawy(p):
+        return KATALOG_DOWODOW in p.parts
+    return p.relative_to(sprawa).parts[:1] == (KATALOG_DOWODOW,)
+
+
+def bez_szkicow(zapisane: dict[str, str], w_archiwum: bool = False) -> tuple[dict[str, str], list[str]]:
+    """Oddziela wpisy SHA256SUMS ze szkiców (ROBOCZE/, …-DO_WYSYLKI/ poza ARCHIWUM) — zapisane przez
+    starsze wersje, dziś pomijane. Wpis pliku z ARCHIWUM zostaje do porównania.
 
     >>> bez_szkicow({"ARCHIWUM/a.pdf": "s1", "X-DO_WYSYLKI/ROBOCZE/BRIEF.md": "s2", "X-DO_WYSYLKI/TLDR.md": "s3"})
     ({'ARCHIWUM/a.pdf': 's1'}, ['X-DO_WYSYLKI/ROBOCZE/BRIEF.md', 'X-DO_WYSYLKI/TLDR.md'])
+    >>> bez_szkicow({"ARCHIWUM/X-DO_WYSYLKI/pismo.pdf": "s1"})
+    ({'ARCHIWUM/X-DO_WYSYLKI/pismo.pdf': 's1'}, [])
+    >>> bez_szkicow({"X-DO_WYSYLKI/pismo.pdf": "s1"}, w_archiwum=True)
+    ({'X-DO_WYSYLKI/pismo.pdf': 's1'}, [])
     """
-    szkice = sorted(rel for rel in zapisane if czy_szkic(rel))
+    szkice = sorted(rel for rel in zapisane if czy_szkic(rel, w_archiwum))
     return {rel: sha for rel, sha in zapisane.items() if rel not in szkice}, szkice
 
 
@@ -105,8 +132,11 @@ def info_o_pominietych(szkice: list[str]) -> None:
 
 
 def walk(root):
+    w_archiwum = korzen_w_archiwum(root)
     for dirpath, dirnames, filenames in os.walk(root):
-        dirnames[:] = sorted(d for d in dirnames if d not in SKIP_DIRS and not czy_katalog_szkicu(d))
+        # ARCHIWUM to dowody: katalogi o nazwach szkiców też wchodzą do sum
+        dowody = w_archiwum or os.path.relpath(dirpath, root).split(os.sep)[0] == KATALOG_DOWODOW
+        dirnames[:] = sorted(d for d in dirnames if d not in SKIP_DIRS and (dowody or not czy_katalog_szkicu(d)))
         for fn in sorted(filenames):
             if fn in SKIP_FILES or fn.startswith("."):
                 continue
@@ -145,7 +175,7 @@ def table(root):
         f"_Manifest wygenerowany "
         f"{datetime.datetime.now(tz=datetime.UTC).date().isoformat()} "
         f"skryptem `manifest.py`. "
-        f"Plików: {len(data)}. Pominięto `index.md`, `SHA256SUMS.txt` i szkice: katalogi `ROBOCZE/` oraz `*-DO_WYSYLKI/` "
+        f"Plików: {len(data)}. Pominięto `index.md`, `SHA256SUMS.txt` i szkice: katalogi `ROBOCZE/` oraz `*-DO_WYSYLKI/` poza ARCHIWUM/ "
         f"(pliki robocze teczki, nie dowody). Opisy plików prowadź w tabeli powyżej manifestu._"
     )
     return "\n".join(L)
@@ -256,6 +286,7 @@ def _wykonaj(a):
         if not Path(root).is_dir():  # blokada dostaje katalog sprawy wyżej, więc jej własna kontrola tu nie złapie
             raise BladSprawy(f"{root}: katalog nie istnieje")
         actual = {r["rel"]: r["sha"] for r in rows(root)}
+        w_archiwum = korzen_w_archiwum(root)
         p = Path(root) / "SHA256SUMS.txt"
         with blokada(katalog_sprawy(Path(root))):
             if not p.exists():
@@ -264,7 +295,7 @@ def _wykonaj(a):
                 print(f"Zapisano {p} ({len(lines)} plików)")
                 return
             text = p.read_text(encoding="utf-8")
-            zapisane, szkice = bez_szkicow(parse_sha256sums(text))
+            zapisane, szkice = bez_szkicow(parse_sha256sums(text), w_archiwum)
             info_o_pominietych(szkice)
             diff = compare_manifest(actual, zapisane)
             for rel in diff["missing"]:
@@ -284,11 +315,12 @@ def _wykonaj(a):
     elif a.cmd == "sprawdz":
         root = a.arg1
         actual = {r["rel"]: r["sha"] for r in rows(root)}
+        w_archiwum = korzen_w_archiwum(root)
         bad = missing = new = 0
         p = os.path.join(root, "SHA256SUMS.txt")
         if os.path.exists(p):
             with open(p, encoding="utf-8") as f:
-                recorded, szkice = bez_szkicow(parse_sha256sums(f.read()))
+                recorded, szkice = bez_szkicow(parse_sha256sums(f.read()), w_archiwum)
             info_o_pominietych(szkice)
             diff = compare_manifest(actual, recorded)
             for rel in diff["missing"]:
@@ -315,7 +347,7 @@ def _wykonaj(a):
             declared = set()
             for linia in txt.splitlines():
                 wiersz = re.match(r"\s*\| `([^`]+)`", linia)  # wiersz tabeli manifestu: | `ścieżka` | … |
-                if wiersz and czy_szkic(wiersz.group(1)):  # manifest z poprzedniej wersji: wiersze szkiców
+                if wiersz and czy_szkic(wiersz.group(1), w_archiwum):  # manifest z poprzedniej wersji: wiersze szkiców
                     continue
                 declared.update(re.findall(r"\b([0-9a-f]{64})\b", linia))
             real = set(actual.values())
