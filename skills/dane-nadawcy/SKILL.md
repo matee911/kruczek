@@ -4,7 +4,7 @@ description: Wypełnia lub aktualizuje _SZABLONY/dane-nadawcy.md z danymi nadawc
 argument-hint: "[katalog projektu]"
 model: sonnet
 effort: low
-allowed-tools: Read Write Edit Bash(${CLAUDE_PLUGIN_ROOT}/scripts/podmiot.sh *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/gen-claude-md.sh *)
+allowed-tools: Read Write Edit Bash(${CLAUDE_PLUGIN_ROOT}/scripts/podmiot.sh *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/gen-claude-md.sh *) AskUserQuestion
 ---
 
 # Aktualizacja danych nadawcy

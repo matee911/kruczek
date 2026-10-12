@@ -5,7 +5,7 @@ argument-hint: "[sprawa] [opis zdarzenia]"
 disable-model-invocation: true
 model: haiku
 effort: low
-allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/teczka.py *) Bash(date *) Bash(ls *) Read
+allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/teczka.py *) Bash(date *) Bash(ls *) Read AskUserQuestion
 ---
 
 # Chronologia sprawy
@@ -16,6 +16,9 @@ Zadanie mechaniczne: jedno zdarzenie, właściwy typ, data bezwzględna. Zapis p
 według sekcji „Zapis do teczki — teczka.py” w `konwencje-teczki`.
 
 ## Dopisanie
+
+Pytania do użytkownika zadawaj narzędziem AskUserQuestion — kilka naraz w jednym wywołaniu, gdy znasz je
+z góry (najwyżej 4), zamiast pytać w treści odpowiedzi.
 
 1. Data `RRRR-MM-DD` (dziś: `date +%F`); „za tydzień”, „wczoraj” zamień na datę bezwzględną.
    Godzina, jeśli znana (maile, telefony).

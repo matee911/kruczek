@@ -5,7 +5,7 @@ argument-hint: "[sprawa albo katalog projektu]"
 disable-model-invocation: true
 model: sonnet
 effort: medium
-allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/teczka.py *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/gen-claude-md.sh *) Bash(diff *) Bash(cp *) Bash(date *) Bash(ls *) Read Write Edit
+allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/teczka.py *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/gen-claude-md.sh *) Bash(diff *) Bash(cp *) Bash(date *) Bash(ls *) Read Write Edit AskUserQuestion
 ---
 
 # Migracja teczki na sprawa.json

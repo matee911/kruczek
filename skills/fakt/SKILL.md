@@ -5,7 +5,7 @@ argument-hint: "[sprawa] [opis faktu]"
 disable-model-invocation: true
 model: haiku
 effort: low
-allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/teczka.py *) Read Write Edit
+allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/teczka.py *) Read Write Edit AskUserQuestion
 ---
 
 # Rejestracja faktu słownego
@@ -13,9 +13,12 @@ allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/teczka.py *) Read Write Edit
 Argumenty: `$ARGUMENTS`
 
 To komenda dla informacji **bez pliku**. Jeśli masz plik (mail, skan, PDF) — zaproponuj użytkownikowi `/kruczek:dowod`.
-Jeśli masz plik i opis — zaproponuj użytkownikowi najpierw `/kruczek:fakt`, potem `/kruczek:dowod`.
+Jeśli masz plik i opis — zarejestruj fakt tutaj, a potem zaproponuj użytkownikowi `/kruczek:dowod`.
 
 ## 1. Klasyfikuj fakt
+
+Pytania do użytkownika zadawaj narzędziem AskUserQuestion — kilka naraz w jednym wywołaniu, gdy znasz je
+z góry (najwyżej 4), zamiast pytać w treści odpowiedzi.
 
 **Kontekstowy** — rola, relacja, właściwość, stan trwały (nie ma daty wystąpienia):
 - „Michał to adwokat po mojej stronie"

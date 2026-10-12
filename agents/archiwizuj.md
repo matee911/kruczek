@@ -23,6 +23,10 @@ ${CLAUDE_PLUGIN_ROOT}/scripts/manifest.py wstaw   <sprawa>/index.md <sprawa>  # 
 Manifest w `index.md` żyje między znacznikami `<!-- KRUCZEK:MANIFEST:START/END -->` i jest
 generowany. **Nigdy go nie edytuj ręcznie.** Opisy plików prowadzisz w tabeli nad manifestem.
 
+Jeśli `sumy` albo `wstaw` kończy się błędem (np. „uszkodzone znaczniki manifestu — popraw ręcznie”,
+„index.md nie odświeżony”), pokaż komunikat użytkownikowi (przepisz go dosłownie do odpowiedzi) i nie edytuj
+`index.md` sam — w tym pliku są notatki użytkownika.
+
 ## Co sprawdzasz
 
 1. **Niezgodne sumy** — plik w archiwum zmienił się po zaewidencjonowaniu. To sygnał alarmowy:

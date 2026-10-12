@@ -391,5 +391,44 @@ class TestMain(unittest.TestCase):
             self.assertNotIn("Popraw powyższe", stdout)
 
 
+class TestTresc(unittest.TestCase):
+    def test_szablon_ma_znaczniki_tresci(self):
+        # Arrange
+        szablon = (Path(__file__).resolve().parent.parent / "templates" / "pismo.html").read_text(encoding="utf-8")
+        # Assert
+        self.assertEqual(szablon.count("<!--KRUCZEK:TRESC:START-->"), 1)
+        self.assertEqual(szablon.count("<!--KRUCZEK:TRESC:END-->"), 1)
+
+    def test_tresc_z_pliku_trafia_do_html_bez_zmian(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            # Arrange
+            szablon = Path(tmp, "pismo.html")
+            szablon.write_text("<body>A<!--KRUCZEK:TRESC:START-->stare<!--KRUCZEK:TRESC:END-->B"
+                               "<!--KRUCZEK:LISTA_ZALACZNIKOW--><!--KRUCZEK:ZALACZNIKI--></body>", encoding="utf-8")
+            tresc = Path(tmp, "tresc.html")
+            tresc.write_text('<h1>WEZWANIE</h1><p class="ust">Fakt (zał. 1).</p>', encoding="utf-8")
+            wyjscie = os.path.join(tmp, "p.pdf")
+            # Act
+            with mock.patch.object(build_pismo, "choose_engine", return_value=None):
+                run_main([str(szablon), "-o", wyjscie, "--tresc", str(tresc), "--keep-html"])
+            # Assert
+            html = Path(wyjscie + ".build.html").read_text(encoding="utf-8")
+            self.assertIn('A<!--KRUCZEK:TRESC:START--><h1>WEZWANIE</h1><p class="ust">Fakt (zał. 1).</p>'
+                          '<!--KRUCZEK:TRESC:END-->B', html)
+            self.assertNotIn("stare", html)
+
+    def test_szablon_bez_znacznikow_tresci_konczy_sie_bledem(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            # Arrange
+            szablon = Path(tmp, "pismo.html")
+            szablon.write_text("<body>bez znaczników</body>", encoding="utf-8")
+            tresc = Path(tmp, "tresc.html")
+            tresc.write_text("<h1>WEZWANIE</h1>", encoding="utf-8")
+            # Act
+            _, kod = run_main([str(szablon), "-o", os.path.join(tmp, "p.pdf"), "--tresc", str(tresc)])
+            # Assert
+            self.assertIn("szablon nie ma znaczników treści", str(kod))
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

@@ -5,7 +5,7 @@ argument-hint: "[katalog]"
 disable-model-invocation: true
 model: sonnet
 effort: medium
-allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/check-deps.sh) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/init-projekt.sh *) Bash(cp *) Bash(date *) Read Write Edit
+allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/check-deps.sh) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/init-projekt.sh *) Bash(cp *) Bash(date *) Read Write Edit AskUserQuestion
 ---
 
 # Założenie repozytorium spraw
@@ -13,6 +13,9 @@ allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/check-deps.sh) Bash(${CLAUDE_P
 Katalog docelowy: `$1` (jeśli pusty — bieżący katalog roboczy).
 
 ## 1. Sprawdź, czy nie nadpisujesz
+
+Pytania do użytkownika zadawaj narzędziem AskUserQuestion — kilka naraz w jednym wywołaniu, gdy znasz je
+z góry (najwyżej 4), zamiast pytać w treści odpowiedzi.
 
 Jeśli w katalogu docelowym jest już `index.md` lub `BAZA_WIEDZY/` — **nie nadpisuj**. Pokaż, co
 istnieje, i zapytaj, czy uzupełnić brakujące elementy, czy przerwać. Skrypt nie podmienia istniejącego

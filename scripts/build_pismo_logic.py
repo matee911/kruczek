@@ -7,6 +7,8 @@ a PDF engine, pandoc, or the poppler-utils font tools installed.
 import os
 import re
 
+TRESC_START, TRESC_KONIEC = "<!--KRUCZEK:TRESC:START-->", "<!--KRUCZEK:TRESC:END-->"
+
 
 def parse_attachment_spec(spec: str) -> tuple[str, str]:
     """Split a '-z' CLI spec ('path:title') into (path, title).
@@ -165,3 +167,24 @@ def command_for_engine(
             out_path,
         ]
     raise ValueError(f"unknown engine: {engine!r}")
+
+
+def wstaw_tresc(szablon: str, tresc: str) -> str:
+    """Treść pisma z pliku agenta między znaczniki szablonu — bez przepisywania przez model.
+
+    >>> wstaw_tresc("A<!--KRUCZEK:TRESC:START-->wzór<!--KRUCZEK:TRESC:END-->B", "<p>nowe</p>")
+    'A<!--KRUCZEK:TRESC:START--><p>nowe</p><!--KRUCZEK:TRESC:END-->B'
+    >>> wstaw_tresc("bez znaczników", "x")
+    Traceback (most recent call last):
+    ...
+    ValueError: szablon nie ma znaczników treści <!--KRUCZEK:TRESC:START--> … <!--KRUCZEK:TRESC:END-->
+    """
+    if (
+        szablon.count(TRESC_START) != 1
+        or szablon.count(TRESC_KONIEC) != 1
+        or szablon.index(TRESC_START) > szablon.index(TRESC_KONIEC)
+    ):
+        raise ValueError(f"szablon nie ma znaczników treści {TRESC_START} … {TRESC_KONIEC}")
+    przed, reszta = szablon.split(TRESC_START, 1)
+    _, po = reszta.split(TRESC_KONIEC, 1)
+    return przed + TRESC_START + tresc + TRESC_KONIEC + po
