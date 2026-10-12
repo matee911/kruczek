@@ -83,14 +83,35 @@ def _znacznik(tekst: str) -> re.Pattern[str]:
     return re.compile(rf"^{re.escape(tekst)}[ \t\r]*$", re.MULTILINE)
 
 
-def _wstaw(tekst: str, blok: str, nowy: str) -> str:
-    starty = list(_znacznik(f"<!-- kruczek:{blok} -->").finditer(tekst))
-    konce = list(_znacznik(f"<!-- /kruczek:{blok} -->").finditer(tekst))
+def zakres_bloku(tekst: str, start: str, koniec: str, nazwa: str) -> tuple[int, int] | None:
+    """Gdzie w `tekst` leży blok: od początku linii znacznika `start` do końca linii znacznika `koniec`.
+    `None`, gdy nie ma żadnego znacznika (blok do dopisania); `BladSprawy`, gdy znaczniki są uszkodzone —
+    brak jednego z pary, duplikat albo odwrócona kolejność. Wtedy nic nie wolno podmieniać: zakres od
+    osieroconego znacznika do innego pochłonąłby notatki.
+
+    >>> zakres_bloku("a\\n<S>\\nx\\n<E>\\nb", "<S>", "<E>", "bloku")
+    (2, 11)
+    >>> zakres_bloku("a\\nb", "<S>", "<E>", "bloku") is None
+    True
+    >>> zakres_bloku("a\\n<S>\\nb", "<S>", "<E>", "bloku")
+    Traceback (most recent call last):
+    ...
+    kruczek_core.model.BladSprawy: index.md: uszkodzone znaczniki bloku — popraw ręcznie
+    """
+    starty = list(_znacznik(start).finditer(tekst))
+    konce = list(_znacznik(koniec).finditer(tekst))
     if not starty and not konce:
-        return tekst.rstrip("\n") + f"\n\n## {_NAGLOWKI[blok]} (generowane — nie edytuj ręcznie)\n\n{nowy}\n"
+        return None
     if len(starty) == 1 and len(konce) == 1 and starty[0].start() < konce[0].start():
-        return tekst[:starty[0].start()] + nowy + tekst[konce[0].end():]
-    raise BladSprawy(f"index.md: uszkodzone znaczniki bloku {blok} — popraw ręcznie")
+        return starty[0].start(), konce[0].end()
+    raise BladSprawy(f"index.md: uszkodzone znaczniki {nazwa} — popraw ręcznie")
+
+
+def _wstaw(tekst: str, blok: str, nowy: str) -> str:
+    zakres = zakres_bloku(tekst, f"<!-- kruczek:{blok} -->", f"<!-- /kruczek:{blok} -->", f"bloku {blok}")
+    if zakres is None:
+        return tekst.rstrip("\n") + f"\n\n## {_NAGLOWKI[blok]} (generowane — nie edytuj ręcznie)\n\n{nowy}\n"
+    return tekst[:zakres[0]] + nowy + tekst[zakres[1]:]
 
 
 def renderuj(tekst: str, sprawa: Sprawa, kalendarz: Kalendarz) -> str:
