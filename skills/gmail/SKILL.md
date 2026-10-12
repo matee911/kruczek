@@ -4,7 +4,7 @@ description: Wołany przez /kruczek:dowod i /kruczek:nowa-sprawa; generuje zapyt
 argument-hint: "[sprawa] [domeny lub adresy oddzielone spacją]"
 model: sonnet
 effort: low
-allowed-tools: Read Write Edit
+allowed-tools: Read
 ---
 
 # Generator zapytań Gmail i filtrów dla sprawy

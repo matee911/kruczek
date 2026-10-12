@@ -196,7 +196,7 @@ TLDR.md zostaje w katalogu wysyłki i **nie jest wysyłany**.
 - wątek adresata: odczytaj `watki` z `sprawa.json` (czytać wolno, edytować nie). Jeśli jest wątek z tym
   samym `adresat` — użyj go (wątek = korespondencja tam i z powrotem z jednym adresatem; kolejne pismo
   do tej samej firmy to ten sam wątek). Jeśli nie ma — `teczka.py watek <sprawa> <id> --adresat "<adresat>"`
-- zadanie: `teczka.py zadanie <sprawa> "Nadaj <pismo> (<kanał>) i zarchiwizuj potwierdzenie nadania — potem /kruczek:chronologia nadanie" --watek <id>` (podpowiedź dla użytkownika);
+- zadanie (uruchom; jego treść to podpowiedź dla użytkownika): `teczka.py zadanie <sprawa> "Nadaj <pismo> (<kanał>) i zarchiwizuj potwierdzenie nadania — potem /kruczek:chronologia nadanie" --watek <id>`;
   razem z nim oznacz jako `zrobione` otwarte zadania startowe „Przygotować pismo” i „Nadać i zarchiwizować
   potwierdzenie nadania” (`teczka.py zrobione <sprawa> <id>`, po jednym wywołaniu na zadanie; id z bloku „Zadania”)
 - w `TLDR.md` pole „Termin, który wyznaczasz” wypełnione długością i podstawą — z niego
@@ -207,4 +207,4 @@ TLDR.md zostaje w katalogu wysyłki i **nie jest wysyłany**.
 ## 11. Zamelduj
 
 Krótko: gdzie leży PDF i TLDR.md, ile stron, **co zostało do uzupełnienia**, jak i dokąd wysłać
-(z danymi do wysyłki z TL;DR: tytuł/opis, Do/DW, temat), że po nadaniu wystarczy `/kruczek:chronologia` (podpowiedź dla użytkownika) (termin weźmie z TL;DR). Nie streszczaj treści pisma — użytkownik ma TL;DR.
+(z danymi do wysyłki z TL;DR: tytuł/opis, Do/DW, temat), że po nadaniu użytkownikowi wystarczy `/kruczek:chronologia` (termin weźmie z TL;DR). Nie streszczaj treści pisma — użytkownik ma TL;DR.
