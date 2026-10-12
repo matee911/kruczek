@@ -193,6 +193,8 @@ def _wykonaj(a):
         # Kopie do archiwum robione zwykłym `cp` nie są atomowe: `sumy` uruchomione w trakcie
         # kopiowania zapisze sumę niepełnego pliku, a następne `sumy` zgłosi go jako NIEZGODNĄ SUMĘ.
         root = a.arg1
+        if not Path(root).is_dir():  # blokada dostaje katalog sprawy wyżej, więc jej własna kontrola tu nie złapie
+            raise BladSprawy(f"{root}: katalog nie istnieje")
         actual = {r["rel"]: r["sha"] for r in rows(root)}
         p = Path(root) / "SHA256SUMS.txt"
         with blokada(katalog_sprawy(Path(root))):
@@ -269,10 +271,12 @@ def _wykonaj(a):
         idx, root = a.arg1, a.arg2
         if not root:
             sys.exit("wstaw wymaga dwóch argumentów: <index.md> <katalog-sprawy>")
+        indeks = Path(idx)
+        if not indeks.is_file():
+            raise BladSprawy(f"{idx}: brak pliku")
         # Tabela (sumy) liczona przed blokadą, żeby nie wstrzymywać strony. Plik dodany w tym czasie
         # wejdzie przy następnym `wstaw` — blok jest zawsze liczony od nowa, więc sam się naprawia.
         block = f"{START}\n{table(root)}\n{END}"
-        indeks = Path(idx)
         with blokada(katalog_sprawy(indeks.parent)):
             txt = indeks.read_text(encoding="utf-8")
             zapisz_tekst_atomowo(indeks, insert_or_replace_block(txt, block, START, END))
