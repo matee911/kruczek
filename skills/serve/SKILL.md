@@ -17,5 +17,5 @@ allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/kruczek_serve.py *) Bash(comma
    (127.0.0.1), nie łączy się z internetem i nie udostępnia plików dowodów — pokazuje tylko ich nazwy.
 4. Kod 1 z „port … jest zajęty” → uruchom z portem z komunikatu (`--port 8766`). Inny błąd — przekaż komunikat.
 5. Ze strony zapisują się tylko „Zrobione” i data doręczenia (do `sprawa.json`, tak samo jak przez `teczka.py`).
-   Resztę strona podaje jako polecenie do wklejenia tutaj (np. `/kruczek:eskalacja <sprawa>`) — wykonaj je jak zwykle.
+   Resztę strona podaje jako polecenie do wklejenia tutaj (np. `/kruczek:eskalacja <sprawa>` (podpowiedź dla użytkownika)) — wykonaj je jak zwykle.
 6. Zatrzymanie: zakończ proces w tle.

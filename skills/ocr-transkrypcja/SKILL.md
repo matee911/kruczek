@@ -78,7 +78,7 @@ lub maila zachowaj kolejność i autorstwo wypowiedzi.
 ## Po odczycie
 
 Zapisz plik obok oryginału w `ARCHIWUM/`, przelicz sumy (`manifest.py sumy`), dopisz wiersz
-do tabeli opisowej; zdarzenie zapisuje `/kruczek:dowod`, które robi to całościowo.
+do tabeli opisowej; zdarzenie zapisuje `/kruczek:dowod` (podpowiedź dla użytkownika), które robi to całościowo.
 
 ## Delegowanie
 

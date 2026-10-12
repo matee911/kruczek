@@ -49,4 +49,4 @@ Zamelduj jedną linią: co zapisano i jaki termin z tego wynika (z wyjścia `tec
 Przeczytaj bloki „Chronologia”, „Terminy” i „Zadania” w `index.md` (są aktualne po każdym zapisie).
 Brak bloków `<!-- kruczek:… -->` w `index.md` = stary format — zaproponuj `/kruczek:migruj`.
 Zaznacz osobno: terminy minione, najbliższe (≤ 7 dni), zdarzenia bez dowodu. Bez porady prawnej —
-od tego jest `/kruczek:eskalacja`.
+od tego jest `/kruczek:eskalacja` (podpowiedź dla użytkownika).

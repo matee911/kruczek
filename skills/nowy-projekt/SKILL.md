@@ -52,5 +52,5 @@ trafi do gita, powinien być w `.gitignore`.
 
 ## 5. Podsumuj
 
-Pokaż drzewo katalogów i **jedną** następną komendę: `/kruczek:nowa-sprawa`.
+Pokaż drzewo katalogów i **jedną** następną komendę: `/kruczek:nowa-sprawa` (podpowiedź dla użytkownika).
 Nie rozpisuj się — użytkownik dopiero zaczyna.

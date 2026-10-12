@@ -13,7 +13,7 @@ allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/teczka.py *) Read Write Edit
 Argumenty: `$ARGUMENTS`
 
 To komenda dla informacji **bez pliku**. Jeśli masz plik (mail, skan, PDF) — użyj
-`/kruczek:dowod`. Jeśli masz plik i opis — najpierw `/kruczek:fakt`, potem `/kruczek:dowod`.
+`/kruczek:dowod` (podpowiedź dla użytkownika). Jeśli masz plik i opis — najpierw `/kruczek:fakt`, potem `/kruczek:dowod`.
 
 ## 1. Klasyfikuj fakt
 
@@ -89,7 +89,7 @@ Dla `poszlaka` lub `dowód` — bez ostrzeżenia.
 
 ### f) Jeśli użytkownik ma plik
 
-Napisz: „Masz plik — wciągnij go przez `/kruczek:dowod <ścieżka> <katalog-sprawy>`."
+Zaproponuj użytkownikowi: „Masz plik — wciągnij go przez `/kruczek:dowod <ścieżka> <katalog-sprawy>`."
 Nie wciągaj pliku samodzielnie z tej komendy.
 
 ## 4. Blokada w kontrola

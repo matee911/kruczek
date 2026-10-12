@@ -9,7 +9,7 @@ user-invocable: false
 
 Zasady teczki (archiwum, nazwy, sumy, wersje tekstowe, chronologia, wysyłka, hipotezy): przeczytaj
 `${CLAUDE_PLUGIN_ROOT}/templates/KONWENCJE.md`. Ten wzorzec w pluginie ma pierwszeństwo: jeśli kopia
-`KONWENCJE.md` w projekcie się od niego różni, obowiązuje wzorzec, a kopię odśwież (`/kruczek:migruj`, krok 0).
+`KONWENCJE.md` w projekcie się od niego różni, obowiązuje wzorzec, a kopię odśwież (zaproponuj użytkownikowi `/kruczek:migruj`, krok 0).
 
 ## Zapis do teczki — teczka.py
 

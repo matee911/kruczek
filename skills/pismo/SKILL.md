@@ -100,7 +100,7 @@ Przy większym researchu zleć równolegle `pobierz-przepis` i `szukaj-orzeczen`
 **Sprawdź, czy przepis nadal obowiązuje.** Polskie prawo bywa uchylane hurtowo, a poradniki
 w internecie zostają na lata. Przepis uchylony w piśmie kompromituje całość.
 
-Nowo zweryfikowane przepisy dopisz do bazy (`/kruczek:baza-wiedzy`).
+Nowo zweryfikowane przepisy zaproponuj użytkownikowi dopisać do bazy (`/kruczek:baza-wiedzy`).
 
 ## 4. Zasada, która rozstrzyga wszystkie wątpliwości
 
@@ -161,10 +161,11 @@ ${CLAUDE_PLUGIN_ROOT}/scripts/manifest.py sumy <sprawa>/ARCHIWUM
 
 ## 8. Kontrola i recenzja — obowiązkowo, w tej kolejności
 
-```
-/kruczek:kontrola     # mechanicznie: numeracja, nazwy, sumy, wymogi druku
-/kruczek:recenzja     # merytorycznie: fakty, prawo, ryzyko, język, siła
-```
+1. **Kontrola mechaniczna:** `/kruczek:kontrola` — numeracja, nazwy, sumy, wymogi druku.
+2. **Recenzja merytoryczna:** zleć **równolegle, w jednej wiadomości** agentom `weryfikuj-cytaty` (przepisy,
+   cytaty, sygnatury, daty, sumy, linia obrony adresata) i `recenzuj` (fakty kontra dowody, ryzyko dla nadawcy,
+   język, siła). Komendę `/kruczek:recenzja` (podpowiedź dla użytkownika) uruchamia tylko użytkownik —
+   z wnętrza tej komendy model jej nie wywoła.
 
 **Nie melduj gotowości pisma, zanim obie nie przejdą.** Poprawki nanieś i uruchom ponownie.
 
@@ -195,15 +196,15 @@ TLDR.md zostaje w katalogu wysyłki i **nie jest wysyłany**.
 - wątek adresata: odczytaj `watki` z `sprawa.json` (czytać wolno, edytować nie). Jeśli jest wątek z tym
   samym `adresat` — użyj go (wątek = korespondencja tam i z powrotem z jednym adresatem; kolejne pismo
   do tej samej firmy to ten sam wątek). Jeśli nie ma — `teczka.py watek <sprawa> <id> --adresat "<adresat>"`
-- zadanie: `teczka.py zadanie <sprawa> "Nadaj <pismo> (<kanał>) i zarchiwizuj potwierdzenie nadania — potem /kruczek:chronologia nadanie" --watek <id>`;
+- zadanie: `teczka.py zadanie <sprawa> "Nadaj <pismo> (<kanał>) i zarchiwizuj potwierdzenie nadania — potem /kruczek:chronologia nadanie" --watek <id>` (podpowiedź dla użytkownika);
   razem z nim oznacz jako `zrobione` otwarte zadania startowe „Przygotować pismo” i „Nadać i zarchiwizować
   potwierdzenie nadania” (`teczka.py zrobione <sprawa> <id>`, po jednym wywołaniu na zadanie; id z bloku „Zadania”)
 - w `TLDR.md` pole „Termin, który wyznaczasz” wypełnione długością i podstawą — z niego
-  `/kruczek:chronologia` weźmie termin przy nadaniu. Termin wymaga `--termin` i `--podstawa` z treści pisma
+  `/kruczek:chronologia` (podpowiedź dla użytkownika) weźmie termin przy nadaniu. Termin wymaga `--termin` i `--podstawa` z treści pisma
   albo przepisu; nie znasz podstawy — zapytaj użytkownika, nie zgaduj
 - sekcja „Ścieżka eskalacji”, jeśli pismo ją zapowiada (wolny tekst)
 
 ## 11. Zamelduj
 
 Krótko: gdzie leży PDF i TLDR.md, ile stron, **co zostało do uzupełnienia**, jak i dokąd wysłać
-(z danymi do wysyłki z TL;DR: tytuł/opis, Do/DW, temat), że po nadaniu wystarczy `/kruczek:chronologia` (termin weźmie z TL;DR). Nie streszczaj treści pisma — użytkownik ma TL;DR.
+(z danymi do wysyłki z TL;DR: tytuł/opis, Do/DW, temat), że po nadaniu wystarczy `/kruczek:chronologia` (podpowiedź dla użytkownika) (termin weźmie z TL;DR). Nie streszczaj treści pisma — użytkownik ma TL;DR.

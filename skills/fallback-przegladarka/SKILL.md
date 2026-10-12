@@ -69,7 +69,7 @@ Często najtańsze. Nie pisz „nie udało się" — daj gotową instrukcję:
 > 3. Skopiuj mi adres URL wyniku albo sam identyfikator z `/doc/<ID>` — resztę zrobię sam.
 
 Przy dowodach, których nie da się pobrać automatycznie (np. dane domeny `.eu`), poproś o **zrzut
-ekranu z widoczną datą** i wciągnij go przez `/kruczek:dowod`.
+ekranu z widoczną datą** i zaproponuj użytkownikowi wciągnięcie go przez `/kruczek:dowod`.
 
 ## Czego nie robisz — bezwzględnie
 

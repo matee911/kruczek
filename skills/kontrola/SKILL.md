@@ -12,7 +12,7 @@ allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/kontrola_pisma.py *) Bash(${CL
 Argumenty: `$ARGUMENTS`
 
 Zadanie mechaniczne. Uruchamiasz skrypt, czytasz wynik, raportujesz. Nie oceniasz treści ani prawa —
-od tego jest `/kruczek:recenzja`.
+od tego jest `/kruczek:recenzja` (podpowiedź dla użytkownika).
 
 **Ta kontrola jest obowiązkowa przed pokazaniem pisma użytkownikowi.** Nie melduj gotowości pisma,
 zanim jej nie uruchomisz.
@@ -56,8 +56,8 @@ Wypisz dokładnie to, co zwrócił skrypt, w dwóch grupach: **błędy blokując
 Przy każdym błędzie podaj, co konkretnie poprawić.
 
 Jeśli skrypt zwrócił kod 0 i nie ma ostrzeżeń — jedno zdanie: kontrola mechaniczna czysta,
-następny krok to `/kruczek:recenzja`.
+następny krok to recenzja — w `/kruczek:pismo` robią ją agenci, a samodzielnie zaproponuj użytkownikowi `/kruczek:recenzja`.
 
 **Nie poprawiaj pisma samodzielnie**, jeśli błąd dotyczy treści merytorycznej — zgłoś go
-i przekaż do `/kruczek:pismo`. Sam poprawiaj tylko rzeczy jednoznacznie mechaniczne: literówkę
+i przekaż do `/kruczek:pismo` (podpowiedź dla użytkownika). Sam poprawiaj tylko rzeczy jednoznacznie mechaniczne: literówkę
 w nazwie pliku, brakujący wpis na liście załączników, nieaktualną sumę kontrolną.

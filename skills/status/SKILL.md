@@ -35,8 +35,8 @@ napisz „brak terminu w index.md”.
 
 **🔴 Po terminie** — pozycje z `PO TERMINIE`. **🟠 Teraz** — reszta `TERAZ`, z terminem na górze.
 **⏳ Czekam** — `CZEKAM` (data i „szacunek”, jeśli jest). **🗓 Wkrótce** — `WKRÓTCE`.
-**⚪ Bez ruchu** — `BEZ RUCHU`. **📦 Stary format** — `STARY FORMAT` → `/kruczek:migruj`; pod każdą sprawą
-jej terminy z kroku 3, osobno, z dopiskiem „nie liczone kodem — zmigruj (/kruczek:migruj)”.
+**⚪ Bez ruchu** — `BEZ RUCHU`. **📦 Stary format** — `STARY FORMAT` → `/kruczek:migruj` (podpowiedź dla użytkownika); pod każdą sprawą
+jej terminy z kroku 3, osobno, z dopiskiem „nie liczone kodem — zmigruj (/kruczek:migruj)” (podpowiedź dla użytkownika).
 **⚠ Problemy techniczne** — `BŁĘDY`, niezgodne sumy.
 **Pominięte** — `POMINIĘTO (brak index.md)`: wypisz te foldery jednym zdaniem (to zwykle kopie albo duplikaty,
 nie ma czego migrować). Nie proponuj ich migracji.
