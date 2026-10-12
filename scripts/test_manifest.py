@@ -10,8 +10,9 @@ import os
 import sys
 import tempfile
 import unittest
-from contextlib import redirect_stdout
+from contextlib import contextmanager, redirect_stdout
 from pathlib import Path
+from unittest import mock
 
 import manifest
 
@@ -293,3 +294,64 @@ class TestMainWstaw(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+class TestBlokada(unittest.TestCase):
+    """manifest.py pisze w katalogu sprawy razem z teczka.py i stroną — bierze tę samą blokadę."""
+
+    def _rejestrator(self, zdarzenia):
+        @contextmanager
+        def rejestrator(katalog):
+            zdarzenia.append(("start", Path(katalog)))
+            yield
+            zdarzenia.append(("koniec", Path(katalog)))
+        return rejestrator
+
+    def test_sumy_i_wstaw_pisza_pod_blokada(self):
+        # Arrange
+        zdarzenia = []
+        with tempfile.TemporaryDirectory() as tmp, \
+                mock.patch.object(manifest, "blokada", self._rejestrator(zdarzenia)):
+            Path(tmp, "dowod.txt").write_text("x", encoding="utf-8")
+            Path(tmp, "index.md").write_text("# Sprawa: T\n", encoding="utf-8")
+            # Act
+            _, kod_sumy = uruchom(["sumy", tmp])
+            _, kod_wstaw = uruchom(["wstaw", os.path.join(tmp, "index.md"), tmp])
+            katalog = Path(tmp).resolve()
+        # Assert
+        self.assertEqual((kod_sumy, kod_wstaw), (0, 0))
+        self.assertEqual(zdarzenia, [("start", katalog), ("koniec", katalog)] * 2)
+
+    def test_sumy_archiwum_blokuje_katalog_sprawy(self):
+        # Arrange — pismo woła `sumy <sprawa>/ARCHIWUM`; blokada musi być ta sama co teczka.py
+        zdarzenia = []
+        with tempfile.TemporaryDirectory() as tmp, \
+                mock.patch.object(manifest, "blokada", self._rejestrator(zdarzenia)):
+            sprawa = Path(tmp, "sprawa-a")
+            (sprawa / "ARCHIWUM").mkdir(parents=True)
+            (sprawa / "sprawa.json").write_text("{}", encoding="utf-8")
+            (sprawa / "ARCHIWUM" / "dowod.txt").write_text("x", encoding="utf-8")
+            # Act
+            _, kod = uruchom(["sumy", str(sprawa / "ARCHIWUM")])
+            oczekiwany = sprawa.resolve()
+        # Assert
+        self.assertEqual(kod, 0)
+        self.assertEqual(zdarzenia[0], ("start", oczekiwany))
+
+    def test_katalog_sprawy_stary_format_i_poza_teczka(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            # Arrange
+            stara = Path(tmp, "stara")
+            (stara / "ARCHIWUM").mkdir(parents=True)
+            (stara / "index.md").write_text("# Sprawa: Firma X\n", encoding="utf-8")
+            luzny = Path(tmp, "luzny")
+            luzny.mkdir()
+            # Act / Assert
+            self.assertEqual(manifest.katalog_sprawy(stara / "ARCHIWUM"), stara.resolve())
+            self.assertEqual(manifest.katalog_sprawy(luzny), luzny.resolve())
+
+    def test_brak_katalogu_sprawy_czytelny_blad(self):
+        # Act
+        out, kod = uruchom(["sumy", "/nie-ma-takiego-katalogu-sprawy"])
+        # Assert
+        self.assertNotEqual(kod, 0)
