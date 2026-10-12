@@ -59,5 +59,5 @@ Jeśli skrypt zwrócił kod 0 i nie ma ostrzeżeń — jedno zdanie: kontrola me
 następny krok to recenzja — w `/kruczek:pismo` robią ją agenci, a samodzielnie zaproponuj użytkownikowi `/kruczek:recenzja`.
 
 **Nie poprawiaj pisma samodzielnie**, jeśli błąd dotyczy treści merytorycznej — zgłoś go
-i przekaż do `/kruczek:pismo` (podpowiedź dla użytkownika). Sam poprawiaj tylko rzeczy jednoznacznie mechaniczne: literówkę
+i zaproponuj użytkownikowi `/kruczek:pismo`. Sam poprawiaj tylko rzeczy jednoznacznie mechaniczne: literówkę
 w nazwie pliku, brakujący wpis na liście załączników, nieaktualną sumę kontrolną.

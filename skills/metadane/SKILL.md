@@ -4,7 +4,7 @@ description: Wołany przez /kruczek:dowod dla plików od drugiej strony; tabela 
 argument-hint: "[plik lub katalog sprawy]"
 model: haiku
 effort: low
-allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/metadane.sh *) Bash(exiftool *) Bash(pdftotext *) Bash(unzip *) Bash(mdls *) Bash(xattr *) Read Write Edit
+allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/metadane.sh *) Read
 ---
 
 # Analiza metadanych dokumentów drugiej strony

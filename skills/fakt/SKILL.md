@@ -12,8 +12,8 @@ allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/teczka.py *) Read Write Edit
 
 Argumenty: `$ARGUMENTS`
 
-To komenda dla informacji **bez pliku**. Jeśli masz plik (mail, skan, PDF) — użyj
-`/kruczek:dowod` (podpowiedź dla użytkownika). Jeśli masz plik i opis — najpierw `/kruczek:fakt`, potem `/kruczek:dowod`.
+To komenda dla informacji **bez pliku**. Jeśli masz plik (mail, skan, PDF) — zaproponuj użytkownikowi `/kruczek:dowod`.
+Jeśli masz plik i opis — zaproponuj użytkownikowi najpierw `/kruczek:fakt`, potem `/kruczek:dowod`.
 
 ## 1. Klasyfikuj fakt
 
