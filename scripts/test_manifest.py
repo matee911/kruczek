@@ -392,6 +392,38 @@ class TestBlokada(unittest.TestCase):
         self.assertNotEqual(kod, 0)
         self.assertIn("nie istnieje", komunikat.getvalue())
 
+    def test_sprawdz_brak_katalogu_sprawy_czytelny_blad(self):
+        # Arrange — literówka w ścieżce nie może dać „OK — wszystko się zgadza.”
+        komunikat = io.StringIO()
+        with tempfile.TemporaryDirectory() as tmp:
+            # Act
+            out, kod = uruchom(["sprawdz", os.path.join(tmp, "sprawa-literowka")], komunikat)
+        # Assert
+        self.assertNotEqual(kod, 0)
+        self.assertIn("nie istnieje", komunikat.getvalue())
+        self.assertNotIn("OK", out)
+
+    def test_skan_brak_katalogu_sprawy_czytelny_blad(self):
+        # Arrange
+        komunikat = io.StringIO()
+        with tempfile.TemporaryDirectory() as tmp:
+            # Act
+            out, kod = uruchom(["skan", os.path.join(tmp, "sprawa-literowka")], komunikat)
+        # Assert
+        self.assertNotEqual(kod, 0)
+        self.assertIn("nie istnieje", komunikat.getvalue())
+        self.assertEqual(out, "")
+
+    def test_sprawdz_istniejacy_katalog_bez_sum_dziala_jak_dotad(self):
+        # Arrange — brakuje tylko SHA256SUMS.txt, katalog jest: to nadal nie błąd
+        with tempfile.TemporaryDirectory() as tmp:
+            Path(tmp, "dowod.txt").write_text("x", encoding="utf-8")
+            # Act
+            out, kod = uruchom(["sprawdz", tmp])
+        # Assert
+        self.assertEqual(kod, 0)
+        self.assertIn("pomijam porównanie z plikiem sum", out)
+
     def test_sumy_brak_archiwum_w_istniejacej_sprawie_czytelny_blad(self):
         # Arrange — blokada dostaje istniejący katalog sprawy, więc brak ARCHIWUM musi wyłapać sam manifest.py
         komunikat = io.StringIO()

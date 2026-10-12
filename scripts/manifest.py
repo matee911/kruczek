@@ -274,6 +274,8 @@ def main():
 
 def _wykonaj(a):
     if a.cmd == "skan":
+        if not Path(a.arg1).is_dir():  # literówka w ścieżce to nie pusta sprawa
+            raise BladSprawy(f"{a.arg1}: katalog nie istnieje")
         print(table(a.arg1))
 
     elif a.cmd == "sumy":
@@ -314,6 +316,8 @@ def _wykonaj(a):
 
     elif a.cmd == "sprawdz":
         root = a.arg1
+        if not Path(root).is_dir():  # literówka w ścieżce nie może dać „OK — wszystko się zgadza.”
+            raise BladSprawy(f"{root}: katalog nie istnieje")
         actual = {r["rel"]: r["sha"] for r in rows(root)}
         w_archiwum = korzen_w_archiwum(root)
         bad = missing = new = 0
