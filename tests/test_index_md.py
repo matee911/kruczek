@@ -37,9 +37,25 @@ def _wstaw(katalog: Path) -> subprocess.Popen:
 
 
 def _kod(proces: subprocess.Popen, timeout: float = 30) -> int:
-    """Kod wyjścia procesu; zamyka jego potoki (pytest -W error traktuje niezamknięte jak błąd)."""
-    with proces:
-        return proces.wait(timeout=timeout)
+    """Kod wyjścia procesu; po przekroczeniu `timeout` zabija go i zgłasza TimeoutExpired (proces
+    wiszący na blokadzie nie zawiesza testów). Zamyka potoki — pytest -W error traktuje niezamknięte jak błąd."""
+    try:
+        proces.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        proces.kill()
+        proces.communicate()
+        raise
+    return proces.returncode
+
+
+def test_kod_przerywa_wiszacy_proces_po_timeoucie():
+    # Arrange
+    proces = subprocess.Popen(["sleep", "30"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    start = time.monotonic()
+    # Act / Assert
+    with pytest.raises(subprocess.TimeoutExpired):
+        _kod(proces, timeout=0.5)
+    assert time.monotonic() - start < 10 and proces.poll() is not None
 
 
 def test_wstaw_czeka_na_render_i_nie_gubi_wpisu(sprawa):

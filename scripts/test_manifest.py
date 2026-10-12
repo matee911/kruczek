@@ -17,8 +17,9 @@ from unittest import mock
 import manifest
 
 
-def uruchom(argv):
-    """Woła manifest.main() z podanym argv, zwraca (wyjście stdout, kod wyjścia)."""
+def uruchom(argv, stderr=None):
+    """Woła manifest.main() z podanym argv, zwraca (wyjście stdout, kod wyjścia). `stderr` (StringIO)
+    dostaje komunikat z `sys.exit("…")` — tam wpisałby go interpreter, gdyby proces się kończył."""
     old_argv = sys.argv
     buf = io.StringIO()
     try:
@@ -29,6 +30,8 @@ def uruchom(argv):
                 kod = 0
             except SystemExit as e:
                 kod = e.code if isinstance(e.code, int) else (1 if e.code else 0)
+                if stderr is not None and isinstance(e.code, str):
+                    print(e.code, file=stderr)
     finally:
         sys.argv = old_argv
     return buf.getvalue(), kod
@@ -292,10 +295,6 @@ class TestMainWstaw(unittest.TestCase):
             self.assertIn("a.txt", txt)
 
 
-if __name__ == "__main__":
-    unittest.main(verbosity=2)
-
-
 class TestBlokada(unittest.TestCase):
     """manifest.py pisze w katalogu sprawy razem z teczka.py i stroną — bierze tę samą blokadę."""
 
@@ -351,7 +350,44 @@ class TestBlokada(unittest.TestCase):
             self.assertEqual(manifest.katalog_sprawy(luzny), luzny.resolve())
 
     def test_brak_katalogu_sprawy_czytelny_blad(self):
+        # Arrange
+        komunikat = io.StringIO()
         # Act
-        out, kod = uruchom(["sumy", "/nie-ma-takiego-katalogu-sprawy"])
+        _out, kod = uruchom(["sumy", "/nie-ma-takiego-katalogu-sprawy"], komunikat)
         # Assert
         self.assertNotEqual(kod, 0)
+        self.assertIn("nie istnieje", komunikat.getvalue())
+
+    def test_sumy_brak_archiwum_w_istniejacej_sprawie_czytelny_blad(self):
+        # Arrange — blokada dostaje istniejący katalog sprawy, więc brak ARCHIWUM musi wyłapać sam manifest.py
+        komunikat = io.StringIO()
+        with tempfile.TemporaryDirectory() as tmp:
+            sprawa = Path(tmp, "sprawa-a")
+            sprawa.mkdir()
+            (sprawa / "sprawa.json").write_text("{}", encoding="utf-8")
+            # Act
+            _out, kod = uruchom(["sumy", str(sprawa / "ARCHIWUM")], komunikat)
+            zostalo = sorted(p.name for p in sprawa.iterdir() if p.name != ".sprawa.lock")
+        # Assert
+        self.assertNotEqual(kod, 0)
+        self.assertIn("nie istnieje", komunikat.getvalue())
+        self.assertEqual(zostalo, ["sprawa.json"])
+
+    def test_wstaw_brak_pliku_index_w_istniejacej_sprawie_czytelny_blad(self):
+        # Arrange
+        komunikat = io.StringIO()
+        with tempfile.TemporaryDirectory() as tmp:
+            sprawa = Path(tmp, "sprawa-a")
+            sprawa.mkdir()
+            (sprawa / "sprawa.json").write_text("{}", encoding="utf-8")
+            # Act
+            _out, kod = uruchom(["wstaw", str(sprawa / "brak.md"), str(sprawa)], komunikat)
+            zostalo = sorted(p.name for p in sprawa.iterdir() if p.name != ".sprawa.lock")
+        # Assert
+        self.assertNotEqual(kod, 0)
+        self.assertIn("brak pliku", komunikat.getvalue())
+        self.assertEqual(zostalo, ["sprawa.json"])
+
+
+if __name__ == "__main__":
+    unittest.main(verbosity=2)
