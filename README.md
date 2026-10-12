@@ -244,7 +244,8 @@ Przed PR-em uruchom `claude plugin validate .`.
 ### Testy
 
 ```bash
-uv run --python 3.11 python scripts/run_tests.py     # unittest + doctesty ze wszystkich modułów
+uv run --no-project --isolated --python 3.11 python scripts/run_tests.py  # unittest + doctesty ze wszystkich modułów, bez zależności deva
+uv python install 3.11   # raz, jeśli brak 3.11 (smoketest szuka go przez `uv python find`)
 PATH="$(dirname "$(uv python find 3.11)"):$PATH" bash scripts/smoketest.sh scripts # czy skrypty w ogóle się uruchamiają
 ```
 
