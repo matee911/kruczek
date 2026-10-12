@@ -14,9 +14,11 @@ set -euo pipefail
 REPO="$(git rev-parse --show-toplevel)"
 
 # Kod wymaga Pythona >= 3.11, a systemowy python3 bywa starszy (macOS: 3.9) — przez uv dostajemy 3.11.
-# Bez uv zostaje python3 z PATH (np. Linux z nowszym Pythonem).
+# Bez uv zostaje python3 z PATH (np. Linux z nowszym Pythonem). `--no-project` wyłącza synchronizację .venv
+# z grupą dev przy każdym commicie, a `--isolated` nie pozwala uv wziąć istniejącego .venv jako interpretera —
+# inaczej run_tests widziałby pakiety spoza stdlib i sprawdzenie „tylko stdlib” przestałoby działać.
 if command -v uv >/dev/null 2>&1; then
-  TESTY=(uv run --python 3.11 python "${REPO}/scripts/run_tests.py")
+  TESTY=(uv run --no-project --isolated --python 3.11 python "${REPO}/scripts/run_tests.py")
 else
   TESTY=(python3 "${REPO}/scripts/run_tests.py")
 fi
