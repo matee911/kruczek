@@ -5,6 +5,80 @@ wersjonowanie wg [SemVer](https://semver.org/lang/pl/).
 
 ## [Unreleased]
 
+## [0.10.1] — 2026-10-12
+
+### Poprawione
+- `manifest.py sumy` i `wstaw` piszą pod tą samą blokadą sprawy co `teczka.py` i strona, a `index.md`
+  i `SHA256SUMS.txt` zapisują atomowo. Wcześniej manifest wpisany w chwili, gdy strona albo `teczka.py`
+  odświeżały `index.md`, mógł skasować notatki w `index.md` (stan faktyczny, strategia) albo sam zniknąć.
+  `sumy <sprawa>/ARCHIWUM` blokuje całą sprawę, nie tylko katalog archiwum.
+- `manifest.py wstaw` przy uszkodzonych znacznikach manifestu w `index.md` (znacznik bez pary, zdublowany
+  blok) zatrzymuje się z komunikatem „uszkodzone znaczniki manifestu — popraw ręcznie” i zostawia plik
+  bez zmian. Wcześniej kolejne uruchomienie mogło nadpisać notatki leżące między osieroconymi znacznikami.
+  Brak katalogu sprawy albo `index.md` w `sumy` i `wstaw` to czytelny błąd zamiast traceback. Komendy
+  (`/kruczek:dowod`, `/kruczek:pismo`) i agent `archiwizuj` pokazują taki błąd użytkownikowi i same nie
+  poprawiają `index.md`.
+- Znacznik komentarza HTML w opisie zdarzenia (np. temat maila z `<!-- … -->`), w nazwie pliku dowodu albo
+  zacytowany w notatce w `index.md` nie wyłącza już odświeżania bloków `index.md` ani manifestu. Znacznikiem
+  bloku jest tylko cała linia.
+- `/kruczek:pismo` uruchamia recenzję: agentów `weryfikuj-cytaty` i `recenzuj` wprost, równolegle. Wcześniej
+  obowiązkowy krok wołał komendę `/kruczek:recenzja`, której model nie może uruchomić, więc recenzja się
+  nie odbywała. Raport składa się według sekcji „Raport” komendy `recenzja` i przechodzi, gdy nie ma w nim 🔴.
+  Po recenzji najwyżej jedna runda poprawek bez pytania (wspólna z odesłaniem do agenta „twierdzeń spoza
+  briefu”); ponowna recenzja sprawdza tylko zmienione sekcje. Kolejne poprawki po decyzji użytkownika;
+  możesz też świadomie przyjąć pozostałe 🔴 — trafiają wtedy do TLDR.md w „gdzie jesteśmy słabi”.
+  `weryfikuj-cytaty` sprawdza cytowane przepisy z plikami (i ich SHA-256) wskazanymi w briefie pisma.
+  Skille nie każą już modelowi uruchamiać komend, których model uruchomić nie może — podają je użytkownikowi
+  jako podpowiedź. `/kruczek:pismo` może wołać `eurlex.sh` bez dodatkowego pytania o zgodę.
+- Treść każdego pisma pisze agent `napisz-pismo` (`opus`) z briefu zapisanego w katalogu wysyłki, a
+  `build_pismo.py --tresc` wstawia ją do szablonu bez przepisywania (nieistniejący plik to komunikat
+  „BŁĄD: brak pliku …”). Model komendy obowiązuje tylko do pierwszej odpowiedzi użytkownika, więc po
+  pytaniach z kroku „Dopytaj” pismo pisał model, na którym była rozmowa. Agent dostaje jako ścieżki wzór
+  klas i układu (szablon pisma) oraz konwencję redakcyjną (`redagowanie-pism`), zachowuje ramkę „Zastrzeżenie”,
+  dopóki rejestr nie potwierdzi adresata, i zna dozwolone znaczniki: tylko atrybut `class`, adresy URL
+  i e-mail jako zwykły tekst, znaki `<`, `>` i `&` jako `&lt;`, `&gt;` i `&amp;`. Błąd „niedozwolony HTML”
+  przy składaniu wraca do agenta raz jako poprawka techniczna, potem do użytkownika.
+- Komendy, które pytają, zadają pytania zamknięte przez AskUserQuestion (kilka naraz w jednym okienku,
+  gdy znają je z góry). Wyjątek: `/kruczek:dane-nadawcy` pola otwarte (imię, adres, NIP, e-mail…) pyta zwykłą
+  wiadomością, bo okienko wymaga opcji do wyboru; pytania zamknięte (np. którą tożsamość wypełnić) zadaje
+  przez AskUserQuestion.
+- Pliki robocze nie trafiają już do `SHA256SUMS.txt` ani do manifestu: katalogi `ROBOCZE/` (brief, treść
+  i kopia szablonu pisma, podsumowania) oraz katalogi wysyłki `*-DO_WYSYLKI/` (PDF pisma i `TLDR.md` są
+  przebudowywane po recenzji), poza `ARCHIWUM/`. Wcześniej każda poprawka takiego pliku dawała „NIEZGODNA
+  SUMA” w `manifest.py sumy` i w `/kruczek:kontrola`. W `ARCHIWUM/` liczy się wszystko: wysyłka przeniesiona
+  do archiwum jest sumowana i pilnowana jak każdy dowód. Wpisy zapisane przez starsze wersje zostają
+  w pliku sum i są pomijane z komunikatem „pliki robocze i szkice wysyłek (ROBOCZE/, *-DO_WYSYLKI/),
+  pomijam: N wpisów (informacja, nie błąd; …)”. PDF wysłanego pisma leżący w `*-DO_WYSYLKI/` nie ma więc
+  sumy w rejestrze, dopóki nie zarchiwizuje go przy nadaniu kolejne wydanie. Zostaw plik tam, gdzie jest;
+  sumę możesz mieć od razu, kopiując go do `ARCHIWUM/` i uruchamiając `/kruczek:dowod` albo `manifest.py sumy`.
+
+### Zmienione
+- `/kruczek:metadane` i `/kruczek:gmail` mogą być wołane z innych komend (`/kruczek:dowod`,
+  `/kruczek:nowa-sprawa`), dlatego zawężono ich wstępnie zatwierdzone uprawnienia: `metadane` ma już tylko
+  własny skrypt (`metadane.sh`) i czytanie plików, `gmail` — tylko czytanie. Bezpośrednie wywołania
+  `exiftool`, `pdftotext`, `unzip`, `mdls` i `xattr` z tego skilla oraz zapis i edycja plików (w tym
+  `index.md`) będą teraz pytać o zgodę.
+
+### Bezpieczeństwo
+- Treść pisma od agenta może zawierać tylko znaczniki tekstu z atrybutem `class` — obrazek, link, styl
+  albo skrypt (np. wstrzyknięty treścią pisma drugiej strony) przerywa budowanie PDF-u.
+- Niezależnie od tego silniki PDF nie pobierają plików lokalnych przy druku: szablon ma politykę CSP, która
+  w Chrome blokuje pliki (`file://`) i żądania sieciowe (a `build_pismo.py` dokłada ją sam, jeśli szablonowi
+  jej brakuje); Chrome dostaje dodatkowo regułę, która nie rozwiązuje nazw hostów; weasyprint dostaje
+  `--allowed-protocols data`, a jeśli jego wersja tej opcji nie zna, PDF składa Chrome (gdy jest); wkhtmltopdf
+  działa z `--disable-local-file-access` — wcześniej `build_pismo.py` włączał mu dostęp do plików lokalnych.
+  HTML w załącznikach `.md` jest pokazywany jako tekst.
+- Silnik PDF, który nie skończy w 120 s, przerywa budowanie z czytelnym błędem.
+- Przy wkhtmltopdf obrazki z adresów internetowych w załącznikach `.md` nie są blokowane. Tak samo przy
+  weasyprint bez `--allowed-protocols`, gdy nie ma Chrome (PDF powstaje, ale z ostrzeżeniem) — zainstaluj
+  aktualny weasyprint albo Chrome.
+
+### Obejście dla wersji 0.10.0 i starszych
+- Przed `/kruczek:pismo` i `/kruczek:eskalacja` przełącz sesję na Opusa (`/model opus`), a recenzję pisma
+  uruchom sam: `/kruczek:recenzja`.
+- Nie wpisuj manifestu (`/kruczek:dowod`, `manifest.py wstaw`), gdy ta sama sprawa jest otwarta
+  w `/kruczek:serve`.
+
 ## [0.10.0] — 2026-10-11
 
 ### Dodane
