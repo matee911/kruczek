@@ -92,19 +92,33 @@ def test_pismo_recenzuje_przez_agentow_a_nie_komende_usera():
 
 
 PYTA_USERA = re.compile(r"zapytaj|dopytaj|zapytać|AskUserQuestion|pytaj użytkownika|pytaj usera", re.IGNORECASE)
-SKILLE_Z_MODELEM = sorted(k.name for k in SKILLE.iterdir() if (k / "SKILL.md").exists() and "model" in _skill(k.name)[0])
+SKILLE_PYTAJACE = sorted(k.name for k in SKILLE.iterdir()
+                         if (k / "SKILL.md").exists() and "model" in _skill(k.name)[0]
+                         and PYTA_USERA.search(_skill(k.name)[1]))
+# Wyjątek: pola otwarte (imię, adres, NIP) nie mają opcji do wyboru, więc te skille pytają o nie zwykłą wiadomością.
+# Wolno tylko skillowi na tanim modelu (przełączenie na model sesji po odpowiedzi kosztuje mało), a AskUserQuestion
+# zostaje w allowed-tools dla pytań zamkniętych.
+OTWARTE_POLA_ZWYKLA_WIADOMOSCIA = {"dane-nadawcy"}
+FRAZA_WYJATKU = "zwykłą wiadomością tekstową"
 
 
-@pytest.mark.parametrize("nazwa", SKILLE_Z_MODELEM)
+@pytest.mark.parametrize("nazwa", SKILLE_PYTAJACE)
 def test_skill_z_modelem_pyta_usera_przez_askuserquestion(nazwa):
     # Arrange — model komendy obowiązuje w pierwszej turze; odpowiedź w prozie zaczyna nową turę modelem sesji
     pola, tresc = _skill(nazwa)
-    if not PYTA_USERA.search(tresc):
-        pytest.skip("komenda nie pyta użytkownika")
     # Act
     narzedzia = pola.get("allowed-tools", "").split()
     # Assert
     assert "AskUserQuestion" in narzedzia
+    assert (FRAZA_WYJATKU in tresc) == (nazwa in OTWARTE_POLA_ZWYKLA_WIADOMOSCIA)
+
+
+@pytest.mark.parametrize("nazwa", sorted(OTWARTE_POLA_ZWYKLA_WIADOMOSCIA))
+def test_wyjatek_od_askuserquestion_tylko_na_tanim_modelu(nazwa):
+    # Arrange
+    pola, _ = _skill(nazwa)
+    # Assert
+    assert pola["model"] in {"haiku", "sonnet"}
 
 
 def test_pismo_deleguje_redakcje_do_napisz_pismo_przez_pliki():
@@ -175,3 +189,58 @@ def test_blad_manifestu_pokazuje_sie_userowi_a_index_md_nie_jest_edytowany(plik)
     assert zdanie, "brak reguły: błąd manifestu → pokaż komunikat"
     assert re.search(r"pokaż komunikat\s+użytkownikowi", zdanie.group(0))
     assert re.search(r"nie edytuj\s+`index\.md`", zdanie.group(0))
+
+
+def test_pismo_przekazuje_agentowi_wzor_i_konwencje_jako_bezwzgledne_sciezki():
+    # Arrange — agent nie zna katalogu pluginu: bez ścieżek nie zobaczy klas szablonu ani konwencji redakcyjnej
+    _, tresc = _skill("pismo")
+    agent = (AGENCI / "napisz-pismo.md").read_text(encoding="utf-8")
+    # Act
+    napisz = _sekcja(tresc, 5)
+    # Assert
+    for sciezka in ("${CLAUDE_PLUGIN_ROOT}/templates/pismo.html", "${CLAUDE_PLUGIN_ROOT}/skills/redagowanie-pism/SKILL.md"):
+        assert sciezka in napisz
+        assert sciezka in agent.split("## Struktura argumentacji")[0]
+    assert "Zastrzeżenie" in agent
+
+
+def test_pismo_wywoluje_tylko_skrypty_z_allowed_tools():
+    # Arrange
+    pola, tresc = _skill("pismo")
+    # Act
+    skrypt = r"\b([A-Za-z_-]+\.(?:sh|py))\b"
+    uzyte = set(re.findall(skrypt, tresc))
+    dozwolone = set(re.findall(skrypt, pola["allowed-tools"]))
+    # Assert
+    assert uzyte - dozwolone == set()
+
+
+def test_pismo_kopiuje_tresc_przed_poprawka_i_dzieli_limit_rundy_z_krokiem_5():
+    # Arrange
+    _, tresc = _skill("pismo")
+    agent_recenzji = (AGENCI / "recenzuj.md").read_text(encoding="utf-8")
+    # Act
+    krok5, krok8 = _sekcja(tresc, 5), _sekcja(tresc, 8)
+    poprawki = krok8[krok8.index("**Poprawki"):]
+    # Assert — kopia przed odesłaniem do agenta (inaczej agent nadpisze plik i „przed” jest puste)
+    assert poprawki.index("cp ") < poprawki.index("odeślij")
+    assert "ROBOCZE/tresc.przed.html" in poprawki and "diff" not in poprawki
+    assert "tresc.przed.html" in agent_recenzji
+    assert "wspólny z krokiem 8" in krok5 and "wspólna z krokiem 5" in poprawki
+
+
+def test_pismo_pozwala_swiadomie_przyjac_pozostale_czerwone():
+    # Arrange
+    _, tresc = _skill("pismo")
+    # Act
+    krok = _sekcja(tresc, 8)
+    # Assert
+    assert krok.count("świadomie przyjął") >= 2 and "gdzie jesteśmy słabi" in krok
+
+
+def test_weryfikuj_cytaty_sprawdza_sumy_plikow_z_briefu():
+    # Arrange
+    tekst = (AGENCI / "weryfikuj-cytaty.md").read_text(encoding="utf-8")
+    # Assert
+    assert "BRIEF.md" in tekst and "sha256sum" in tekst
+    assert "Bash" in _frontmatter(tekst)["tools"]

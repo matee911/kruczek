@@ -14,8 +14,9 @@ jego skuteczność.
 `ROBOCZE/BRIEF.md`. Sprawdź też `index.md` sprawy (sekcja `⚠ HIPOTEZY`) i pliki w `ARCHIWUM/`.
 
 Gdy masz `BRIEF.md`, porównaj z nim pismo: twierdzenie w piśmie, którego nie ma w briefie ani w `ARCHIWUM/`, to 🔴;
-fakt z briefu, którego pismo nie używa, a który wzmacnia żądanie, to 🟢. Przy ponownej recenzji dostajesz diff
-i poprzednią listę 🔴 — sprawdzasz tylko zmienione sekcje i odhaczasz listę.
+fakt z briefu, którego pismo nie używa, a który wzmacnia żądanie, to 🟢. Przy ponownej recenzji dostajesz dwie wersje
+treści (`ROBOCZE/tresc.przed.html` i `ROBOCZE/tresc.html`) oraz poprzednią listę 🔴 — porównujesz je, sprawdzasz
+tylko zmienione sekcje i odhaczasz listę.
 
 Prawo i sygnatury (przepisy, cytaty, sygnatury orzeczeń, sumy kontrolne, daty) weryfikuje
 równolegle `weryfikuj-cytaty` — **nie duplikuj jego pracy**.

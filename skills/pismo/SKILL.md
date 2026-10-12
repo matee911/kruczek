@@ -5,7 +5,7 @@ argument-hint: "[katalog sprawy] [rodzaj pisma]"
 disable-model-invocation: true
 model: opus
 effort: high
-allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/check-deps.sh) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/build_pismo.py *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/kontrola_pisma.py *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/eli.sh *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/orzecznictwo.sh *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/manifest.py *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/teczka.py *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/podmiot.sh *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/dns.sh *) Bash(mkdir *) Bash(cp *) Bash(zip *) Bash(sha256sum *) Bash(date *) Read Write Edit AskUserQuestion
+allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/check-deps.sh) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/build_pismo.py *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/kontrola_pisma.py *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/eli.sh *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/eurlex.sh *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/orzecznictwo.sh *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/manifest.py *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/teczka.py *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/podmiot.sh *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/dns.sh *) Bash(mkdir *) Bash(cp *) Bash(zip *) Bash(sha256sum *) Bash(date *) Read Write Edit AskUserQuestion
 ---
 
 # Budowa pisma
@@ -136,13 +136,16 @@ modelu rozmowy.
      nadawcy, kwoty, numery);
    - **Adresat** z rejestru (krok 3) i **nadawca** z `dane-nadawcy.md`;
    - **Żądania i termin**, jeśli użytkownik je określił.
-2. Zleć agentowi `napisz-pismo`: ścieżkę do `BRIEF.md` i katalogu sprawy. Agent zapisuje treść do
-   `<wysylka>/ROBOCZE/tresc.html` i zwraca: ścieżkę, pola do uzupełnienia, „Gdzie jesteśmy słabi”,
-   „Fakty z briefu nieużyte” i „Twierdzenia spoza briefu”.
+2. Zleć agentowi `napisz-pismo` cztery ścieżki: `<wysylka>/ROBOCZE/BRIEF.md`, katalog sprawy, wzór klas i układu
+   `${CLAUDE_PLUGIN_ROOT}/templates/pismo.html` (część między znacznikami `KRUCZEK:TRESC`) oraz konwencję
+   redakcyjną `${CLAUDE_PLUGIN_ROOT}/skills/redagowanie-pism/SKILL.md` (struktura, numeracja, formuły, załączniki).
+   Agent nie zna katalogu pluginu ani tej komendy, więc ścieżki podajesz zawsze, także przy poprawkach. Agent
+   zapisuje treść do `<wysylka>/ROBOCZE/tresc.html` i zwraca: ścieżkę, pola do uzupełnienia, „Gdzie jesteśmy
+   słabi”, „Fakty z briefu nieużyte” i „Twierdzenia spoza briefu”.
 3. „Twierdzenia spoza briefu” sprawdź przed krokiem 6: każde musi mieć plik w `ARCHIWUM/` albo wypada — odeślij
-   agentowi konkretną uwagę. Treści pisma nie przepisuj sam; poprawki merytoryczne robi agent.
-
-Konwencja redakcyjna (struktura, numeracja klasami szablonu, załączniki) — `redagowanie-pism`; agent ją stosuje.
+   agentowi konkretną uwagę. Odesłanie to ta sama jedna runda automatyczna co w kroku 8 (limit wspólny z krokiem 8).
+   Jeśli po poprawce nadal zostają takie twierdzenia — zapytaj użytkownika przez AskUserQuestion, czy je usunąć,
+   czy dostarczyć dowód. Treści pisma nie przepisuj sam; poprawki merytoryczne robi agent.
 
 ## 6. Złóż PDF
 
@@ -188,15 +191,18 @@ ${CLAUDE_PLUGIN_ROOT}/scripts/manifest.py sumy <sprawa>/ARCHIWUM
    komendy model jej nie wywoła. Oba raporty złóż w jeden według sekcji Raport z
    `${CLAUDE_PLUGIN_ROOT}/skills/recenzja/SKILL.md` (🔴 → 🟠 → 🟡 → 🟢). Recenzja przechodzi, gdy nie ma 🔴
    w złożonym raporcie.
-3. **Poprawki — najwyżej jedna runda automatyczna.** Pozycje 🔴 odeślij do `napisz-pismo` (poprawia `tresc.html`),
-   złóż PDF ponownie (krok 6) i powtórz kontrolę mechaniczną. Ponowna recenzja tylko na zmienionych sekcjach:
-   każdemu agentowi daj diff `tresc.html` (przed/po — kopię sprzed poprawki zachowaj jako
-   `ROBOCZE/tresc.przed.html`) i poprzednią listę 🔴 do odhaczenia — bez pełnej recenzji od nowa.
+3. **Poprawki — najwyżej jedna runda automatyczna** (runda wspólna z krokiem 5 pkt 3: jeśli zużyto ją tam,
+   przejdź od razu do pkt 4). Najpierw `cp <wysylka>/ROBOCZE/tresc.html <wysylka>/ROBOCZE/tresc.przed.html`,
+   dopiero potem odeślij pozycje 🔴 do `napisz-pismo` (poprawia `tresc.html`), złóż PDF ponownie (krok 6)
+   i powtórz kontrolę mechaniczną. Ponowna recenzja tylko na zmienionych sekcjach: każdemu agentowi daj obie
+   wersje (`ROBOCZE/tresc.przed.html` i `ROBOCZE/tresc.html`) i poprzednią listę 🔴 do odhaczenia — bez pełnej
+   recenzji od nowa.
 4. Jeśli po tej rundzie zostaje cokolwiek 🔴 albo poprawka wymaga decyzji (usunąć zarzut, zmienić żądanie) —
-   zapytaj użytkownika przez AskUserQuestion, co robimy; kolejna runda tylko po jego odpowiedzi.
+   zapytaj użytkownika przez AskUserQuestion, co robimy; kolejna runda tylko po jego odpowiedzi. Jeśli
+   użytkownik świadomie przyjął pozostałe 🔴 — wpisz je do `TLDR.md` w „gdzie jesteśmy słabi” (krok 9).
 
 **Nie melduj gotowości pisma, dopóki kontrola mechaniczna nie przechodzi albo w raportach zostaje
-cokolwiek 🔴.**
+cokolwiek 🔴 — chyba że użytkownik świadomie przyjął pozostałe 🔴 (pkt 4).**
 
 ## 9. Napisz TL;DR dla użytkownika
 

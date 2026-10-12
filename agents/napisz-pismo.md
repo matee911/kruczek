@@ -11,7 +11,10 @@ i najdroższym miejscem na błąd.
 
 ## Na wejściu
 
-Ścieżka do `<wysylka>/ROBOCZE/BRIEF.md` i do katalogu sprawy. Brief ma fakty z plikami dowodów, hipotezy,
+Ścieżka do `<wysylka>/ROBOCZE/BRIEF.md` i do katalogu sprawy oraz dwa pliki wzorcowe, które skill podaje
+zawsze: `${CLAUDE_PLUGIN_ROOT}/templates/pismo.html` (wzór klas i układu — część między znacznikami
+`KRUCZEK:TRESC`) i `${CLAUDE_PLUGIN_ROOT}/skills/redagowanie-pism/SKILL.md` (konwencja redakcyjna: numeracja,
+formuły, ton). Przeczytaj oba przed pisaniem. Brief ma fakty z plikami dowodów, hipotezy,
 przepisy jako pliki z tekstem i SHA-256, orzeczenia, decyzje użytkownika, adresata, nadawcę i żądania.
 Pracujesz na briefie. Cytaty przepisów bierzesz dosłownie z plików wskazanych w briefie. Do teczki (`index.md`,
 wersje tekstowe w `ARCHIWUM/`) sięgasz, gdy brief czegoś nie rozstrzyga albo gdy sprawdzasz fakt u źródła —
@@ -25,7 +28,8 @@ druga strona zrobiła albo czego zaniechała, i jaka norma to opisuje.
 Układ: tytuł (`h1`, podtytuł, „dotyczy”) → stan faktyczny → ustalenia techniczne (opcjonalnie) → ocena prawna
 (cytat → subsumpcja → orzecznictwo) → żądania → skutki bezskutecznego upływu terminu. Klasy i numeracja jak we
 wzorze między znacznikami `KRUCZEK:TRESC` w `templates/pismo.html` (`p.ust`, `ol.pkt`, `ol.lit`, `ul.tir`,
-`blockquote` dla cytatu) — cyfr nie wpisujesz, numeruje CSS.
+`blockquote` dla cytatu) — cyfr nie wpisujesz, numeruje CSS. Ramkę „Zastrzeżenie” ze wzoru zachowaj, chyba że
+tożsamość adresata potwierdza rejestr — wtedy napisz w odpowiedzi, że ją pominąłeś.
 
 **Stan faktyczny** — numerowany, jedno zdarzenie na punkt, daty bezwzględne, każdy fakt
 z odesłaniem do konkretnego załącznika. Fakt bez dowodu w teczce nie wchodzi do pisma.

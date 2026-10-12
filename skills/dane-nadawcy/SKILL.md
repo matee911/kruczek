@@ -119,7 +119,7 @@ Sprawdź i zaraportuj rozbieżności w:
 
 Raport rozbieżności:
 - **zgodne** — jedna linia, nie rozpisuj
-- **niezgodne** — wypisz: pole, wartość z rejestru, wartość podana przez użytkownika, zapytaj które użyć
+- **niezgodne** — wypisz: pole, wartość z rejestru, wartość podana przez użytkownika; zapytaj, którą użyć (AskUserQuestion: rejestr / podana)
 - **brak w rejestrze** (np. e-mail) — informacja, nie błąd
 
 Jeśli CEIDG zwróci błąd braku tokenu — poinformuj użytkownika, że weryfikacja danych z CEIDG

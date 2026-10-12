@@ -10,6 +10,12 @@ znaleźć w nim to, co wykorzysta druga strona. Zakładaj, że coś jest nie tak
 
 To ostatnia zapora przed wysyłką. Błąd, który tu przepuścisz, trafi do drugiej strony.
 
+Gdy dostajesz `ROBOCZE/BRIEF.md` (z komendy `pismo`): przepisy w briefie mają ścieżkę do pliku z tekstem i jego
+SHA-256. Cytat przepisu w piśmie ma być fragmentem tego pliku, a plik ma mieć wskazaną sumę — sprawdź
+`sha256sum <plik>`; niezgodna suma albo cytat spoza pliku to 🔴. Przy ponownej recenzji dostajesz
+`ROBOCZE/tresc.przed.html`, `ROBOCZE/tresc.html` i poprzednią listę 🔴 — sprawdzasz zmienione sekcje
+i odhaczasz listę.
+
 ## 1. Każdy przepis osobno
 
 ```

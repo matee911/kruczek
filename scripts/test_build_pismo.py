@@ -429,6 +429,17 @@ class TestTresc(unittest.TestCase):
             # Assert
             self.assertIn("szablon nie ma znaczników treści", str(kod))
 
+    def test_brak_pliku_z_trescia_to_czytelny_blad_a_nie_traceback(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            # Arrange
+            szablon = Path(tmp, "pismo.html")
+            szablon.write_text("<body>A<!--KRUCZEK:TRESC:START--><!--KRUCZEK:TRESC:END-->B</body>", encoding="utf-8")
+            brak = os.path.join(tmp, "nie-ma.html")
+            # Act
+            _, kod = run_main([str(szablon), "-o", os.path.join(tmp, "p.pdf"), "--tresc", brak])
+            # Assert
+            self.assertEqual(kod, f"BŁĄD: brak pliku {brak}")
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
