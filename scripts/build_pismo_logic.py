@@ -10,6 +10,11 @@ from collections.abc import Sequence
 from html.parser import HTMLParser
 
 TRESC_START, TRESC_KONIEC = "<!--KRUCZEK:TRESC:START-->", "<!--KRUCZEK:TRESC:END-->"
+# Ta sama polityka jest w templates/pismo.html; test pilnuje, żeby obie wersje były identyczne.
+CSP_META = (
+    """<meta http-equiv="Content-Security-Policy" content="default-src 'none'; """
+    """style-src 'unsafe-inline'; img-src data:">"""
+)
 
 
 def parse_attachment_spec(spec: str) -> tuple[str, str]:
@@ -266,6 +271,31 @@ def sprawdz_tresc(tresc: str) -> None:
         bledy = [tresc[m.start():m.end()]]
     if bledy:
         raise ValueError("niedozwolony HTML w treści pisma: " + ", ".join(bledy))
+
+
+def wstaw_csp(html: str) -> str:
+    """Szablon bez polityki CSP (ręcznie edytowany, przyszły) dostaje ją przed złożeniem PDF-u.
+
+    Polityka ma stać w `<head>`; jeśli szablon jest już z nią, wynik się nie zmienia.
+
+    >>> wstaw_csp('<head><meta charset="utf-8"></head>') == '<head><meta charset="utf-8">' + CSP_META + '</head>'
+    True
+    >>> wstaw_csp('<html lang="pl"><head></head>') == '<html lang="pl"><head>' + CSP_META + '</head>'
+    True
+    >>> wstaw_csp('<html></html>') == '<html>' + CSP_META + '</html>'
+    True
+    >>> wstaw_csp('<p>x</p>') == CSP_META + '<p>x</p>'
+    True
+    >>> gotowy = '<head><meta charset="utf-8">' + CSP_META + '</head>'
+    >>> wstaw_csp(gotowy) == gotowy
+    True
+    """
+    if CSP_META in html:
+        return html
+    for wzor in (r"<meta\s+charset=[^>]*>", r"<head\b[^>]*>", r"<html\b[^>]*>"):
+        if m := re.search(wzor, html, re.IGNORECASE):
+            return html[: m.end()] + CSP_META + html[m.end() :]
+    return CSP_META + html
 
 
 def wstaw_tresc(szablon: str, tresc: str) -> str:

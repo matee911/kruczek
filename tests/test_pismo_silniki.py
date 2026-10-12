@@ -55,7 +55,10 @@ def _zbuduj(tmp_path, zrodlo):
     tekst.write_text(SEKRET_TEKST, encoding="utf-8")
     zalaczniki = ["-z", f"{kontrola}:Zdjęcie"]
     html = SZABLON.read_text(encoding="utf-8")
-    if zrodlo == "szablon":
+    if zrodlo == "szablon_bez_csp":  # ręcznie edytowany szablon — skrypt sam dokłada politykę
+        html = re.sub(r'<meta http-equiv="Content-Security-Policy"[^>]*>\n?', "", html)
+        assert "Content-Security-Policy" not in html
+    if zrodlo in ("szablon", "szablon_bez_csp"):
         wstawka = (f'<p><img src="{obraz.as_uri()}"></p><iframe src="{tekst.as_uri()}"></iframe>'
                    f'<object data="{tekst.as_uri()}"></object><div style="background: url({obraz.as_uri()})">x</div>')
         html = html.replace("<!--KRUCZEK:TRESC:END-->", wstawka + "<!--KRUCZEK:TRESC:END-->")
@@ -71,7 +74,7 @@ def _zbuduj(tmp_path, zrodlo):
     return r, pdf
 
 
-@pytest.mark.parametrize("zrodlo", ["szablon", "zalacznik_md"])
+@pytest.mark.parametrize("zrodlo", ["szablon", "szablon_bez_csp", "zalacznik_md"])
 def test_walidacja_ominieta_silnik_i_tak_blokuje_file(tmp_path, zrodlo):
     # Arrange
     if zrodlo == "zalacznik_md" and not shutil.which("pandoc"):

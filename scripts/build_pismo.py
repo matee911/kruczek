@@ -47,6 +47,7 @@ from build_pismo_logic import (
     flagi_weasyprint,
     parse_attachment_spec,
     postprocess_pandoc_html,
+    wstaw_csp,
     wstaw_tresc,
 )
 from utils import (
@@ -182,7 +183,7 @@ def main():
     a = ap.parse_args()
 
     with open(a.szablon, encoding="utf-8") as f:
-        tpl = f.read()
+        tpl = wstaw_csp(f.read())
 
     if a.tresc:
         if not os.path.exists(a.tresc):

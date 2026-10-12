@@ -480,6 +480,43 @@ class TestBezpieczenstwoTresci(unittest.TestCase):
         # Assert
         self.assertIn(self.CSP, szablon)
 
+    def test_csp_w_kodzie_jest_taki_sam_jak_w_szablonie(self):
+        # Arrange
+        szablon = self.SZABLON_PRAWDZIWY.read_text(encoding="utf-8")
+        # Assert
+        self.assertEqual(build_pismo_logic.CSP_META, self.CSP)
+        self.assertIn(build_pismo_logic.CSP_META, szablon)
+
+    def test_szablon_bez_csp_dostaje_go_przy_skladaniu(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            # Arrange
+            szablon = Path(tmp, "pismo.html")
+            szablon.write_text(
+                '<!DOCTYPE html><html><head><meta charset="utf-8"></head><body>'
+                "<!--KRUCZEK:TRESC:START--><!--KRUCZEK:TRESC:END-->"
+                "<!--KRUCZEK:LISTA_ZALACZNIKOW--><!--KRUCZEK:ZALACZNIKI--></body></html>",
+                encoding="utf-8",
+            )
+            tresc = Path(tmp, "tresc.html")
+            tresc.write_text('<p class="ust">Fakt.</p>', encoding="utf-8")
+            wyjscie = os.path.join(tmp, "p.pdf")
+            # Act
+            with mock.patch.object(build_pismo, "choose_engine", return_value=None):
+                run_main([str(szablon), "-o", wyjscie, "--tresc", str(tresc), "--keep-html"])
+            # Assert
+            html = Path(wyjscie + ".build.html").read_text(encoding="utf-8")
+            self.assertIn('<meta charset="utf-8">' + self.CSP + "</head>", html)
+            self.assertEqual(html.count("Content-Security-Policy"), 1)
+
+    def test_adres_w_nawiasach_ostrych_wymaga_encji(self):
+        # Arrange
+        zle = "<p>Nadawca: Firma X <kontakt@firma-x.example></p>"
+        dobre = "<p>Nadawca: Firma X &lt;kontakt@firma-x.example&gt; &amp; wspólnicy</p>"
+        # Act / Assert
+        build_pismo_logic.sprawdz_tresc(dobre)
+        with self.assertRaises(ValueError):
+            build_pismo_logic.sprawdz_tresc(zle)
+
     def test_walidacja_przepuszcza_tresc_ze_wzoru_szablonu(self):
         # Arrange
         szablon = self.SZABLON_PRAWDZIWY.read_text(encoding="utf-8")
