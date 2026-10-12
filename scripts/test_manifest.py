@@ -485,8 +485,9 @@ class TestRobocze(unittest.TestCase):
             out_sumy, kod_sumy = uruchom(["sumy", tmp])
             # Assert
             self.assertEqual((kod_spr, kod_sumy), (0, 0))
-            self.assertIn("ROBOCZE, pomijam", out_spr)
-            self.assertIn("ROBOCZE, pomijam", out_sumy)
+            self.assertIn("(ROBOCZE/, *-DO_WYSYLKI/), pomijam: 1 wpisów", out_spr)
+            self.assertIn("(ROBOCZE/, *-DO_WYSYLKI/), pomijam: 1 wpisów", out_sumy)
+            self.assertIn("informacja, nie błąd", out_spr + out_sumy)
             self.assertNotIn("NIEZGODNA", out_spr + out_sumy)
             self.assertNotIn("BRAK PLIKU", out_spr + out_sumy)
             self.assertIn(rel, Path(tmp, "SHA256SUMS.txt").read_text(encoding="utf-8"))  # log append-only
@@ -501,6 +502,182 @@ class TestRobocze(unittest.TestCase):
             # Assert
             self.assertEqual(kod, 0)
             self.assertNotIn("BEZ ODPOWIADAJĄCEGO PLIKU", out)
+
+
+class TestSzkicWysylki(unittest.TestCase):
+    """Katalog wysyłki (`*-DO_WYSYLKI`) to szkic: PDF i TLDR.md są przebudowywane po recenzji."""
+
+    WYSYLKA = "2026_10_12-WEZWANIE-FIRMA_X-DO_WYSYLKI"
+
+    def _sprawa(self, tmp):
+        Path(tmp, "ARCHIWUM").mkdir()
+        Path(tmp, "ARCHIWUM", "a.pdf").write_text("dowód")
+        wysylka = Path(tmp, self.WYSYLKA)
+        (wysylka / "ROBOCZE").mkdir(parents=True)
+        (wysylka / "pismo.pdf").write_text("wersja 1")
+        (wysylka / "TLDR.md").write_text("tldr 1")
+        (wysylka / "ROBOCZE" / "tresc.html").write_text("<p>wersja 1</p>")
+        return wysylka
+
+    def test_walk_pomija_katalog_wysylki_na_kazdym_poziomie(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            # Arrange
+            self._sprawa(tmp)
+            Path(tmp, "ARCHIWUM", "inna-DO_WYSYLKI").mkdir()
+            Path(tmp, "ARCHIWUM", "inna-DO_WYSYLKI", "b.pdf").write_text("x")
+            # Act
+            wynik = sorted(rel for _, rel in manifest.walk(tmp))
+            # Assert
+            self.assertEqual(wynik, ["ARCHIWUM/a.pdf"])
+
+    def test_sumy_nie_zapisuja_katalogu_wysylki(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            # Arrange
+            self._sprawa(tmp)
+            # Act
+            out, kod = uruchom(["sumy", tmp])
+            # Assert
+            sumy = Path(tmp, "SHA256SUMS.txt").read_text(encoding="utf-8")
+            self.assertEqual(kod, 0)
+            self.assertIn("(1 plików)", out)
+            self.assertEqual([w.split("  ", 1)[1] for w in sumy.splitlines()], ["ARCHIWUM/a.pdf"])
+
+    def test_przebudowane_pismo_i_tldr_nie_sa_niezgodna_suma(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            # Arrange — sumy w trakcie przygotowania pisma, potem przebudowa PDF-a i TLDR po recenzji
+            wysylka = self._sprawa(tmp)
+            uruchom(["sumy", tmp])
+            (wysylka / "pismo.pdf").write_text("wersja 2")
+            (wysylka / "TLDR.md").write_text("tldr 2")
+            # Act
+            out_sumy, kod_sumy = uruchom(["sumy", tmp])
+            out_spr, kod_spr = uruchom(["sprawdz", tmp])
+            # Assert
+            self.assertEqual((kod_sumy, kod_spr), (0, 0))
+            self.assertNotIn("NIEZGODNA", out_sumy + out_spr)
+            self.assertNotIn("NOWY PLIK", out_spr)
+
+    def test_stare_wpisy_katalogu_wysylki_sa_pomijane_a_nie_niezgodne(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            # Arrange — SHA256SUMS ze starszej wersji: PDF i TLDR już zapisane, potem zmienione
+            wysylka = self._sprawa(tmp)
+            uruchom(["sumy", tmp])
+            sumy_przed = Path(tmp, "SHA256SUMS.txt").read_text(encoding="utf-8")
+            stare = "".join(f"{'0' * 64}  {self.WYSYLKA}/{nazwa}\n" for nazwa in ("pismo.pdf", "TLDR.md"))
+            Path(tmp, "SHA256SUMS.txt").write_text(sumy_przed + stare, encoding="utf-8")
+            # Act
+            out_spr, kod_spr = uruchom(["sprawdz", tmp])
+            out_sumy, kod_sumy = uruchom(["sumy", tmp])
+            # Assert
+            self.assertEqual((kod_spr, kod_sumy), (0, 0))
+            for out in (out_spr, out_sumy):
+                self.assertIn("(ROBOCZE/, *-DO_WYSYLKI/), pomijam: 2 wpisów", out)
+                self.assertIn("informacja, nie błąd", out)
+            self.assertNotIn("NIEZGODNA", out_spr + out_sumy)
+            self.assertNotIn("BRAK PLIKU", out_spr + out_sumy)
+            self.assertEqual(Path(tmp, "SHA256SUMS.txt").read_text(encoding="utf-8"), sumy_przed + stare)
+            self.assertTrue((wysylka / "pismo.pdf").exists())
+
+    def test_zmieniony_dowod_w_archiwum_nadal_jest_niezgodna_suma(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            # Arrange — w SHA256SUMS są też stare wpisy katalogu wysyłki
+            self._sprawa(tmp)
+            uruchom(["sumy", tmp])
+            sumy = Path(tmp, "SHA256SUMS.txt")
+            sumy.write_text(sumy.read_text(encoding="utf-8") + f"{'0' * 64}  {self.WYSYLKA}/pismo.pdf\n", encoding="utf-8")
+            Path(tmp, "ARCHIWUM", "a.pdf").write_text("podmieniony dowód")
+            # Act
+            out_spr, kod_spr = uruchom(["sprawdz", tmp])
+            out_sumy, kod_sumy = uruchom(["sumy", tmp])
+            # Assert
+            self.assertEqual((kod_spr, kod_sumy), (1, 1))
+            self.assertIn("NIEZGODNA SUMA: ARCHIWUM/a.pdf", out_spr)
+            self.assertIn("NIEZGODNA SUMA: ARCHIWUM/a.pdf", out_sumy)
+            self.assertNotIn("DO_WYSYLKI/pismo.pdf", out_spr + out_sumy)
+
+    def test_nowy_dowod_w_archiwum_jest_dopisywany_obok_szkicow(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            # Arrange
+            self._sprawa(tmp)
+            uruchom(["sumy", tmp])
+            Path(tmp, "ARCHIWUM", "b.pdf").write_text("drugi dowód")
+            # Act
+            _, kod = uruchom(["sumy", tmp])
+            # Assert
+            sumy = Path(tmp, "SHA256SUMS.txt").read_text(encoding="utf-8")
+            self.assertEqual(kod, 0)
+            self.assertIn("ARCHIWUM/b.pdf", sumy)
+            self.assertNotIn("DO_WYSYLKI", sumy)
+
+
+class TestCzySzkic(unittest.TestCase):
+    def test_katalog_roboczy_i_wysylki_to_szkic_na_kazdym_poziomie(self):
+        for rel in (
+            "ROBOCZE/podsumowanie.md",
+            "2026_10_12-WEZWANIE-FIRMA_X-DO_WYSYLKI/pismo.pdf",
+            "2026_10_12-WEZWANIE-FIRMA_X-DO_WYSYLKI/ROBOCZE/BRIEF.md",
+            "a/b-DO_WYSYLKI/TLDR.md",
+        ):
+            with self.subTest(rel=rel):
+                self.assertTrue(manifest.czy_szkic(rel))
+
+    def test_dowody_i_pliki_o_podobnych_nazwach_to_nie_szkic(self):
+        for rel in (
+            "ARCHIWUM/a.pdf",
+            "ARCHIWUM/ROBOCZE-notatka.pdf",
+            "ARCHIWUM/DO_WYSYLKI/a.pdf",
+            "ARCHIWUM/plik-DO_WYSYLKI",
+            "ROBOCZE",
+        ):
+            with self.subTest(rel=rel):
+                self.assertFalse(manifest.czy_szkic(rel))
+
+
+class TestIndexMdWierszeSzkicow(unittest.TestCase):
+    def _sprawa(self, tmp):
+        Path(tmp, "ARCHIWUM").mkdir()
+        Path(tmp, "ARCHIWUM", "a.pdf").write_text("dowód")
+        wysylka = Path(tmp, "2026_10_12-WEZWANIE-FIRMA_X-DO_WYSYLKI")
+        wysylka.mkdir()
+        Path(wysylka, "pismo.pdf").write_text("wersja 1")
+        return os.path.relpath(wysylka / "pismo.pdf", tmp)
+
+    def test_wiersz_tabeli_szkicu_wysylki_z_nieaktualna_suma_nie_jest_bledem(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            # Arrange
+            rel = self._sprawa(tmp)
+            Path(tmp, "index.md").write_text(f"| `{rel}` | 2026-10-12 | 1 KB | `{'0' * 64}` |\n", encoding="utf-8")
+            # Act
+            out, kod = uruchom(["sprawdz", tmp])
+            # Assert
+            self.assertEqual(kod, 0)
+            self.assertNotIn("BEZ ODPOWIADAJĄCEGO PLIKU", out)
+
+    def test_notatka_z_robocze_i_suma_dowodu_poza_tabela_jest_sprawdzana(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            # Arrange — suma w zwykłej notatce, która wspomina ROBOCZE/, bez pliku o tej sumie
+            self._sprawa(tmp)
+            Path(tmp, "index.md").write_text(
+                f"Pismo z ROBOCZE/ poszło dalej, skrót załącznika `{'1' * 64}`.\n", encoding="utf-8"
+            )
+            # Act
+            out, kod = uruchom(["sprawdz", tmp])
+            # Assert
+            self.assertEqual(kod, 1)
+            self.assertIn(f"SUMA W index.md BEZ ODPOWIADAJĄCEGO PLIKU: {'1' * 64}", out)
+
+    def test_wiersz_tabeli_dowodu_z_nieaktualna_suma_jest_sprawdzany(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            # Arrange
+            self._sprawa(tmp)
+            Path(tmp, "index.md").write_text(
+                f"| `ARCHIWUM/a.pdf` | 2026-10-12 | 1 KB | `{'2' * 64}` |\n", encoding="utf-8"
+            )
+            # Act
+            out, kod = uruchom(["sprawdz", tmp])
+            # Assert
+            self.assertEqual(kod, 1)
+            self.assertIn("BEZ ODPOWIADAJĄCEGO PLIKU", out)
 
 
 if __name__ == "__main__":
