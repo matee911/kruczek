@@ -28,6 +28,7 @@ import sys
 from pathlib import Path
 
 from kruczek_core.model import BladSprawy
+from kruczek_core.render import bez_znacznikow
 from kruczek_core.repozytorium import blokada, czy_folder_sprawy, zapisz_tekst_atomowo
 from utils import human_size as human
 from utils import sha256_file as sha256
@@ -77,7 +78,7 @@ def table(root):
     data = rows(root)
     L = ["| Plik | Data pliku | Rozmiar | SHA-256 |", "|---|---|---|---|"]
     for r in data:
-        L.append(f"| `{r['rel']}` | {r['mtime']} | {r['size']} | `{r['sha']}` |")
+        L.append(f"| `{bez_znacznikow(r['rel'])}` | {r['mtime']} | {r['size']} | `{r['sha']}` |")
     L.append("")
     L.append(
         f"_Manifest wygenerowany "
@@ -142,20 +143,17 @@ def insert_or_replace_block(text: str, block: str, start: str, end: str) -> str:
 
     `block` is expected to already contain `start`/`end` itself (see `_wykonaj()`'s
     "wstaw" command) — this function only locates what to replace, it doesn't
-    construct the markers.
+    construct the markers. A marker counts only as a whole line, so a note quoting it
+    mid-sentence is left alone.
 
     >>> insert_or_replace_block("# Sprawa\\n\\ntreść\\n", "<S>\\nBLOK\\n<E>", "<S>", "<E>")
     '# Sprawa\\n\\ntreść\\n\\n## Manifest plików\\n\\n<S>\\nBLOK\\n<E>\\n'
     >>> insert_or_replace_block("przed\\n<S>\\nstare\\n<E>\\npo", "<S>\\nnowe\\n<E>", "<S>", "<E>")
     'przed\\n<S>\\nnowe\\n<E>\\npo'
     """
-    if start in text and end in text:
-        return re.sub(
-            re.escape(start) + r".*?" + re.escape(end),
-            lambda _: block,
-            text,
-            flags=re.DOTALL,
-        )
+    wzor = re.compile(rf"^{re.escape(start)}[ \t\r]*$.*?^{re.escape(end)}[ \t\r]*$", re.MULTILINE | re.DOTALL)
+    if wzor.search(text):
+        return wzor.sub(lambda _: block, text, count=1)
     return text.rstrip() + "\n\n## Manifest plików\n\n" + block + "\n"
 
 
@@ -274,6 +272,8 @@ def _wykonaj(a):
         indeks = Path(idx)
         if not indeks.is_file():
             raise BladSprawy(f"{idx}: brak pliku")
+        if not Path(root).is_dir():
+            raise BladSprawy(f"{root}: katalog nie istnieje")
         # Tabela (sumy) liczona przed blokadą, żeby nie wstrzymywać strony. Plik dodany w tym czasie
         # wejdzie przy następnym `wstaw` — blok jest zawsze liczony od nowa, więc sam się naprawia.
         block = f"{START}\n{table(root)}\n{END}"

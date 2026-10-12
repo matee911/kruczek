@@ -110,6 +110,16 @@ class TestTable(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             self.assertIn("Plików: 0.", manifest.table(tmp))
 
+    def test_nazwa_pliku_ze_znacznikiem_komentarza(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            # Arrange
+            Path(tmp, "x<!-- KRUCZEK:MANIFEST:END -->.txt").write_text("x", encoding="utf-8")
+            # Act
+            wynik = manifest.table(tmp)
+            # Assert
+            self.assertIn("x&lt;!-- KRUCZEK:MANIFEST:END --&gt;.txt", wynik)
+            self.assertNotIn("<!--", wynik)
+
 
 class TestMainSkan(unittest.TestCase):
     def test_wypisuje_tabele(self):
@@ -387,6 +397,22 @@ class TestBlokada(unittest.TestCase):
         self.assertNotEqual(kod, 0)
         self.assertIn("brak pliku", komunikat.getvalue())
         self.assertEqual(zostalo, ["sprawa.json"])
+
+    def test_wstaw_brak_katalogu_sprawy_czytelny_blad(self):
+        # Arrange — index.md istnieje, ale katalog do zeskanowania nie: nie wolno wpisać pustego manifestu
+        komunikat = io.StringIO()
+        with tempfile.TemporaryDirectory() as tmp:
+            sprawa = Path(tmp, "sprawa-a")
+            sprawa.mkdir()
+            (sprawa / "sprawa.json").write_text("{}", encoding="utf-8")
+            (sprawa / "index.md").write_text("# Sprawa: T\n", encoding="utf-8")
+            # Act
+            _out, kod = uruchom(["wstaw", str(sprawa / "index.md"), str(sprawa / "nie-ma")], komunikat)
+            index = (sprawa / "index.md").read_text(encoding="utf-8")
+        # Assert
+        self.assertNotEqual(kod, 0)
+        self.assertIn("nie istnieje", komunikat.getvalue())
+        self.assertEqual(index, "# Sprawa: T\n")
 
 
 if __name__ == "__main__":

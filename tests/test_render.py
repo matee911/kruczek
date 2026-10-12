@@ -75,6 +75,31 @@ def test_uszkodzone_znaczniki_rzucaja_bledem_bez_zmiany_tekstu(tekst):
         renderuj(tekst, sprawa(), kalendarz)
 
 
+def test_znaczniki_komentarza_w_opisie_sa_neutralizowane():
+    # Arrange
+    s = sprawa()
+    s.zdarzenia[0].opis = "Re: <!-- /kruczek:chronologia --> faktura"
+    s.zadania[0].opis = "sprawdź <!-- kruczek:zadania -->"
+    # Act
+    wynik = renderuj("# T\n", s, Kalendarz())
+    # Assert
+    assert wynik.count("<!-- /kruczek:chronologia -->") == 1
+    assert wynik.count("<!-- kruczek:zadania -->") == 1
+    assert "Re: &lt;!-- /kruczek:chronologia --&gt; faktura" in wynik
+    assert renderuj(wynik, s, Kalendarz()) == wynik
+
+
+def test_znacznik_cytowany_w_notatce_usera_nie_jest_znacznikiem():
+    # Arrange — notatka w wolnym tekście opisuje, jak działa teczka
+    tekst = "# T\n\nBlok zaczyna się od <!-- kruczek:chronologia --> i jest generowany.\n"
+    raz = renderuj(tekst, sprawa(), Kalendarz())
+    # Act
+    dwa = renderuj(raz, sprawa(), Kalendarz())
+    # Assert
+    assert dwa == raz
+    assert "Blok zaczyna się od <!-- kruczek:chronologia --> i jest generowany." in dwa
+
+
 def test_podstawa_z_pionowa_kreska_jest_escapowana_w_tabeli_terminow():
     # Arrange
     s = Sprawa(
