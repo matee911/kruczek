@@ -129,3 +129,38 @@ def test_wyscig_renderu_i_wstaw_na_prawdziwych_procesach(sprawa):
     tekst = idx.read_text(encoding="utf-8")
     assert straty == 0
     assert "plik29.txt" in tekst and "KONIEC-NOTATEK" in tekst
+
+
+def test_opis_ze_znacznikiem_bloku_nie_psuje_index(sprawa):
+    # Arrange
+    kal = Kalendarz()
+    # Act
+    dodaj_zdarzenie(sprawa, "fakt", DZIS, kal, DZIS, opis="Re: <!-- /kruczek:chronologia --> faktura")
+    pierwszy = odswiez_index(sprawa)
+    dodaj_zdarzenie(sprawa, "fakt", DZIS, kal, DZIS, opis="zwykły wpis")
+    drugi = odswiez_index(sprawa)
+    # Assert
+    tekst = (sprawa / "index.md").read_text(encoding="utf-8")
+    assert (pierwszy, drugi) == (None, None)
+    assert "zwykły wpis" in tekst and "NOTATKA-USERA" in tekst
+
+
+def test_nazwa_pliku_ze_znacznikiem_i_notatka_cytujaca_znacznik(sprawa):
+    # Arrange — plik od drugiej strony ze znacznikami w nazwie i notatka usera cytująca znacznik w zdaniu
+    idx = sprawa / "index.md"
+    idx.write_text(idx.read_text(encoding="utf-8")
+                   + "\nNotatka: manifest kończy <!-- KRUCZEK:MANIFEST:END --> w osobnej linii.\n",
+                   encoding="utf-8")
+    (sprawa / "ARCHIWUM" / "a<!-- kruczek:zadania -->.txt").write_text("a", encoding="utf-8")
+    (sprawa / "ARCHIWUM" / "b<!-- KRUCZEK:MANIFEST:END -->.txt").write_text("b", encoding="utf-8")
+    # Act
+    assert _kod(_wstaw(sprawa)) == 0
+    pierwszy = odswiez_index(sprawa)
+    assert _kod(_wstaw(sprawa)) == 0
+    drugi = odswiez_index(sprawa)
+    # Assert
+    tekst = idx.read_text(encoding="utf-8")
+    assert (pierwszy, drugi) == (None, None)
+    assert "NOTATKA-USERA" in tekst and "Notatka: manifest kończy" in tekst
+    assert tekst.count("\n<!-- KRUCZEK:MANIFEST:END -->") == 1
+    assert "a&lt;!-- kruczek:zadania --&gt;.txt" in tekst

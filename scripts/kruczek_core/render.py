@@ -2,10 +2,13 @@
 
 Treść między znacznikami <!-- kruczek:<blok> --> … <!-- /kruczek:<blok> --> jest
 nadpisywana przy każdym renderowaniu. Wszystko poza znacznikami (stan faktyczny,
-strategia, notatki) zostaje nietknięte.
+strategia, notatki) zostaje nietknięte. Znacznik liczy się tylko jako osobna linia; tekst z danych
+przechodzi przez `bez_znacznikow`.
 """
 
 from __future__ import annotations
+
+import re
 
 from kruczek_core.dni_wolne import Kalendarz
 from kruczek_core.model import BladSprawy, Sprawa, Termin, chronologia
@@ -14,8 +17,18 @@ BLOKI = ("chronologia", "terminy", "zadania")
 _NAGLOWKI = {"chronologia": "Chronologia", "terminy": "Terminy", "zadania": "Zadania"}
 
 
+def bez_znacznikow(s: str) -> str:
+    """Tekst z danych (opis z maila, od modelu, nazwa pliku) bez znaczników komentarza HTML — nie otworzy
+    ani nie zamknie bloku index.md. Markdown pokazuje encje jako zwykłe znaki.
+
+    >>> bez_znacznikow("Re: <!-- /kruczek:chronologia --> faktura")
+    'Re: &lt;!-- /kruczek:chronologia --&gt; faktura'
+    """
+    return s.replace("<!--", "&lt;!--").replace("-->", "--&gt;")
+
+
 def _jednolinia(s: str) -> str:
-    return s.replace("\r\n", " ").replace("\n", " ").replace("\r", " ")
+    return bez_znacznikow(s.replace("\r\n", " ").replace("\n", " ").replace("\r", " "))
 
 
 def _komorka(s: str) -> str:
@@ -66,15 +79,17 @@ def _zadania(s: Sprawa) -> str:
     return "\n".join(linie)
 
 
+def _znacznik(tekst: str) -> re.Pattern[str]:
+    return re.compile(rf"^{re.escape(tekst)}[ \t\r]*$", re.MULTILINE)
+
+
 def _wstaw(tekst: str, blok: str, nowy: str) -> str:
-    start, koniec = f"<!-- kruczek:{blok} -->", f"<!-- /kruczek:{blok} -->"
-    ile_start, ile_koniec = tekst.count(start), tekst.count(koniec)
-    if ile_start == 0 and ile_koniec == 0:
+    starty = list(_znacznik(f"<!-- kruczek:{blok} -->").finditer(tekst))
+    konce = list(_znacznik(f"<!-- /kruczek:{blok} -->").finditer(tekst))
+    if not starty and not konce:
         return tekst.rstrip("\n") + f"\n\n## {_NAGLOWKI[blok]} (generowane — nie edytuj ręcznie)\n\n{nowy}\n"
-    if ile_start == 1 and ile_koniec == 1 and tekst.index(start) < tekst.index(koniec):
-        przed, reszta = tekst.split(start, 1)
-        _, po = reszta.split(koniec, 1)
-        return przed + nowy + po
+    if len(starty) == 1 and len(konce) == 1 and starty[0].start() < konce[0].start():
+        return tekst[:starty[0].start()] + nowy + tekst[konce[0].end():]
     raise BladSprawy(f"index.md: uszkodzone znaczniki bloku {blok} — popraw ręcznie")
 
 
