@@ -48,30 +48,33 @@ wersjonowanie wg [SemVer](https://semver.org/lang/pl/).
   SUMA” w `manifest.py sumy` i w `/kruczek:kontrola`. W `ARCHIWUM/` liczy się wszystko: wysyłka przeniesiona
   do archiwum jest sumowana i pilnowana jak każdy dowód. Wpisy zapisane przez starsze wersje zostają
   w pliku sum i są pomijane z komunikatem „pliki robocze i szkice wysyłek (ROBOCZE/, *-DO_WYSYLKI/),
-  pomijam: N wpisów (informacja, nie błąd; …)”. PDF wysłanego pisma leżący w `*-DO_WYSYLKI/` nie ma więc
-  sumy w rejestrze, dopóki nie zarchiwizuje go przy nadaniu kolejne wydanie. Zostaw plik tam, gdzie jest;
-  sumę możesz mieć od razu, kopiując go do `ARCHIWUM/` i uruchamiając `/kruczek:dowod` albo `manifest.py sumy`.
+  pomijam: N wpisów (informacja, nie błąd; …)”. PDF wysłanego pisma w `*-DO_WYSYLKI/` nie jest sumowany,
+  a wpisy takich plików zapisane przez starsze wersje nie są już sprawdzane. Żeby suma wysłanego pisma była
+  pilnowana, wciągnij je do sprawy: `/kruczek:dowod <ścieżka do PDF> <katalog sprawy>` (skopiuje je do
+  `ARCHIWUM/` i doda sumę).
 
 ### Zmienione
 - `/kruczek:metadane` i `/kruczek:gmail` mogą być wołane z innych komend (`/kruczek:dowod`,
   `/kruczek:nowa-sprawa`), dlatego zawężono ich wstępnie zatwierdzone uprawnienia: `metadane` ma już tylko
   własny skrypt (`metadane.sh`) i czytanie plików, `gmail` — tylko czytanie. Bezpośrednie wywołania
   `exiftool`, `pdftotext`, `unzip`, `mdls` i `xattr` z tego skilla oraz zapis i edycja plików (w tym
-  `index.md`) będą teraz pytać o zgodę.
+  `index.md`) będą teraz pytać o zgodę. Skutek widoczny od razu: `/kruczek:dowod` (przy plikach `.eml`)
+  i `/kruczek:nowa-sprawa` naprawdę generują teraz zapytania i filtry Gmail — wcześniej ten krok po cichu
+  się nie wykonywał — więc zobaczysz w tych komendach nowy wynik.
 
 ### Bezpieczeństwo
 - Treść pisma od agenta może zawierać tylko znaczniki tekstu z atrybutem `class` — obrazek, link, styl
   albo skrypt (np. wstrzyknięty treścią pisma drugiej strony) przerywa budowanie PDF-u.
-- Niezależnie od tego silniki PDF nie pobierają plików lokalnych przy druku: szablon ma politykę CSP, która
-  w Chrome blokuje pliki (`file://`) i żądania sieciowe (a `build_pismo.py` dokłada ją sam, jeśli szablonowi
-  jej brakuje); Chrome dostaje dodatkowo regułę, która nie rozwiązuje nazw hostów; weasyprint dostaje
-  `--allowed-protocols data`, a jeśli jego wersja tej opcji nie zna, PDF składa Chrome (gdy jest); wkhtmltopdf
-  działa z `--disable-local-file-access` — wcześniej `build_pismo.py` włączał mu dostęp do plików lokalnych.
-  HTML w załącznikach `.md` jest pokazywany jako tekst.
+- Niezależnie od tego silniki PDF nie pobierają plików lokalnych przy druku (wyjątek niżej): szablon ma
+  politykę CSP, która w Chrome blokuje pliki (`file://`) i żądania sieciowe (a `build_pismo.py` dokłada ją
+  sam, jeśli szablonowi jej brakuje); Chrome dostaje dodatkowo regułę, która nie rozwiązuje nazw hostów;
+  weasyprint dostaje `--allowed-protocols data`, a jeśli jego wersja tej opcji nie zna, PDF składa Chrome
+  (gdy jest); wkhtmltopdf działa z `--disable-local-file-access` — wcześniej `build_pismo.py` włączał mu
+  dostęp do plików lokalnych. HTML w załącznikach `.md` jest pokazywany jako tekst.
 - Silnik PDF, który nie skończy w 120 s, przerywa budowanie z czytelnym błędem.
-- Przy wkhtmltopdf obrazki z adresów internetowych w załącznikach `.md` nie są blokowane. Tak samo przy
-  weasyprint bez `--allowed-protocols`, gdy nie ma Chrome (PDF powstaje, ale z ostrzeżeniem) — zainstaluj
-  aktualny weasyprint albo Chrome.
+- Przy weasyprint bez `--allowed-protocols`, gdy nie ma Chrome, obrazki w załącznikach `.md` — z plików
+  lokalnych i z internetu — nie są blokowane (PDF powstaje z ostrzeżeniem). Przy wkhtmltopdf nie są blokowane
+  obrazki z internetu. Zainstaluj aktualny weasyprint albo Chrome.
 
 ### Obejście dla wersji 0.10.0 i starszych
 - Przed `/kruczek:pismo` i `/kruczek:eskalacja` przełącz sesję na Opusa (`/model opus`), a recenzję pisma

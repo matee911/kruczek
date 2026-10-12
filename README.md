@@ -245,7 +245,7 @@ Przed PR-em uruchom `claude plugin validate .`.
 
 ```bash
 uv run --python 3.11 python scripts/run_tests.py     # unittest + doctesty ze wszystkich modułów
-bash scripts/smoketest.sh scripts # czy skrypty w ogóle się uruchamiają
+PATH="$(dirname "$(uv python find 3.11)"):$PATH" bash scripts/smoketest.sh scripts # czy skrypty w ogóle się uruchamiają
 ```
 
 `run_tests.py` **odkrywa** testy, zamiast wymieniać je z nazwy — nowy plik `scripts/test_*.py`
