@@ -34,11 +34,11 @@ do `/kruczek:dane-nadawcy`, nie zgaduj danych.
 
 **Nie pytaj tu o cel sprawy** (co użytkownik chce osiągnąć — zaprzestanie / zwrot
 pieniędzy / naprawa / informacja / ukaranie). Na tym etapie sprawa jeszcze nie jest
-poznana ani przeanalizowana — to pytanie ma sens dopiero po zebraniu dowodów (`/kruczek:dowod`),
+poznana ani przeanalizowana — to pytanie ma sens dopiero po zebraniu dowodów (`/kruczek:dowod` (podpowiedź dla użytkownika)),
 tuż przed pisaniem pisma, i tam już jest zadawane (skill `pismo`, krok 2).
 
 Jeśli w rozmowie jest już materiał źródłowy (mail, umowa, zdjęcie) — **nie czytaj go teraz w całości**.
-Załóż sprawę, a materiał wciągnij przez `/kruczek:dowod`.
+Załóż sprawę, a materiał wciągnij przez `/kruczek:dowod` (podpowiedź dla użytkownika).
 
 ## 2. Załóż katalog
 
@@ -148,7 +148,7 @@ Dodaj wiersz do tabeli „Sprawy" w `index.md` projektu, w formacie `| | <podmio
 ## 10. Podsumuj
 
 Pięć linii: gdzie jest teczka, co ustalono o podmiocie, jakie kanały działają / nie działają,
-jaka jest następna komenda (zwykle `/kruczek:dowod`), oraz przypomnienie: dalszą pracę nad
+jaka jest następna komenda (zwykle `/kruczek:dowod` (podpowiedź dla użytkownika)), oraz przypomnienie: dalszą pracę nad
 tą sprawą prowadzić w osobnej sesji przypiętej do katalogu tej sprawy (w Cowork: razem z
 `BAZA_WIEDZY/` jako drugim folderem, oba rw — izolacja dotyczy innych spraw, nie bazy
 wiedzy, do której ta sesja ma dopisywać), nie w sesji obejmującej cały projekt —

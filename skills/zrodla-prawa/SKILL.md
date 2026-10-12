@@ -95,7 +95,7 @@ Procedura przy każdym przepisie, przed analizą i wnioskami:
 4. `eli.sh referencje` — czy są nowelizacje **po** dacie tekstu jednolitego; jeśli tak, przepis mógł się zmienić
 5. Dopiero po tych krokach zacznij analizę i wyciągaj wnioski
 
-Po nowym researchu dopisz wynik do bazy (`/kruczek:baza-wiedzy`).
+Po nowym researchu zaproponuj użytkownikowi dopisanie wyniku do bazy (`/kruczek:baza-wiedzy`).
 
 ## Delegowanie
 

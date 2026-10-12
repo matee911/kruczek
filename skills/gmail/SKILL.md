@@ -1,8 +1,7 @@
 ---
 name: gmail
-description: Generuje gotowe zapytania Gmail i filtry dla sprawy — filtr główny, filtr autoresponderów (dowody doręczenia), zapytania do dowodu negatywnego (4 niezależne). Wywoływany automatycznie przez /kruczek:nowa-sprawa i /kruczek:dowod przy .eml. Użyj ręcznie gdy pojawiają się nowe domeny lub adresy w sprawie.
+description: Wołany przez /kruczek:dowod i /kruczek:nowa-sprawa; generuje zapytania Gmail i filtry dla sprawy — filtr główny, autorespondery (dowody doręczenia), zapytania do dowodu negatywnego. Użyj też ręcznie, gdy w sprawie pojawiają się nowe domeny lub adresy.
 argument-hint: "[sprawa] [domeny lub adresy oddzielone spacją]"
-disable-model-invocation: true
 model: sonnet
 effort: low
 allowed-tools: Read Write Edit

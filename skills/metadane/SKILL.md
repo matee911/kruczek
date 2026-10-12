@@ -1,8 +1,7 @@
 ---
 name: metadane
-description: Analizuje metadane plików od drugiej strony — PDF, DOCX, XLSX, zdjęcia. Generuje tabelę z trzema kolumnami dat (z nazwy, z metadanych, z treści) i oznacza rozbieżności jako gotowe zarzuty. Wywoływany automatycznie przez /kruczek:dowod dla plików od drugiej strony.
+description: Wołany przez /kruczek:dowod dla plików od drugiej strony; tabela dat z nazwy, z metadanych i z treści (PDF, DOCX, XLSX, zdjęcia) z rozbieżnościami oznaczonymi jako gotowe zarzuty.
 argument-hint: "[plik lub katalog sprawy]"
-disable-model-invocation: true
 model: haiku
 effort: low
 allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/metadane.sh *) Bash(exiftool *) Bash(pdftotext *) Bash(unzip *) Bash(mdls *) Bash(xattr *) Read Write Edit

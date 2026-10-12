@@ -72,7 +72,7 @@ samodzielnym dowodem — zestaw ją z nimi, nie przedstawiaj osobno.
 1. Wynik `_analiza.md` dołącz do pisma jako załącznik (`build_pismo.py -z`).
 2. Sprawdź domeny w RDAP i zapisz łańcuch przekierowań (`podmiot.sh domena` / `podmiot.sh strona`)
    — przekierowanie może zniknąć, więc trzeba je udokumentować teraz.
-3. Zaktualizuj manifest i chronologię (`/kruczek:dowod` robi to za ciebie).
+3. Manifest i chronologię aktualizuje `/kruczek:dowod` — zaproponuj go użytkownikowi.
 4. Kwalifikację prawną prowadź osobno — sprawdź `BAZA_WIEDZY/przepisy/`, a jeśli pusto,
    zbierz podstawy przez `zrodla-prawa`. **Nie cytuj przepisów z pamięci** — przepisy o spamie
    w Polsce zmieniły się w listopadzie 2024 r. i większość poradników w internecie jest nieaktualna.
