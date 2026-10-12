@@ -304,6 +304,30 @@ class TestMainWstaw(unittest.TestCase):
             self.assertNotIn("STARA TREŚĆ", txt)
             self.assertIn("a.txt", txt)
 
+    def test_uszkodzone_znaczniki_to_blad_bez_zmiany_pliku(self):
+        blok = f"{manifest.START}\nstary\n{manifest.END}"
+        przypadki = {
+            "tylko-start": f"# Sprawa\n\n{manifest.START}\nNOTATKA-USERA\n",
+            "tylko-koniec": f"# Sprawa\n\nNOTATKA-USERA\n{manifest.END}\n",
+            "koniec-przed-startem": f"# Sprawa\n\n{manifest.END}\nNOTATKA-USERA\n{manifest.START}\n",
+            "zduplikowany-blok": f"# Sprawa\n\n{blok}\n\nNOTATKA-USERA\n\n{blok}\n",
+        }
+        for nazwa, tresc in przypadki.items():
+            with self.subTest(nazwa), tempfile.TemporaryDirectory() as tmp:
+                # Arrange
+                Path(tmp, "a.txt").write_bytes(b"a")
+                idx = Path(tmp, "index.md")
+                idx.write_text(tresc, encoding="utf-8")
+                komunikat = io.StringIO()
+                # Act
+                _out, kod = uruchom(["wstaw", str(idx), tmp], komunikat)
+                zostalo = sorted(p.name for p in Path(tmp).iterdir() if p.name != ".sprawa.lock")
+                # Assert
+                self.assertNotEqual(kod, 0)
+                self.assertIn("uszkodzone znaczniki manifestu", komunikat.getvalue())
+                self.assertEqual(idx.read_text(encoding="utf-8"), tresc)
+                self.assertEqual(zostalo, ["a.txt", "index.md"])
+
 
 class TestBlokada(unittest.TestCase):
     """manifest.py pisze w katalogu sprawy razem z teczka.py i stroną — bierze tę samą blokadę."""

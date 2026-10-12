@@ -28,7 +28,7 @@ import sys
 from pathlib import Path
 
 from kruczek_core.model import BladSprawy
-from kruczek_core.render import bez_znacznikow
+from kruczek_core.render import bez_znacznikow, zakres_bloku
 from kruczek_core.repozytorium import blokada, czy_folder_sprawy, zapisz_tekst_atomowo
 from utils import human_size as human
 from utils import sha256_file as sha256
@@ -144,17 +144,18 @@ def insert_or_replace_block(text: str, block: str, start: str, end: str) -> str:
     `block` is expected to already contain `start`/`end` itself (see `_wykonaj()`'s
     "wstaw" command) — this function only locates what to replace, it doesn't
     construct the markers. A marker counts only as a whole line, so a note quoting it
-    mid-sentence is left alone.
+    mid-sentence is left alone. Markers that aren't exactly one START before one END
+    (orphaned, duplicated, reversed) raise `BladSprawy` instead of replacing anything.
 
     >>> insert_or_replace_block("# Sprawa\\n\\ntreść\\n", "<S>\\nBLOK\\n<E>", "<S>", "<E>")
     '# Sprawa\\n\\ntreść\\n\\n## Manifest plików\\n\\n<S>\\nBLOK\\n<E>\\n'
     >>> insert_or_replace_block("przed\\n<S>\\nstare\\n<E>\\npo", "<S>\\nnowe\\n<E>", "<S>", "<E>")
     'przed\\n<S>\\nnowe\\n<E>\\npo'
     """
-    wzor = re.compile(rf"^{re.escape(start)}[ \t\r]*$.*?^{re.escape(end)}[ \t\r]*$", re.MULTILINE | re.DOTALL)
-    if wzor.search(text):
-        return wzor.sub(lambda _: block, text, count=1)
-    return text.rstrip() + "\n\n## Manifest plików\n\n" + block + "\n"
+    zakres = zakres_bloku(text, start, end, "manifestu")
+    if zakres is None:
+        return text.rstrip() + "\n\n## Manifest plików\n\n" + block + "\n"
+    return text[:zakres[0]] + block + text[zakres[1]:]
 
 
 def katalog_sprawy(sciezka: Path) -> Path:
