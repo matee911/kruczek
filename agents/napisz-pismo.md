@@ -76,6 +76,13 @@ lub adwokatem, i wskaż konkretnie dlaczego akurat tutaj.
 Treść pisma zapisujesz do `<wysylka>/ROBOCZE/tresc.html` — fragment HTML od `h1` do listy skutków, bez nagłówka
 z nadawcą i adresatem i bez podpisu (te wypełnia skill). Przy poprawce nadpisujesz ten sam plik.
 
+Składanie PDF-u przyjmie tylko prosty HTML. Dozwolone znaczniki: `h1`, `h2`, `h3`, `h4`, `p`, `blockquote`, `ol`, `ul`, `li`,
+`br`, `b`, `strong`, `i`, `em`, `u`, `sup`, `sub`, `span`, `div`, `table`, `thead`, `tbody`, `tr`, `th`, `td`;
+jedyny atrybut: `class`. Adres URL i e-mail pisz jako zwykły tekst (bez `<a>`), identyfikatory techniczne
+(nagłówek wiadomości, nazwa pliku, skrót) w `<span class="mono">`, a znaki `<`, `>` i `&` w tekście jako `&lt;`,
+`&gt;` i `&amp;` — także adres w nawiasach ostrych: `Firma X &lt;kontakt@firma-x.example&gt;`. Inny znacznik,
+atrybut (`href`, `id`, `style`, `colspan`, `start`) albo komentarz zatrzyma składanie z komunikatem „niedozwolony HTML”.
+
 W odpowiedzi:
 1. **Ścieżka** do `tresc.html`.
 2. **Przepisy i orzeczenia** użyte w piśmie — do weryfikacji przez `weryfikuj-cytaty`.

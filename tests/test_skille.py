@@ -5,6 +5,7 @@ import re
 from pathlib import Path
 
 import pytest
+from build_pismo_logic import DOZWOLONE_ZNACZNIKI
 
 KORZEN = Path(__file__).resolve().parent.parent
 SKILLE = KORZEN / "skills"
@@ -244,3 +245,35 @@ def test_weryfikuj_cytaty_sprawdza_sumy_plikow_z_briefu():
     # Assert
     assert "BRIEF.md" in tekst and "sha256sum" in tekst
     assert "Bash" in _frontmatter(tekst)["tools"]
+
+
+def test_napisz_pismo_zna_dokladnie_te_znaczniki_ktore_przepuszcza_walidacja():
+    # Arrange — lista agenta nie może się rozjechać z kodem: agent pisze tresc.html bez zaglądania do skryptu
+    agent = (AGENCI / "napisz-pismo.md").read_text(encoding="utf-8")
+    # Act
+    wiersz = re.search(r"Dozwolone znaczniki:([^;]+);", agent)
+    # Assert
+    assert wiersz, "agent nie wymienia dozwolonych znaczników"
+    assert set(re.findall(r"`(\w+)`", wiersz.group(1))) == DOZWOLONE_ZNACZNIKI
+    assert "jedyny atrybut: `class`" in agent
+
+
+def test_napisz_pismo_wie_jak_zapisac_adres_url_e_mail_i_znaki_specjalne():
+    # Arrange
+    agent = (AGENCI / "napisz-pismo.md").read_text(encoding="utf-8")
+    # Assert
+    assert 'zwykły tekst' in agent and '<span class="mono">' in agent
+    assert "&lt;" in agent and "&gt;" in agent and "&amp;" in agent
+
+
+def test_pismo_odsyla_blad_niedozwolonego_html_do_agenta_raz_a_potem_pyta_usera():
+    # Arrange
+    _, tresc = _skill("pismo")
+    # Act
+    krok = _sekcja(tresc, 6)
+    blad = " ".join(krok[krok.index("niedozwolony HTML"):].split())  # łamanie wierszy bez znaczenia
+    # Assert
+    assert "napisz-pismo" in blad and "poprawkę techniczną" in blad
+    assert "nie liczy się do rundy z kroku 8" in blad
+    assert "nie edytuj `tresc.html` sam" in blad
+    assert "Najwyżej jedna" in blad and "AskUserQuestion" in blad

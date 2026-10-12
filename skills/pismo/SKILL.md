@@ -163,6 +163,13 @@ ${CLAUDE_PLUGIN_ROOT}/scripts/build_pismo.py <wysylka>/ROBOCZE/pismo.html \
 
 Marginesy (25/20/25/20 mm) i font ustawia skrypt — nie zmieniaj ich.
 
+**`BŁĄD: niedozwolony HTML w treści pisma …`** — `tresc.html` ma znacznik albo atrybut spoza listy z agenta
+`napisz-pismo` (np. `<a>`, `<code>`, `id`, `colspan`) albo adres w nawiasach ostrych niezapisany jako `&lt;…&gt;`.
+Odeślij komunikat agentowi `napisz-pismo` jako poprawkę techniczną (ścieżki jak w kroku 5; nie liczy się do rundy
+z kroku 8) i nie edytuj `tresc.html` sam. Najwyżej jedna poprawka techniczna przy każdym składaniu: jeśli build nadal
+kończy się tym błędem, pokaż komunikat użytkownikowi przez AskUserQuestion (poprawić fragment, usunąć go, przerwać)
+i nie powtarzaj w pętli.
+
 **Tytuł załącznika podany w `-z` musi być identyczny z tym, którym posługujesz się w treści pisma.**
 Rozjazd nazw to klasyczny powód sporu o kompletność przesyłki.
 
