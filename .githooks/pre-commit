@@ -13,8 +13,16 @@ set -euo pipefail
 
 REPO="$(git rev-parse --show-toplevel)"
 
+# Kod wymaga Pythona >= 3.11, a systemowy python3 bywa starszy (macOS: 3.9) — przez uv dostajemy 3.11.
+# Bez uv zostaje python3 z PATH (np. Linux z nowszym Pythonem).
+if command -v uv >/dev/null 2>&1; then
+  TESTY=(uv run --python 3.11 python "${REPO}/scripts/run_tests.py")
+else
+  TESTY=(python3 "${REPO}/scripts/run_tests.py")
+fi
+
 echo "pre-commit: testy (unittest + doctesty)…"
-if ! python3 "${REPO}/scripts/run_tests.py" >/tmp/kruczek-pre-commit.log 2>&1; then
+if ! "${TESTY[@]}" >/tmp/kruczek-pre-commit.log 2>&1; then
   echo
   echo "✗ Testy nie przechodzą — commit wstrzymany."
   echo
