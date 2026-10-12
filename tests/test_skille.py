@@ -239,6 +239,19 @@ def test_pismo_pozwala_swiadomie_przyjac_pozostale_czerwone():
     assert krok.count("świadomie przyjął") >= 2 and "gdzie jesteśmy słabi" in krok
 
 
+def test_pismo_pola_fill_znane_tylko_uzytkownikowi_nie_blokuja_meldunku():
+    # Arrange — kontrola mechaniczna zgłasza każde class="fill" jako błąd, a krok 6 każe je zostawić
+    _, tresc = _skill("pismo")
+    # Act
+    krok8, krok11 = _sekcja(tresc, 8), _sekcja(tresc, 11)
+    regula = " ".join(krok8[krok8.index("**Nie melduj"):].split())  # łamanie wierszy bez znaczenia
+    # Assert
+    assert 'class="fill"' in regula and "nie blokują meldunku" in regula
+    assert "TLDR" in regula and "krok 11" in regula
+    assert "inne błędy kontroli blokują" in regula
+    assert "do uzupełnienia" in krok11
+
+
 def test_weryfikuj_cytaty_sprawdza_sumy_plikow_z_briefu():
     # Arrange
     tekst = (AGENCI / "weryfikuj-cytaty.md").read_text(encoding="utf-8")
