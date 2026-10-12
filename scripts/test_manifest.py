@@ -439,5 +439,69 @@ class TestBlokada(unittest.TestCase):
         self.assertEqual(index, "# Sprawa: T\n")
 
 
+class TestRobocze(unittest.TestCase):
+    def _sprawa(self, tmp):
+        Path(tmp, "ARCHIWUM").mkdir()
+        Path(tmp, "ARCHIWUM", "a.pdf").write_text("dowód")
+        robocze = Path(tmp, "2026_10_01-WEZWANIE-FIRMA_X-DO_WYSYLKI", "ROBOCZE")
+        robocze.mkdir(parents=True)
+        Path(robocze, "tresc.html").write_text("<p>wersja 1</p>")
+        Path(tmp, "ROBOCZE").mkdir()
+        Path(tmp, "ROBOCZE", "podsumowanie.md").write_text("notatka")
+        return robocze / "tresc.html"
+
+    def test_sumy_pomijaja_robocze_na_kazdym_poziomie(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            # Arrange
+            self._sprawa(tmp)
+            # Act
+            _, kod = uruchom(["sumy", tmp])
+            # Assert
+            sumy = Path(tmp, "SHA256SUMS.txt").read_text(encoding="utf-8")
+            self.assertEqual(kod, 0)
+            self.assertIn("ARCHIWUM/a.pdf", sumy)
+            self.assertNotIn("ROBOCZE", sumy)
+
+    def test_poprawka_pliku_roboczego_nie_jest_niezgodna_suma(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            # Arrange
+            tresc = self._sprawa(tmp)
+            uruchom(["sumy", tmp])
+            tresc.write_text("<p>wersja 2</p>")
+            # Act
+            out_sumy, kod_sumy = uruchom(["sumy", tmp])
+            out_spr, kod_spr = uruchom(["sprawdz", tmp])
+            # Assert
+            self.assertEqual((kod_sumy, kod_spr), (0, 0))
+            self.assertNotIn("NIEZGODNA", out_sumy + out_spr)
+
+    def test_stare_wpisy_z_robocze_sa_pomijane_a_nie_niezgodne(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            # Arrange — SHA256SUMS ze starszej wersji: wpis pliku roboczego, który potem się zmienił
+            rel = os.path.relpath(self._sprawa(tmp), tmp)
+            Path(tmp, "SHA256SUMS.txt").write_text(f"{'0' * 64}  {rel}\n", encoding="utf-8")
+            # Act
+            out_spr, kod_spr = uruchom(["sprawdz", tmp])
+            out_sumy, kod_sumy = uruchom(["sumy", tmp])
+            # Assert
+            self.assertEqual((kod_spr, kod_sumy), (0, 0))
+            self.assertIn("ROBOCZE, pomijam", out_spr)
+            self.assertIn("ROBOCZE, pomijam", out_sumy)
+            self.assertNotIn("NIEZGODNA", out_spr + out_sumy)
+            self.assertNotIn("BRAK PLIKU", out_spr + out_sumy)
+            self.assertIn(rel, Path(tmp, "SHA256SUMS.txt").read_text(encoding="utf-8"))  # log append-only
+
+    def test_stary_manifest_w_index_z_robocze_nie_jest_bledem(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            # Arrange — wiersz manifestu z poprzedniej wersji, suma pliku roboczego już nieaktualna
+            rel = os.path.relpath(self._sprawa(tmp), tmp)
+            Path(tmp, "index.md").write_text(f"| `{rel}` | 2026-10-01 | 1 KB | `{'0' * 64}` |\n", encoding="utf-8")
+            # Act
+            out, kod = uruchom(["sprawdz", tmp])
+            # Assert
+            self.assertEqual(kod, 0)
+            self.assertNotIn("BEZ ODPOWIADAJĄCEGO PLIKU", out)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
