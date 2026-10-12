@@ -15,9 +15,10 @@ wersjonowanie wg [SemVer](https://semver.org/lang/pl/).
 - `manifest.py wstaw` przy uszkodzonych znacznikach manifestu w `index.md` (znacznik bez pary, zdublowany
   blok) zatrzymuje się z komunikatem „uszkodzone znaczniki manifestu — popraw ręcznie” i zostawia plik
   bez zmian. Wcześniej kolejne uruchomienie mogło nadpisać notatki leżące między osieroconymi znacznikami.
-  Brak katalogu sprawy albo `index.md` w `sumy` i `wstaw` to czytelny błąd zamiast traceback. Komendy
-  (`/kruczek:dowod`, `/kruczek:pismo`) i agent `archiwizuj` pokazują taki błąd użytkownikowi i same nie
-  poprawiają `index.md`.
+  Brak katalogu sprawy w `sumy`, `wstaw`, `sprawdz` i `skan` albo `index.md` w `wstaw` to czytelny błąd
+  zamiast traceback; `sprawdz` ze złą ścieżką (literówka, ścieżka względna z innego katalogu) nie melduje
+  już „OK — wszystko się zgadza.”, a `skan` nie drukuje pustej tabeli. Komendy (`/kruczek:dowod`,
+  `/kruczek:pismo`) i agent `archiwizuj` pokazują taki błąd użytkownikowi i same nie poprawiają `index.md`.
 - Znacznik komentarza HTML w opisie zdarzenia (np. temat maila z `<!-- … -->`), w nazwie pliku dowodu albo
   zacytowany w notatce w `index.md` nie wyłącza już odświeżania bloków `index.md` ani manifestu. Znacznikiem
   bloku jest tylko cała linia.
