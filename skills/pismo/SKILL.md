@@ -209,7 +209,10 @@ ${CLAUDE_PLUGIN_ROOT}/scripts/manifest.py sumy <sprawa>/ARCHIWUM
    użytkownik świadomie przyjął pozostałe 🔴 — wpisz je do `TLDR.md` w „gdzie jesteśmy słabi” (krok 9).
 
 **Nie melduj gotowości pisma, dopóki kontrola mechaniczna nie przechodzi albo w raportach zostaje
-cokolwiek 🔴 — chyba że użytkownik świadomie przyjął pozostałe 🔴 (pkt 4).**
+cokolwiek 🔴 — chyba że użytkownik świadomie przyjął pozostałe 🔴 (pkt 4).** Niewypełnione pola
+`class="fill"`, które zna tylko użytkownik (krok 6), nie blokują meldunku — wypisz je w TLDR
+(„co trzeba uzupełnić przed wysyłką”, krok 9) i w meldunku (krok 11, „co zostało do uzupełnienia”);
+inne błędy kontroli blokują.
 
 ## 9. Napisz TL;DR dla użytkownika
 
