@@ -15,6 +15,9 @@ Znaczniki w index.md:
   <!-- KRUCZEK:MANIFEST:START -->
   ... tabela generowana automatycznie ...
   <!-- KRUCZEK:MANIFEST:END -->
+
+Zapis (`sumy`, `wstaw`) pod blokadą katalogu sprawy, jak `teczka.py` i strona, i atomowo
+(plik tymczasowy + rename) — równoległy render `index.md` nie zgubi notatek ani wpisu.
 """
 
 import argparse
@@ -22,7 +25,10 @@ import datetime
 import os
 import re
 import sys
+from pathlib import Path
 
+from kruczek_core.model import BladSprawy
+from kruczek_core.repozytorium import blokada, czy_folder_sprawy, zapisz_tekst_atomowo
 from utils import human_size as human
 from utils import sha256_file as sha256
 
@@ -134,7 +140,7 @@ def insert_or_replace_block(text: str, block: str, start: str, end: str) -> str:
     """Replace the `start`/`end`-delimited block in `text` with `block`, or append it
     under a new "## Manifest plików" heading if the markers aren't present yet.
 
-    `block` is expected to already contain `start`/`end` itself (see `main()`'s
+    `block` is expected to already contain `start`/`end` itself (see `_wykonaj()`'s
     "wstaw" command) — this function only locates what to replace, it doesn't
     construct the markers.
 
@@ -153,44 +159,61 @@ def insert_or_replace_block(text: str, block: str, start: str, end: str) -> str:
     return text.rstrip() + "\n\n## Manifest plików\n\n" + block + "\n"
 
 
+def katalog_sprawy(sciezka: Path) -> Path:
+    """Katalog, którego blokadę bierze manifest.py: sama ścieżka albo najbliższy katalog nadrzędny
+    teczki (sprawa.json albo index.md „# Sprawa:”). `sumy <sprawa>/ARCHIWUM` blokuje więc tę samą
+    sprawę co teczka.py i strona. Poza teczką — sama ścieżka."""
+    p = sciezka.resolve()
+    for k in (p, *p.parents):
+        if czy_folder_sprawy(k):
+            return k
+    return p
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("cmd", choices=["skan", "sumy", "sprawdz", "wstaw"])
     ap.add_argument("arg1")
     ap.add_argument("arg2", nargs="?")
     a = ap.parse_args()
+    try:
+        _wykonaj(a)
+    except BladSprawy as e:  # np. katalog nie istnieje — blokada zgłasza to przy wejściu
+        sys.exit(f"błąd: {e}")
 
+
+def _wykonaj(a):
     if a.cmd == "skan":
         print(table(a.arg1))
 
     elif a.cmd == "sumy":
         # Tylko dopisywanie. Istniejący wpis to wzorzec, z którym porównujemy dowód —
-        # nadpisanie go po podmianie pliku zatarłoby ślad podmiany.
+        # nadpisanie go po podmianie pliku zatarłoby ślad podmiany. Sumy liczone przed blokadą
+        # (długie przy dużym archiwum), pod blokadą sprawy tylko porównanie i zapis atomowy.
+        # Kopie do archiwum robione zwykłym `cp` nie są atomowe: `sumy` uruchomione w trakcie
+        # kopiowania zapisze sumę niepełnego pliku, a następne `sumy` zgłosi go jako NIEZGODNĄ SUMĘ.
         root = a.arg1
         actual = {r["rel"]: r["sha"] for r in rows(root)}
-        p = os.path.join(root, "SHA256SUMS.txt")
-        if not os.path.exists(p):
-            lines = [f"{sha}  {rel}" for rel, sha in actual.items()]
-            with open(p, "w", encoding="utf-8") as f:
-                f.write("\n".join(lines) + "\n")
-            print(f"Zapisano {p} ({len(lines)} plików)")
-            return
-        with open(p, encoding="utf-8") as f:
-            text = f.read()
-        diff = compare_manifest(actual, parse_sha256sums(text))
-        for rel in diff["missing"]:
-            print(f"BRAK PLIKU: {rel} (wpis zostaje w SHA256SUMS)")
-        for rel, sha_recorded, sha_actual in diff["mismatched"]:
-            print(
-                f"NIEZGODNA SUMA: {rel}\n  w SHA256SUMS: {sha_recorded}\n"
-                f"  faktyczna:    {sha_actual}\n"
-                f"  Nie nadpisuję wpisu — sprawdź, czy dowód nie został zmieniony."
-            )
-        if diff["new"]:
-            with open(p, "a", encoding="utf-8") as f:
-                if text and not text.endswith("\n"):
-                    f.write("\n")
-                f.write("".join(f"{actual[rel]}  {rel}\n" for rel in diff["new"]))
+        p = Path(root) / "SHA256SUMS.txt"
+        with blokada(katalog_sprawy(Path(root))):
+            if not p.exists():
+                lines = [f"{sha}  {rel}" for rel, sha in actual.items()]
+                zapisz_tekst_atomowo(p, "\n".join(lines) + "\n")
+                print(f"Zapisano {p} ({len(lines)} plików)")
+                return
+            text = p.read_text(encoding="utf-8")
+            diff = compare_manifest(actual, parse_sha256sums(text))
+            for rel in diff["missing"]:
+                print(f"BRAK PLIKU: {rel} (wpis zostaje w SHA256SUMS)")
+            for rel, sha_recorded, sha_actual in diff["mismatched"]:
+                print(
+                    f"NIEZGODNA SUMA: {rel}\n  w SHA256SUMS: {sha_recorded}\n"
+                    f"  faktyczna:    {sha_actual}\n"
+                    f"  Nie nadpisuję wpisu — sprawdź, czy dowód nie został zmieniony."
+                )
+            if diff["new"]:
+                odstep = "\n" if text and not text.endswith("\n") else ""
+                zapisz_tekst_atomowo(p, text + odstep + "".join(f"{actual[rel]}  {rel}\n" for rel in diff["new"]))
         print(f"Nowych plików dopisanych do {p}: {len(diff['new'])}")
         sys.exit(1 if (diff["missing"] or diff["mismatched"]) else 0)
 
@@ -246,12 +269,13 @@ def main():
         idx, root = a.arg1, a.arg2
         if not root:
             sys.exit("wstaw wymaga dwóch argumentów: <index.md> <katalog-sprawy>")
-        with open(idx, encoding="utf-8") as f:
-            txt = f.read()
+        # Tabela (sumy) liczona przed blokadą, żeby nie wstrzymywać strony. Plik dodany w tym czasie
+        # wejdzie przy następnym `wstaw` — blok jest zawsze liczony od nowa, więc sam się naprawia.
         block = f"{START}\n{table(root)}\n{END}"
-        txt = insert_or_replace_block(txt, block, START, END)
-        with open(idx, "w", encoding="utf-8") as f:
-            f.write(txt)
+        indeks = Path(idx)
+        with blokada(katalog_sprawy(indeks.parent)):
+            txt = indeks.read_text(encoding="utf-8")
+            zapisz_tekst_atomowo(indeks, insert_or_replace_block(txt, block, START, END))
         print(f"Zaktualizowano manifest w {idx}")
 
 

@@ -8,11 +8,13 @@ from kruczek_core.model import SCHEMA_VERSION, BladSprawy, Sprawa, Zadanie, kole
 from kruczek_core.repozytorium import (
     PLIK_SPRAWY,
     KonfliktRewizji,
+    blokada,
     czy_folder_sprawy,
     lista_spraw,
     wczytaj,
     zapisz,
     zapisz_nowa,
+    zapisz_tekst_atomowo,
     zmien,
 )
 
@@ -348,3 +350,23 @@ def test_brak_sprawa_json_bez_index_md_wskazuje_zalozenie(tmp_path):
     # Act / Assert
     with pytest.raises(BladSprawy, match="załóż sprawę: teczka.py nowa"):
         wczytaj(tmp_path)
+
+
+def test_blokada_i_zapis_atomowy_publiczne_dla_innych_skryptow(tmp_path):
+    # Arrange
+    katalog = tmp_path / "sprawa-a"
+    katalog.mkdir()
+    # Act
+    with blokada(katalog):
+        zapisz_tekst_atomowo(katalog / "SHA256SUMS.txt", "abc  a.txt\n")
+    # Assert
+    assert (katalog / ".sprawa.lock").exists()
+    assert (katalog / "SHA256SUMS.txt").read_text(encoding="utf-8") == "abc  a.txt\n"
+    assert [p.name for p in katalog.iterdir() if p.name.endswith(".tmp")] == []
+
+
+def test_blokada_brakujacego_katalogu_to_czytelny_blad(tmp_path):
+    # Act / Assert
+    with pytest.raises(BladSprawy, match="nie istnieje"):
+        with blokada(tmp_path / "nie-ma"):
+            pass

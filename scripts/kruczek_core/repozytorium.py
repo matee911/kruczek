@@ -84,7 +84,10 @@ def wczytaj(katalog: Path) -> Sprawa:
 
 
 @contextmanager
-def _blokada(katalog: Path) -> Iterator[None]:
+def blokada(katalog: Path) -> Iterator[None]:
+    """Wyłączna blokada sprawy (flock na .sprawa.lock). Biorą ją wszyscy, którzy piszą w katalogu sprawy:
+    teczka.py, strona i manifest.py. Nie zagnieżdżaj — drugi flock z tego samego procesu (inny deskryptor)
+    czeka na pierwszy w nieskończoność."""
     if not katalog.is_dir():
         raise BladSprawy(f"{katalog}: katalog sprawy nie istnieje")
     with open(katalog / _BLOKADA, "a") as f:
@@ -95,7 +98,7 @@ def _blokada(katalog: Path) -> Iterator[None]:
             fcntl.flock(f, fcntl.LOCK_UN)
 
 
-def _zapisz_tekst_atomowo(plik: Path, tresc: str) -> None:
+def zapisz_tekst_atomowo(plik: Path, tresc: str) -> None:
     tmp = plik.with_name(f".{plik.name}.{os.getpid()}.tmp")
     try:
         with open(tmp, "w", encoding="utf-8") as f:
@@ -109,24 +112,24 @@ def _zapisz_tekst_atomowo(plik: Path, tresc: str) -> None:
 
 
 def _zapisz_atomowo(katalog: Path, sprawa: Sprawa) -> None:
-    _zapisz_tekst_atomowo(katalog / PLIK_SPRAWY, json.dumps(do_slownika(sprawa), ensure_ascii=False, indent=2) + "\n")
+    zapisz_tekst_atomowo(katalog / PLIK_SPRAWY, json.dumps(do_slownika(sprawa), ensure_ascii=False, indent=2) + "\n")
 
 
 def przetworz_tekst(katalog: Path, nazwa: str, przetworz: Callable[[str], str]) -> Path:
     """Plik tekstowy sprawy (np. index.md): odczyt → przetworzenie → zapis atomowy, pod tą samą
     blokadą co sprawa.json. Brak pliku to pusty tekst; plik nie w UTF-8 to BladSprawy."""
     plik = katalog / nazwa
-    with _blokada(katalog):
+    with blokada(katalog):
         try:
             tekst = plik.read_text(encoding="utf-8") if plik.exists() else ""
         except UnicodeDecodeError:
             raise BladSprawy(f"{nazwa}: nie jest w UTF-8") from None
-        _zapisz_tekst_atomowo(plik, przetworz(tekst))
+        zapisz_tekst_atomowo(plik, przetworz(tekst))
     return plik
 
 
 def zapisz_nowa(katalog: Path, sprawa: Sprawa) -> None:
-    with _blokada(katalog):
+    with blokada(katalog):
         if (katalog / PLIK_SPRAWY).exists():
             raise BladSprawy(f"{katalog / PLIK_SPRAWY} już istnieje")
         _zapisz_atomowo(katalog, sprawa)
@@ -134,7 +137,7 @@ def zapisz_nowa(katalog: Path, sprawa: Sprawa) -> None:
 
 def zapisz(katalog: Path, sprawa: Sprawa, oczekiwana_rewizja: int) -> Sprawa:
     """Zapis sprawy wczytanej wcześniej (np. przez stronę). Odrzuca, jeśli ktoś zapisał w międzyczasie."""
-    with _blokada(katalog):
+    with blokada(katalog):
         aktualna = wczytaj(katalog).rewizja
         if aktualna != oczekiwana_rewizja:
             raise KonfliktRewizji(
@@ -147,7 +150,7 @@ def zapisz(katalog: Path, sprawa: Sprawa, oczekiwana_rewizja: int) -> Sprawa:
 
 def zmien(katalog: Path, zmiana: Callable[[Sprawa], T]) -> T:
     """Wczytaj → zmień → zapisz pod blokadą. Wyjątek w `zmiana` = nic nie zapisane."""
-    with _blokada(katalog):
+    with blokada(katalog):
         sprawa = wczytaj(katalog)
         wynik = zmiana(sprawa)
         sprawa.rewizja += 1
