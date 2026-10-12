@@ -244,7 +244,7 @@ Przed PR-em uruchom `claude plugin validate .`.
 ### Testy
 
 ```bash
-python3 scripts/run_tests.py     # unittest + doctesty ze wszystkich modułów
+uv run --python 3.11 python scripts/run_tests.py     # unittest + doctesty ze wszystkich modułów
 bash scripts/smoketest.sh scripts # czy skrypty w ogóle się uruchamiają
 ```
 
