@@ -5,7 +5,7 @@ wersjonowanie wg [SemVer](https://semver.org/lang/pl/).
 
 ## [Unreleased]
 
-## [0.10.1] — 2026-10-12
+## [0.10.1] — 2026-10-15
 
 ### Poprawione
 - `manifest.py sumy` i `wstaw` piszą pod tą samą blokadą sprawy co `teczka.py` i strona, a `index.md`
