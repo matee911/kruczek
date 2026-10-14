@@ -33,14 +33,16 @@ wersjonowanie wg [SemVer](https://semver.org/lang/pl/).
   jako podpowiedź. `/kruczek:pismo` może wołać `eurlex.sh` bez dodatkowego pytania o zgodę.
 - Treść każdego pisma pisze agent `napisz-pismo` (`opus`) z briefu zapisanego w katalogu wysyłki, a
   `build_pismo.py --tresc` wstawia ją do szablonu bez przepisywania (nieistniejący plik to komunikat
-  „BŁĄD: brak pliku …”). Model komendy obowiązuje tylko do pierwszej odpowiedzi użytkownika, więc po
-  pytaniach z kroku „Dopytaj” pismo pisał model, na którym była rozmowa. Agent dostaje jako ścieżki wzór
+  „BŁĄD: brak pliku …”). Model komendy obowiązuje tylko do pierwszej odpowiedzi użytkownika wpisanej
+  w rozmowie, więc po pytaniach z kroku „Dopytaj” pismo pisał model, na którym była rozmowa. Agent dostaje jako ścieżki wzór
   klas i układu (szablon pisma) oraz konwencję redakcyjną (`redagowanie-pism`), zachowuje ramkę „Zastrzeżenie”,
   dopóki rejestr nie potwierdzi adresata, i zna dozwolone znaczniki: tylko atrybut `class`, adresy URL
   i e-mail jako zwykły tekst, znaki `<`, `>` i `&` jako `&lt;`, `&gt;` i `&amp;`. Błąd „niedozwolony HTML”
   przy składaniu wraca do agenta raz jako poprawka techniczna, potem do użytkownika.
 - Komendy, które pytają, zadają pytania zamknięte przez AskUserQuestion (kilka naraz w jednym okienku,
-  gdy znają je z góry). Wyjątek: `/kruczek:dane-nadawcy` pola otwarte (imię, adres, NIP, e-mail…) pyta zwykłą
+  gdy znają je z góry). Sprawdzone w Claude Code CLI 2.1.300 na transkrypcie sesji: po odpowiedzi w okienku
+  dalej odpowiada model komendy, po odpowiedzi wpisanej w rozmowie — model sesji; w Claude Desktop niesprawdzone
+  (samoopis modelu nie jest dowodem: model komendy przedstawił się jako model sesji). Wyjątek: `/kruczek:dane-nadawcy` pola otwarte (imię, adres, NIP, e-mail…) pyta zwykłą
   wiadomością, bo okienko wymaga opcji do wyboru; pytania zamknięte (np. którą tożsamość wypełnić) zadaje
   przez AskUserQuestion.
 - Pliki robocze nie trafiają już do `SHA256SUMS.txt` ani do manifestu: katalogi `ROBOCZE/` (brief, treść
