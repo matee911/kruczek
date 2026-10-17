@@ -75,20 +75,32 @@ ceidg() {
   rm -f /tmp/.kruczek_ceidg.$$
 }
 
+# Rejestr w przerwie technicznej potrafi oddać HTTP 200 ze stroną HTML zamiast JSON-a (KRS, 10.2026).
+# `curl -f` łapie tylko kody >= 400, więc bez tego sprawdzenia HTML szedł do jq jako „parse error” (exit 5).
+_pobierz_json() {
+  local usluga="$1" url="$2" tresc
+  tresc=$(curl -sSfL --max-time 30 "$url") || return 1
+  if ! printf '%s' "$tresc" | jq -e . >/dev/null 2>&1; then
+    echo "${usluga}: odpowiedź nie jest JSON-em — rejestr chwilowo niedostępny (np. przerwa techniczna). Spróbuj później." >&2
+    return 1
+  fi
+  printf '%s\n' "$tresc"
+}
+
 nip() {
   local n="${1//[^0-9]/}"
-  curl -sSfL --max-time 30 "https://wl-api.mf.gov.pl/api/search/nip/${n}?date=${today}" \
+  _pobierz_json "Biała lista VAT" "https://wl-api.mf.gov.pl/api/search/nip/${n}?date=${today}" \
   | jq '.result.subject | {name, nip, regon, krs, statusVat, workingAddress, residenceAddress,
                            registrationLegalDate, representatives, accountNumbers}'
 }
 regon() {
   local r="${1//[^0-9]/}"
-  curl -sSfL --max-time 30 "https://wl-api.mf.gov.pl/api/search/regon/${r}?date=${today}" \
+  _pobierz_json "Biała lista VAT" "https://wl-api.mf.gov.pl/api/search/regon/${r}?date=${today}" \
   | jq '.result.subject | {name, nip, regon, krs, statusVat, workingAddress, residenceAddress,
                            registrationLegalDate, representatives, accountNumbers}'
 }
 krs() {
-  curl -sSfL --max-time 30 "https://api-krs.ms.gov.pl/api/krs/OdpisAktualny/${1}?rejestr=${2:-P}&format=json" \
+  _pobierz_json KRS "https://api-krs.ms.gov.pl/api/krs/OdpisAktualny/${1}?rejestr=${2:-P}&format=json" \
   | jq '{
       nazwa:   .odpis.dane.dzial1.danePodmiotu.nazwa,
       forma:   .odpis.dane.dzial1.danePodmiotu.formaPrawna,
@@ -132,7 +144,8 @@ case "${1:-}" in
     if [ -n "$k" ]; then
       echo
       echo "### KRS $k"
-      krs "$k" P
+      # Niedostępny KRS nie przekreśla danych z białej listy — oddajemy je z notką zamiast padać.
+      krs "$k" P || echo "(KRS niedostępny — dane z białej listy powyżej; odpis pobierz później: podmiot.sh krs $k)"
     else
       echo
       echo "(brak numeru KRS — prawdopodobnie JDG)"
