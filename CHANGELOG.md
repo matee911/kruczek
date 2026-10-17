@@ -5,6 +5,11 @@ wersjonowanie wg [SemVer](https://semver.org/lang/pl/).
 
 ## [Unreleased]
 
+### Dodane
+- Hak `pre-commit` (dla rozwijających kruczka) zatrzymuje commit, gdy któryś plik ma w treści oznaczenie
+  zakazu commitu, a `PLAN-*.md` w katalogu głównym repo jest w `.gitignore`. Robocze notatki z danymi spraw
+  zostają lokalnie, zamiast trafić do publicznego repo.
+
 ## [0.10.2] — 2026-10-17
 
 ### Poprawione

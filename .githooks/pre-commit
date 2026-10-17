@@ -13,6 +13,17 @@ set -euo pipefail
 
 REPO="$(git rev-parse --show-toplevel)"
 
+# Repo jest publiczne. Dokument z „nie commitować” w treści to notatka robocza z danymi spraw —
+# zatrzymujemy commit, zanim pójdą testy. Sprawdzamy cały indeks, czyli dokładnie to, co trafi do commita.
+# Hook i jego test same zawierają znacznik, więc są wyłączone.
+if ZAKAZANE=$(git grep --cached -l -i -E 'nie commitowa|do not commit' -- . \
+    ':!.githooks/pre-commit' ':!tests/test_hook_pre_commit.py'); then
+  echo "✗ Pliki oznaczone „nie commitować” — commit wstrzymany:"
+  echo "${ZAKAZANE}" | sed 's/^/    /'
+  echo "Wyjmij je z indeksu: git restore --staged <plik> (miejsce na notatki robocze: .superpowers/)"
+  exit 1
+fi
+
 # Kod wymaga Pythona >= 3.11, a systemowy python3 bywa starszy (macOS: 3.9) — przez uv dostajemy 3.11.
 # Bez uv zostaje python3 z PATH (np. Linux z nowszym Pythonem). `--no-project` wyłącza synchronizację .venv
 # z grupą dev przy każdym commicie, a `--isolated` nie pozwala uv wziąć istniejącego .venv jako interpretera —
