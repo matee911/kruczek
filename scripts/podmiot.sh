@@ -79,7 +79,9 @@ ceidg() {
 # `curl -f` łapie tylko kody >= 400, więc bez tego sprawdzenia HTML szedł do jq jako „parse error” (exit 5).
 _pobierz_json() {
   local usluga="$1" url="$2" tresc
-  tresc=$(curl -sSfL --max-time 30 "$url") || return 1
+  # Kod curla (22 = HTTP >= 400, 28 = timeout, 6 = DNS) przechodzi dalej: smoketest ma widzieć
+  # przeniesiony endpoint jako awarię. Kod 1 zostaje tylko dla „odpowiedź nie jest JSON-em” niżej.
+  tresc=$(curl -sSfL --max-time 30 "$url") || return $?
   if ! printf '%s' "$tresc" | jq -e . >/dev/null 2>&1; then
     echo "${usluga}: odpowiedź nie jest JSON-em — rejestr chwilowo niedostępny (np. przerwa techniczna). Spróbuj później." >&2
     return 1
