@@ -13,16 +13,17 @@ JSON_MF = '{"result":{"subject":{"name":"Firma Testowa sp. z o.o.","nip":"525234
 JSON_KRS = '{"odpis":{"dane":{"dzial1":{"danePodmiotu":{"nazwa":"FIRMA TESTOWA SP. Z O.O."}}}}}'
 
 
-def _uruchom(tmp_path, odpowiedz_krs, *argumenty):
-    # Atrapa curl: biała lista MF zawsze odpowiada JSON-em, KRS — tym, co podał test.
+def _uruchom(tmp_path, *argumenty, krs=JSON_KRS, mf=JSON_MF, kod_krs=0):
+    # Atrapa curl: odpowiedź i kod wyjścia per rejestr ustawia test (22 = curl -f przy HTTP >= 400).
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
-    (tmp_path / "mf.json").write_text(JSON_MF)
-    (tmp_path / "krs.txt").write_text(odpowiedz_krs)
+    (tmp_path / "mf.txt").write_text(mf)
+    (tmp_path / "krs.txt").write_text(krs)
     curl = bin_dir / "curl"
     curl.write_text(
         "#!/bin/sh\n"
-        f'case "$*" in *api-krs*) cat "{tmp_path}/krs.txt" ;; *) cat "{tmp_path}/mf.json" ;; esac\n'
+        f'case "$*" in *api-krs*) cat "{tmp_path}/krs.txt"; exit {kod_krs} ;; '
+        f'*) cat "{tmp_path}/mf.txt" ;; esac\n'
     )
     curl.chmod(0o755)
     (bin_dir / "jq").symlink_to(shutil.which("jq"))
@@ -37,7 +38,7 @@ def _uruchom(tmp_path, odpowiedz_krs, *argumenty):
 
 def test_krs_w_przerwie_technicznej_to_czytelny_blad(tmp_path):
     # Arrange / Act
-    wynik = _uruchom(tmp_path, HTML_PRZERWY, "krs", "0000240611", "P")
+    wynik = _uruchom(tmp_path, "krs", "0000240611", "P", krs=HTML_PRZERWY)
 
     # Assert
     assert wynik.returncode == 1
@@ -46,9 +47,28 @@ def test_krs_w_przerwie_technicznej_to_czytelny_blad(tmp_path):
     assert "parse error" not in wynik.stderr
 
 
+def test_biala_lista_w_przerwie_technicznej_to_czytelny_blad(tmp_path):
+    # Arrange / Act
+    wynik = _uruchom(tmp_path, "nip", "5252344078", mf=HTML_PRZERWY)
+
+    # Assert
+    assert wynik.returncode == 1
+    assert "Biała lista VAT" in wynik.stderr
+    assert "parse error" not in wynik.stderr
+
+
+def test_blad_curl_zachowuje_swoj_kod(tmp_path):
+    # Arrange — np. przeniesiony endpoint (404): smoketest ma to widzieć jako awarię, nie jako „ok”.
+    # Act
+    wynik = _uruchom(tmp_path, "krs", "0000240611", "P", krs="", kod_krs=22)
+
+    # Assert
+    assert wynik.returncode == 22
+
+
 def test_krs_z_poprawnym_json_dziala_jak_dotad(tmp_path):
     # Arrange / Act
-    wynik = _uruchom(tmp_path, JSON_KRS, "krs", "0000240611", "P")
+    wynik = _uruchom(tmp_path, "krs", "0000240611", "P")
 
     # Assert
     assert wynik.returncode == 0, wynik.stderr
@@ -57,7 +77,7 @@ def test_krs_z_poprawnym_json_dziala_jak_dotad(tmp_path):
 
 def test_pelny_bez_krs_oddaje_biala_liste_z_notka(tmp_path):
     # Arrange / Act
-    wynik = _uruchom(tmp_path, HTML_PRZERWY, "pelny", "5252344078")
+    wynik = _uruchom(tmp_path, "pelny", "5252344078", krs=HTML_PRZERWY)
 
     # Assert
     assert wynik.returncode == 0, wynik.stderr
