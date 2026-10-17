@@ -5,6 +5,14 @@ wersjonowanie wg [SemVer](https://semver.org/lang/pl/).
 
 ## [Unreleased]
 
+## [0.10.2] — 2026-10-17
+
+### Poprawione
+- `podmiot.sh` przy rejestrze w przerwie technicznej (KRS oddaje wtedy stronę HTML z kodem 200) mówi wprost,
+  że rejestr jest chwilowo niedostępny, zamiast kończyć się błędem `jq: parse error`. To samo dla białej listy
+  VAT (`nip`, `regon`). `pelny` przy niedostępnym KRS oddaje dane z białej listy z notką, jak pobrać odpis
+  później, zamiast przerywać całość.
+
 ## [0.10.1] — 2026-10-15
 
 ### Poprawione
