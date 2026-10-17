@@ -55,6 +55,8 @@ jobs:
           fi
           echo "OK — wszystkie skrypty CLI mają +x"
       # To samo co hak pre-commit — łapie commity z --no-verify i z klonów bez włączonych haków.
+      # Wykrywa po fakcie (dane są już na GitHubie) i tylko stan końcowy: plik dodany i usunięty
+      # w kolejnych commitach przejdzie, a zostanie w historii. Pierwszą zaporą jest hak.
       - name: Brak plików oznaczonych zakazem commitu
         run: bash .githooks/sprawdz-znacznik.sh
 

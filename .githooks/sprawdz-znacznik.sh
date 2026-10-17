@@ -5,6 +5,8 @@
 # Sprawdzamy indeks: w haku to dokładnie to, co trafi do commita, w CI — sprawdzany commit.
 # Ten skrypt i test haka same zawierają znacznik, więc są wyłączone.
 set -euo pipefail
+# Pathspec `.` liczy się od bieżącego katalogu — uruchomione z podkatalogu sprawdzałoby tylko jego.
+cd "$(git rev-parse --show-toplevel)"
 
 RC=0
 ZAKAZANE=$(git grep --cached -l -i -E 'nie commitowa|do not commit' -- . \
