@@ -252,7 +252,8 @@ PATH="$(dirname "$(uv python find 3.11)"):$PATH" bash scripts/smoketest.sh scrip
 `run_tests.py` **odkrywa** testy, zamiast wymieniać je z nazwy — nowy plik `scripts/test_*.py`
 albo doctest w nowym module uruchomi się bez dopisywania czegokolwiek do CI.
 
-Hak uruchamiający testy przed każdym commitem (włączasz raz po sklonowaniu):
+Hak uruchamiający testy przed każdym commitem (włączasz raz po sklonowaniu). Wcześniej zatrzymuje
+commit, jeśli któryś plik ma w treści oznaczenie zakazu commitu — notatki robocze trzymaj w `.superpowers/`:
 
 ```bash
 git config core.hooksPath .githooks

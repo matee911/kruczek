@@ -2,6 +2,8 @@
 _SZABLONY/dane-nadawcy.md
 # robocze retrospektywy — zawierają fragmenty prywatnych spraw
 RETROSPEKTYWA-*.md
+# robocze plany w katalogu głównym — jeden z danymi sprawy trafił tak do publicznego repo
+/PLAN-*.md
 *.pdf.build.html
 __pycache__/
 *.pyc
