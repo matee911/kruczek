@@ -54,6 +54,9 @@ jobs:
             exit 1
           fi
           echo "OK — wszystkie skrypty CLI mają +x"
+      # To samo co hak pre-commit — łapie commity z --no-verify i z klonów bez włączonych haków.
+      - name: Brak plików oznaczonych zakazem commitu
+        run: bash .githooks/sprawdz-znacznik.sh
 
   python-min:
     # Najstarszy wspierany Python. Składnia z 3.12 (backslash w wyrażeniu f-stringu,

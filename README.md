@@ -253,7 +253,8 @@ PATH="$(dirname "$(uv python find 3.11)"):$PATH" bash scripts/smoketest.sh scrip
 albo doctest w nowym module uruchomi się bez dopisywania czegokolwiek do CI.
 
 Hak uruchamiający testy przed każdym commitem (włączasz raz po sklonowaniu). Wcześniej zatrzymuje
-commit, jeśli któryś plik ma w treści oznaczenie zakazu commitu — notatki robocze trzymaj w `.superpowers/`:
+commit, jeśli któryś plik ma w treści oznaczenie zakazu commitu (to samo sprawdza CI). Oznaczenie musi być
+w jednej linii, np. w linii **Status:** — złamane zawijaniem przejdzie. Notatki robocze trzymaj w `.superpowers/`:
 
 ```bash
 git config core.hooksPath .githooks

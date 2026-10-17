@@ -4,6 +4,8 @@ import shutil
 import subprocess
 from pathlib import Path
 
+import pytest
+
 KORZEN = Path(__file__).resolve().parent.parent
 HOOK = KORZEN / ".githooks" / "pre-commit"
 
@@ -13,7 +15,7 @@ def _repo_z_plikiem(tmp_path, tresc):
     (tmp_path / "scripts").mkdir()
     # Atrapa testów: sprawdzamy tylko blokadę znacznika, nie prawdziwe testy kruczka.
     (tmp_path / "scripts" / "run_tests.py").write_text("raise SystemExit(0)\n")
-    shutil.copy(HOOK, tmp_path / "pre-commit")
+    shutil.copytree(HOOK.parent, tmp_path / ".githooks")
     (tmp_path / "PLAN.md").write_text(tresc, encoding="utf-8")
     subprocess.run(["git", "add", "PLAN.md", "scripts"], cwd=tmp_path, check=True)
 
@@ -21,7 +23,7 @@ def _repo_z_plikiem(tmp_path, tresc):
 def _uruchom_hook(tmp_path):
     # PATH bez uv — hook bierze wtedy python3 z systemu, bez pobierania interpretera.
     return subprocess.run(
-        ["/bin/bash", str(tmp_path / "pre-commit")],
+        ["/bin/bash", str(tmp_path / ".githooks" / "pre-commit")],
         cwd=tmp_path,
         env={"PATH": "/usr/bin:/bin", "HOME": str(tmp_path)},
         capture_output=True,
@@ -30,9 +32,13 @@ def _uruchom_hook(tmp_path):
     )
 
 
-def test_plik_ze_znacznikiem_wstrzymuje_commit(tmp_path):
+@pytest.mark.parametrize(
+    "znacznik",
+    ["Nie commitować, nie wypychać.", "NIE COMMITOWAĆ", "Do not commit."],
+)
+def test_plik_ze_znacznikiem_wstrzymuje_commit(tmp_path, znacznik):
     # Arrange
-    _repo_z_plikiem(tmp_path, "**Status:** dokument roboczy, lokalny. Nie commitować, nie wypychać.\n")
+    _repo_z_plikiem(tmp_path, f"**Status:** dokument roboczy, lokalny. {znacznik}\n")
 
     # Act
     wynik = _uruchom_hook(tmp_path)
@@ -51,6 +57,19 @@ def test_plik_bez_znacznika_przechodzi(tmp_path):
 
     # Assert
     assert wynik.returncode == 0, wynik.stdout
+
+
+def test_blad_sprawdzania_wstrzymuje_commit(tmp_path):
+    # Arrange
+    _repo_z_plikiem(tmp_path, "# Plan\n\nZwykły dokument.\n")
+    (tmp_path / ".git" / "index").write_bytes(b"uszkodzony indeks")
+
+    # Act
+    wynik = _uruchom_hook(tmp_path)
+
+    # Assert
+    assert wynik.returncode == 1
+    assert "nie udało się sprawdzić" in wynik.stdout
 
 
 def test_plany_w_katalogu_glownym_sa_ignorowane():
