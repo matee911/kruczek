@@ -242,7 +242,8 @@ class TestHost(unittest.TestCase):
         self.assertIsNone(czysty_url(ocena, [ODBIORCA]))
 
     def test_publiczny_adres_ip_i_jawny_port_zapytaj(self):
-        for url in ("https://8.8.8.8/oferta", "https://[2001:4860:4860::8888]/oferta", "https://firma-x.example:8443/oferta"):
+        for url in ("https://8.8.8.8/oferta", "https://[2001:4860:4860::8888]/oferta", "https://firma-x.example:8443/oferta",
+                    "https://firma-x.example:99999/oferta"):
             with self.subTest(url):
                 # Act
                 ocena = ocen_link(url, [ODBIORCA])
