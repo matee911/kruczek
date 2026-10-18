@@ -2,6 +2,7 @@
 # archiwa.sh — komendy Wayback Machine, CDX API
 # Użycie: archiwa.sh <tryb> [argumenty] --kontakt <e-mail>
 #   lokalnie <url> <outdir>             — WŁASNA kopia: treść + nagłówki + SHA-256 + metryczka
+#                                        User-Agent przeglądarki — bez kontaktu, nazwy narzędzia i modelu
 #   save    <url>                        — Save Page Now (niezależne poświadczenie IA)
 #   pobierz <url> <timestamp> <outdir>  — surowa kopia bez pasków Wayback
 #   historia <url>                       — CDX: snapshoty, po jednym na każdą zmianę digestu
@@ -39,6 +40,10 @@ done
 set -- "${ARGS[@]+"${ARGS[@]}"}"
 
 UA="kruczek/${VERSION} (+${CONTACT:-brak-kontaktu}; ${KRUCZEK_MODEL:-claude})"
+# `lokalnie` pobiera stronę prosto z serwera drugiej strony. User-Agent z kontaktem, nazwą narzędzia
+# i modelem mówiłby jej, kto i czym zbiera dowód (a z --kontakt — podawał Twój adres), więc tam idzie
+# zwykły nagłówek przeglądarki. Metryczka zrzutu zapisuje, jakiego użyto.
+UA_LOKALNY="Mozilla/5.0 (X11; Linux x86_64; rv:153.0) Gecko/20100101 Firefox/153.0"
 
 # Kontaktu wymagają wyłącznie tryby uderzające w archive.org — to ICH polityka botów.
 # Tryb `lokalnie` pobiera stronę bezpośrednio i musi działać bez żadnej konfiguracji pod IA:
@@ -87,7 +92,9 @@ case "$MODE" in
     # -D: nagłówki do osobnego pliku; -w: łańcuch przekierowań i realny kod odpowiedzi.
     # Bez -f: stronę błędu 4xx/5xx TEŻ chcemy zachować (sama w sobie bywa dowodem),
     # ale zapisujemy wtedy jawnie jej kod, żeby nikt nie wziął jej za treść właściwą.
-    HTTP=$(curl -sSL --max-time 60 -A "$UA" -D "${BASE}.naglowki.txt" \
+    # --compressed: serwer albo CDN może odpowiedzieć gzipem (Content-Encoding) — bez rozpakowania w teczce
+    # lądowałyby skompresowane bajty pod nazwą .html i z ich sumą. Nagłówki zostają takie, jak przyszły.
+    HTTP=$(curl -sSL --compressed --max-time 60 -A "$UA_LOKALNY" -D "${BASE}.naglowki.txt" \
              -w '%{http_code} %{url_effective}' -o "${BASE}.html" "$URL") || {
       echo "BŁĄD: nie udało się pobrać $URL — nic nie zapisano." >&2
       rm -f "${BASE}.html" "${BASE}.naglowki.txt"
@@ -104,7 +111,8 @@ case "$MODE" in
 | URL końcowy (po przekierowaniach) | ${KONCOWY} |
 | Kod odpowiedzi | ${KOD} |
 | Data i godzina pobrania | $(date -u +%FT%TZ) (UTC) |
-| Metoda | curl, User-Agent: \`${UA}\` |
+| Metoda | curl, User-Agent: \`${UA_LOKALNY}\` |
+| Treść | rozpakowana przez curl (\`--compressed\`), jeśli serwer ją skompresował; nagłówki w \`.naglowki.txt\` bez zmian |
 | Plik treści | \`$(basename "${BASE}.html")\` |
 | SHA-256 treści | \`${HASH}\` |
 | Nagłówki odpowiedzi | \`$(basename "${BASE}.naglowki.txt")\` |
@@ -166,17 +174,41 @@ META
     echo "Pobieram: https://web.archive.org/web/${TIMESTAMP}id_/${URL}"
     # -f: kod HTTP 4xx/5xx ma być błędem, nie treścią pliku. Bez tego do ARCHIWUM trafiała
     # strona błędu albo plik pusty — i dostawała sumę kontrolną jak prawdziwy dowód.
-    if ! curl -sfL --max-time 120 -A "$UA" "https://web.archive.org/web/${TIMESTAMP}id_/${URL}" -o "$OUTFILE"; then
+    # --compressed: snapshot `id_` przychodzi z kodowaniem z chwili zapisu (często gzip) — bez rozpakowania
+    # do ARCHIWUM trafiały skompresowane bajty pod nazwą .html i z ich sumą.
+    # `|| { RC=$?; … }`, nie `if ! …`: po negacji `$?` to zawsze 0 i komunikat podawał „curl 0”.
+    TYP=$(curl -sfL --compressed --max-time 120 -A "$UA" -w '%{content_type}' \
+            "https://web.archive.org/web/${TIMESTAMP}id_/${URL}" -o "$OUTFILE") || {
       RC=$?
       rm -f "$OUTFILE"
       echo "BŁĄD: nie udało się pobrać snapshotu (curl ${RC}); nic nie zapisano." >&2
       echo "Sprawdź, czy timestamp ${TIMESTAMP} istnieje: archiwa.sh historia \"${URL}\"" >&2
       exit 1
-    fi
+    }
+    TYP=$(printf '%s' "$TYP" | tr '[:upper:]' '[:lower:]')
     if [ ! -s "$OUTFILE" ]; then
       rm -f "$OUTFILE"
       echo "BŁĄD: snapshot pobrał się pusty; nic nie zapisano." >&2
       exit 1
+    fi
+    if [ "$(head -c2 "$OUTFILE" | od -An -tx1 | tr -d ' \n')" = "1f8b" ] && [[ "$TYP" != *gzip* ]]; then
+      rm -f "$OUTFILE"
+      echo "BŁĄD: snapshot zapisał się skompresowany (gzip), a typ to ${TYP}; nic nie zapisano." >&2
+      exit 1
+    fi
+    case "$TYP" in
+      text/html*) ROZ=html ;;
+      application/pdf*) ROZ=pdf ;;
+      image/png*) ROZ=png ;;
+      image/jpeg*) ROZ=jpg ;;
+      image/webp*) ROZ=webp ;;
+      text/plain*) ROZ=txt ;;
+      application/json*) ROZ=json ;;
+      *) ROZ=html; echo "UWAGA: typ „${TYP}” — zapisuję jako .html, sprawdź plik." >&2 ;;
+    esac
+    if [ "$ROZ" != html ]; then
+      mv "$OUTFILE" "${OUTFILE%.html}.${ROZ}"
+      OUTFILE="${OUTFILE%.html}.${ROZ}"
     fi
     HASH=$(sha256 "$OUTFILE")
     echo "Zapisano: $OUTFILE"
