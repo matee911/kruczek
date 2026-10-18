@@ -5,10 +5,38 @@ wersjonowanie wg [SemVer](https://semver.org/lang/pl/).
 
 ## [Unreleased]
 
+## [0.10.3] — 2026-10-18
+
 ### Dodane
 - Hak `pre-commit` (dla rozwijających kruczka) zatrzymuje commit, gdy któryś plik ma w treści oznaczenie
   zakazu commitu, a `PLAN-*.md` w katalogu głównym repo jest w `.gitignore`. Robocze notatki z danymi spraw
   zostają lokalnie, zamiast trafić do publicznego repo.
+
+### Poprawione
+- `/kruczek:dowod` nie otwiera już linków z dodanego pliku na ślepo. Nowy skrypt `linki_dowodu.py` wypisuje
+  listę linków z rekomendacją `ARCHIWIZUJ`, `ZAPYTAJ` albo `NIE_ARCHIWIZUJ` i powodem (Twój adres, imię
+  i nazwisko albo nazwa Twojej domeny w linku, adres w sieci lokalnej,
+  token z zakodowanym adresem, link wypisania, obrazek pobierany przy otwarciu wiadomości, identyfikator
+  w ścieżce albo w nazwie hosta, parametry). `ARCHIWIZUJ` dostaje tylko link ze ścieżką z samych słów, bez
+  parametrów i bez cyfr w nazwie hosta. Komenda archiwizuje linki `ARCHIWIZUJ` (kopia lokalna i Wayback
+  Machine), o linki `ZAPYTAJ` pyta i po zgodzie zabezpiecza je tak samo, a linków `NIE_ARCHIWIZUJ` nie otwiera.
+  Gdy z linku widać adres strony bez Twojego identyfikatora — ten sam link bez parametrów (np. `?utm_source=…`
+  albo Twój adres w parametrze) albo strona docelowa podana w parametrze przekierowania — trafia on do kopii
+  lokalnej i Wayback bez pytania. Link przez tracker bez adresu docelowego tego nie daje: stronę oferty
+  odsłania dopiero otwarcie linku, więc decyzja zostaje przy Tobie. Linków do sieci lokalnej (`localhost`,
+  `router.local`, adresy prywatne) komenda nie otwiera wcale. Wcześniej każdy link
+  z maila trafiał do kopii lokalnej i do Wayback Machine — link ze spamu potrafił potwierdzić nadawcy aktywną
+  skrzynkę i opublikować zakodowany w nim adres.
+- `archiwa.sh lokalnie` pobiera stronę ze zwykłym nagłówkiem przeglądarki. Wcześniej User-Agent mówił
+  serwerowi drugiej strony, że stronę pobiera kruczek i którym modelem, a z `--kontakt` podawał Twój e-mail.
+  Tryby Internet Archive (`save`, `pobierz`, `historia`, `cdx-url`) dalej wysyłają kontakt, którego wymaga
+  archive.org. Metryczka zrzutu zapisuje użyty nagłówek. Odpowiedź skompresowaną przez serwer zapisuje
+  rozpakowaną, a metryczka to zaznacza.
+- `archiwa.sh pobierz` zapisuje snapshot z Wayback Machine rozpakowany i z rozszerzeniem według typu (`.pdf`,
+  `.png`, `.jpg`, `.webp`, `.txt`, `.json`; inny typ — `.html` z ostrzeżeniem). Wcześniej strona zarchiwizowana
+  z kompresją trafiała do teczki jako bajty gzip pod nazwą `.html`, z sumą tych bajtów, a każdy PDF dostawał
+  rozszerzenie `.html`. Komunikat o nieudanym pobraniu podaje prawdziwy kod błędu curla (wcześniej zawsze 0).
+  Typ treści rozpoznaje bez względu na wielkość liter.
 
 ## [0.10.2] — 2026-10-17
 

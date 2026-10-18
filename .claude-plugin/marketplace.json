@@ -10,7 +10,7 @@
     {
       "name": "kruczek",
       "source": "./",
-      "version": "0.10.2",
+      "version": "0.10.3",
       "description": "Teczka sprawy, archiwum dowodów z sumami kontrolnymi, pisma z cytatami ze źródeł urzędowych, baza wiedzy.",
       "category": "productivity",
       "keywords": [
