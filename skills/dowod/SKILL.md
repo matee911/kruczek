@@ -5,7 +5,7 @@ argument-hint: "[ścieżka do pliku] [katalog sprawy]"
 disable-model-invocation: true
 model: haiku
 effort: low
-allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/eml_forensics.py *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/manifest.py *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/metadane.sh *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/archiwa.sh *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/teczka.py *) Bash(cp *) Bash(mkdir *) Bash(sha256sum *) Bash(file *) Bash(ls *) Bash(qpdf *) Bash(unzip *) Bash(7z *) Read Write Edit AskUserQuestion
+allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/scripts/eml_forensics.py *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/manifest.py *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/metadane.sh *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/archiwa.sh *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/linki_dowodu.py *) Bash(${CLAUDE_PLUGIN_ROOT}/scripts/teczka.py *) Bash(cp *) Bash(mkdir *) Bash(sha256sum *) Bash(file *) Bash(ls *) Bash(qpdf *) Bash(unzip *) Bash(7z *) Read Write Edit AskUserQuestion
 ---
 
 # Wciągnięcie dowodu do archiwum
@@ -79,9 +79,8 @@ Jeśli wiadomość **sama jest oświadczeniem woli** (zawarcie, zmiana, wypowied
 potwierdzenie umowy zawartej przez telefon) — zleć też `sprawdz-forme` (sonnet): e-mail to
 najwyżej forma dokumentowa, a część czynności wymaga więcej.
 
-Wyciągnij domeny z nagłówków (From, Reply-To, Return-Path, Received):
-- Dla każdej **nowej** domeny (nie widzianej wcześniej w sprawie) → wywołaj `/kruczek:archiwa <domena>`
-- Wygeneruj zapytania Gmail → zleć `/kruczek:gmail` z domenami z nagłówków
+Linki i domeny z wiadomości zabezpieczasz według kroku 6. Zapytania Gmail: zleć `/kruczek:gmail` z domenami
+z adresów From, Reply-To i Return-Path.
 
 ### `.pdf` / `.docx` / `.xlsx`
 
@@ -119,21 +118,57 @@ Zleć subagentowi `transkrybuj` (sonnet). Jeśli skan przedstawia umowę lub oś
 po transkrypcji zleć `sprawdz-forme`: skan dowodzi istnienia podpisanego oryginału, ale sam
 nim nie jest.
 
-## 6. URL w treści pliku → natychmiast archiwizuj
+## 6. Linki i domeny z pliku — lista z rekomendacją, potem archiwizacja
 
-Dla **każdego** nowego URL znalezionego w pliku (w .eml, w PDF, w fakturze):
+Link w pliku od drugiej strony (mail, zwłaszcza spam i mailing, PDF, zrzut strony) bywa spersonalizowany:
+niesie Twój adres wprost, w zakodowanym tokenie albo w krótkim identyfikatorze, albo jest linkiem wypisania.
+Otwarcie go potwierdza nadawcy, że skrzynka działa, a snapshot w Wayback Machine publikuje adres. Czy link
+zabezpieczyć, rozstrzyga kod:
+
+```bash
+${CLAUDE_PLUGIN_ROOT}/scripts/linki_dowodu.py <sprawa>/ARCHIWUM/<plik> --odbiorca <e-mail> [--odbiorca <drugi e-mail>] --nazwa "<imię i nazwisko>"
+```
+
+Plik: `.eml` i `.html` wprost. Inny dokument (PDF, skan, zrzut ekranu) ma linki dopiero w wersji tekstowej, więc
+dla niego krok 6 wykonujesz po kroku 7, na pliku `_tekst.md`. `--odbiorca`: oba e-maile użytkownika
+z `_SZABLONY/dane-nadawcy.md` (główny i w sprawach spornych), `--nazwa`: jego imię i nazwisko stamtąd;
+odbiorców i ich nazwy z nagłówków `.eml` skrypt dokłada sam.
+Wynik to JSON o stałym kształcie. Postępuj według pola `rekomendacja` — przy linkach i przy stronach głównych
+z `domeny` — nie zmieniaj jej i nie otwieraj linku inaczej, niż ona mówi:
+
+| `rekomendacja` | Co robisz |
+|---|---|
+| `ARCHIWIZUJ` | zabezpieczasz go z listy `do_archiwizacji` (niżej), nie osobno |
+| `ZAPYTAJ` | wszystkie takie linki w jednym pytaniu AskUserQuestion (niżej); po zgodzie `/kruczek:archiwa <url>` — kopia lokalna i Save Page Now |
+| `NIE_ARCHIWIZUJ` | nie otwierasz, nie archiwizujesz, nie podajesz do `save`; w raporcie wypisujesz z polem `powody` |
+
+Lista `do_archiwizacji` to linki `ARCHIWIZUJ` i adresy stron bez Twojego identyfikatora (`czysty_url`: link
+bez parametrów albo strona docelowa podana w parametrze przekierowania), bez powtórzeń. Każdy adres z tej listy
+zabezpiecz `/kruczek:archiwa <url>` bez pytania — tak strona oferty trafia do Wayback, choć sam link z maila nie.
+Strony główne z `domeny`, które już są na liście, pomijasz. Link przez tracker bez adresu docelowego ma
+`czysty_url` równe `null`: strony oferty nie da się odsłonić bez użycia linku, więc decyduje pytanie niżej.
+
+Pytanie o linki `ZAPYTAJ`: wypisz je z polem `powody` i powiedz wprost, że otwarcie linku może potwierdzić
+nadawcy, że Twój adres działa, a Save Page Now publikuje link razem z jego identyfikatorem i stronę, którą ten
+link pokazuje — spersonalizowana strona może zawierać Twoje dane. Przy powodzie `DANE_ODBIORCY` powiedz wprost:
+link zawiera Twoje imię i nazwisko albo nazwę Twojej domeny, a Save Page Now je opublikuje. Opcje w tej
+kolejności: „żaden (zalecane)”, „wskażę które”, „wszystkie”.
+
+Strony główne z `domeny` zabezpieczasz tylko dla domen nowych w sprawie. Jeśli uważasz, że rekomendacja jest
+zła — powiedz to użytkownikowi; link `NIE_ARCHIWIZUJ` otwierasz tylko na jego wyraźną prośbę i tylko kopią
+lokalną.
+
+**URL podany przez użytkownika albo ustalony poza plikiem** (np. strona firmy z rejestru) zabezpiecz od razu,
+przed analizą. Linki wyciągnięte z pliku idą wyłącznie przez `linki_dowodu.py` i listę wyżej.
 ```bash
 # 1. WŁASNA kopia — fundament, zawsze:
 ${CLAUDE_PLUGIN_ROOT}/scripts/archiwa.sh lokalnie "<url>" <sprawa>/ARCHIWUM
 # 2. Niezależne poświadczenie IA — jeśli się uda:
 ${CLAUDE_PLUGIN_ROOT}/scripts/archiwa.sh save "<url>" --kontakt "<e-mail nadawcy>"
 ```
-Nie czekaj na analizę — najpierw zabezpiecz treść, potem czytaj.
-
-**Kolejność jest istotna.** Wayback bywa niedostępny, zwraca błędy i może odmówić zapisu —
-nie może być jedynym miejscem, w którym istnieje dowód. `lokalnie` nie wymaga `--kontakt`
-ani żadnej konfiguracji i zapisuje treść, nagłówki, kod HTTP, łańcuch przekierowań i SHA-256.
-Nieudany `save` **nie jest** porażką zabezpieczenia dowodu — odnotuj go i idź dalej.
+Wayback bywa niedostępny, zwraca błędy i może odmówić zapisu — nie może być jedynym miejscem, w którym istnieje
+dowód. `lokalnie` nie wymaga `--kontakt` ani żadnej konfiguracji i zapisuje treść, nagłówki, kod HTTP, łańcuch
+przekierowań i SHA-256. Nieudany `save` **nie jest** porażką zabezpieczenia dowodu — odnotuj go i idź dalej.
 
 `--kontakt` (tylko dla `save`) to e-mail w sprawach spornych z `_SZABLONY/dane-nadawcy.md`.
 Gdy dane nadawcy są puste — zrób sam zrzut lokalny, a `save` zapisz jako zadanie: `teczka.py zadanie <sprawa> "Wayback save: <url>"`.
@@ -206,6 +241,7 @@ Plik:       <nazwa>
 SHA-256:    <hash>
 Wykryto:    <typ>
 Wywołano:   <co uruchomiono — archiwa? metadane? forensyk? sprawdz-klauzule? sprawdz-forme?>
+Linki:      <N>: ARCHIWIZUJ <a>, ZAPYTAJ <b> (zabezpieczone za zgodą: <c>), NIE_ARCHIWIZUJ <d>; adresy stron bez identyfikatora: <e>
 Pewność:    dowód
 ⚠ Brakuje: <sugestia jeśli jest>
 ```
