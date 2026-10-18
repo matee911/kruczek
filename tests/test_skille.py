@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 from build_pismo_logic import DOZWOLONE_ZNACZNIKI
+from linki_dowodu import Rekomendacja
 
 KORZEN = Path(__file__).resolve().parent.parent
 SKILLE = KORZEN / "skills"
@@ -205,15 +206,36 @@ def test_pismo_przekazuje_agentowi_wzor_i_konwencje_jako_bezwzgledne_sciezki():
     assert "Zastrzeżenie" in agent
 
 
-def test_pismo_wywoluje_tylko_skrypty_z_allowed_tools():
-    # Arrange
-    pola, tresc = _skill("pismo")
+SKILLE_Z_LISTA_SKRYPTOW = ["dowod", "pismo"]
+
+
+@pytest.mark.parametrize("nazwa", SKILLE_Z_LISTA_SKRYPTOW)
+def test_skill_wywoluje_tylko_skrypty_z_allowed_tools(nazwa):
+    # Arrange — skrypt spoza allowed-tools to pytanie o zgodę w środku komendy
+    pola, tresc = _skill(nazwa)
     # Act
     skrypt = r"\b([A-Za-z_-]+\.(?:sh|py))\b"
     uzyte = set(re.findall(skrypt, tresc))
     dozwolone = set(re.findall(skrypt, pola["allowed-tools"]))
     # Assert
     assert uzyte - dozwolone == set()
+
+
+def test_dowod_archiwizuje_linki_wedlug_rekomendacji_z_kodu():
+    # Arrange — link ze spamu potrafi nieść adres odbiorcy; czy go otworzyć, rozstrzyga skrypt, nie model
+    _, tresc = _skill("dowod")
+    # Act
+    krok = _sekcja(tresc, 6)
+    tabela = set(re.findall(r"^\| `([A-Z_]+)` \|", krok, re.MULTILINE))
+    jednym_ciagiem = " ".join(krok.split())
+    # Assert
+    assert "linki_dowodu.py" in krok
+    assert tabela == {r.value for r in Rekomendacja}
+    assert "`do_archiwizacji`" in jednym_ciagiem and "bez pytania" in jednym_ciagiem and "--nazwa" in krok
+    assert "AskUserQuestion" in jednym_ciagiem and "bez `save`" not in jednym_ciagiem
+    assert "nie zmieniaj jej" in jednym_ciagiem
+    assert "„żaden (zalecane)”" in jednym_ciagiem and "po kroku 7" in jednym_ciagiem
+    assert "ze strony publicznej" not in jednym_ciagiem and "wyłącznie przez `linki_dowodu.py`" in jednym_ciagiem
 
 
 def test_pismo_kopiuje_tresc_przed_poprawka_i_dzieli_limit_rundy_z_krokiem_5():
@@ -290,3 +312,13 @@ def test_pismo_odsyla_blad_niedozwolonego_html_do_agenta_raz_a_potem_pyta_usera(
     assert "nie liczy się do rundy z kroku 8" in blad
     assert "nie edytuj `tresc.html` sam" in blad
     assert "Najwyżej jedna" in blad and "AskUserQuestion" in blad
+
+
+def test_dowod_raport_nazywa_adresy_bez_identyfikatora_a_nie_bez_parametrow():
+    # Arrange — `czysty_url` to też strona docelowa przekierowania, więc „bez parametrów” opisuje go błędnie
+    _, tresc = _skill("dowod")
+    # Act
+    raport = _sekcja(tresc, 11)
+    # Assert
+    assert "adresy stron bez identyfikatora: <e>" in raport
+    assert "adresy bez parametrów" not in raport
